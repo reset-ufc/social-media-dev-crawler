@@ -14,20 +14,20 @@ personal_token = "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"
 github_token = os.getenv('GITHUB_TOKEN', personal_token)
 github_headers = {'Authorization': f'token {github_token}'}
 
-desired_width=640
+desired_width = 640
 pd.set_option('display.width', desired_width)
 np.set_printoptions(linewidth=desired_width)
-pd.set_option('display.max_columns',25)
+pd.set_option('display.max_columns', 25)
 
 #key = "89B5kN5OqCqblqKTWBKkjA(("
 #key2 = "luNgbAqlXjNtw499eJrSBA(("
-key = "5ZGZNs2u1)g*lwae8gOtEA(("
+key = "rl_J7pzw9qHytdmEgM2VvSN5A2sk"
 
 STACKEXCHANGE = "https://api.stackexchange.com/"
 VERSION = "2.3/"
-endpoint = STACKEXCHANGE+VERSION+'search/advanced'
+endpoint = STACKEXCHANGE + VERSION + 'search/advanced'
 
-question_features = ['tag','question_id', 'accepted_answer_id', 'answer_count', 'creation_date',
+question_features = ['tag', 'question_id', 'accepted_answer_id', 'answer_count', 'creation_date',
                      'is_answered', 'last_activity_date', 'last_edit_date', 'owner_id',
                      'owner_reputation', 'score', 'view_count', 'title', 'body']
 answer_features = ['tag', 'answer_id', 'question_id', 'comment_count', 'creation_date', 'is_accepted',
@@ -37,15 +37,16 @@ comment_features = ['tag', 'comment_id', 'answer_id', 'question_id', 'creation_d
 
 
 def initiateCSVs():
-    with open('questions.csv', 'a') as csvfile:
+    with open('questions.csv', 'a', encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         writer.writerow(question_features)
-    with open('answers.csv', 'a') as csvfile:
+    with open('answers.csv', 'a', encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         writer.writerow(answer_features)
-    with open('comments.csv', 'a') as csvfile:
+    with open('comments.csv', 'a', encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         writer.writerow(comment_features)
+
 
 def getStackOverFlowDataset(toollist):
     paramsorigin = {
@@ -58,23 +59,23 @@ def getStackOverFlowDataset(toollist):
     theQuery = STACKEXCHANGE + VERSION + 'search/advanced'
     for tool in toollist:
         toolsearch = tool
-        print("----> "+toolsearch)
+        print("----> " + toolsearch)
         for searcharea in ['title', 'body']:
-            print("----> "+searcharea)
+            print("----> " + searcharea)
             params = paramsorigin.copy()
             has_more = 1
             params['page'] = 0
             params[searcharea] = toolsearch
             while has_more:
                 params['page'] = params['page'] + 1
-                print("----> Page "+str(params['page']))
+                print("----> Page " + str(params['page']))
                 theResult = requests.get(theQuery, params=params)
                 thejson = theResult.json()
                 questionslist = thejson['items']
                 count = 0
                 for question in questionslist:
                     count = count + 1
-                    print("----> Question "+str(count))
+                    print("----> Question " + str(count))
                     questionitem = []
                     # ['toolname','question_id', 'accepted_answer_id', 'answer_count', 'creation_date',
                     # 'is_answered', 'last_activity_date', 'last_edit_date', 'owner_id'
@@ -94,11 +95,13 @@ def getStackOverFlowDataset(toollist):
                         datetime.datetime.fromtimestamp(question['creation_date']).strftime('%Y/%m/%d, %H:%M:%S'))
                     questionitem.append(question['is_answered'])
                     try:
-                        questionitem.append(datetime.datetime.fromtimestamp(question['last_activity_date']).strftime('%Y/%m/%d, %H:%M:%S'))
+                        questionitem.append(datetime.datetime.fromtimestamp(question['last_activity_date']).strftime(
+                            '%Y/%m/%d, %H:%M:%S'))
                     except KeyError:
                         questionitem.append(np.NaN)
                     try:
-                        questionitem.append(datetime.datetime.fromtimestamp(question['last_edit_date']).strftime('%Y/%m/%d, %H:%M:%S'))
+                        questionitem.append(
+                            datetime.datetime.fromtimestamp(question['last_edit_date']).strftime('%Y/%m/%d, %H:%M:%S'))
                     except KeyError:
                         questionitem.append(np.NaN)
                     try:
@@ -113,7 +116,7 @@ def getStackOverFlowDataset(toollist):
                     questionitem.append(question['view_count'])
                     questionitem.append(question['title'])
                     questionitem.append(question['body'])
-                    with open('questions.csv', 'a') as csvfile:
+                    with open('questions.csv', 'a', encoding="utf-8") as csvfile:
                         writer = csv.writer(csvfile, delimiter=',')
                         writer.writerow(questionitem)
                     if question['answer_count'] > 0:
@@ -130,7 +133,9 @@ def getStackOverFlowDataset(toollist):
                                 datetime.datetime.fromtimestamp(answer['creation_date']).strftime('%Y/%m/%d, %H:%M:%S'))
                             answeritem.append(answer['is_accepted'])
                             try:
-                                answeritem.append(datetime.datetime.fromtimestamp(answer['last_activity_date']).strftime('%Y/%m/%d, %H:%M:%S'))
+                                answeritem.append(
+                                    datetime.datetime.fromtimestamp(answer['last_activity_date']).strftime(
+                                        '%Y/%m/%d, %H:%M:%S'))
                             except KeyError:
                                 answeritem.append(np.NaN)
                             try:
@@ -143,7 +148,7 @@ def getStackOverFlowDataset(toollist):
                                 answeritem.append(np.NaN)
                             answeritem.append(answer['score'])
                             answeritem.append(answer['body'])
-                            with open('answers.csv', 'a') as csvfile:
+                            with open('answers.csv', 'a', encoding="utf-8") as csvfile:
                                 writer = csv.writer(csvfile, delimiter=',')
                                 writer.writerow(answeritem)
                     else:
@@ -152,5 +157,10 @@ def getStackOverFlowDataset(toollist):
             else:
                 continue
 
+
 def getMonth(thestring):
     return '-'.join(str(pd.to_datetime(thestring)).split()[0].split('-')[:2])
+
+
+initiateCSVs()
+getStackOverFlowDataset(['Python'])
