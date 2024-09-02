@@ -555,3 +555,5 @@ def continueCrawl(thetag, user):
 
 makeFlagCSV('technical-debt', 'xiaozhouli')
 #continueCrawl('technical-debt', 'xiaozhouli')
+getArticleUrlListwithTagYearCheck('python', 2022)
+
