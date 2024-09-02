@@ -553,7 +553,7 @@ def continueCrawl(thetag, user):
         #break
 
 
-makeFlagCSV('technical-debt', 'xiaozhouli')
+makeFlagCSV('python', 'technical-debt', 2022)
 #continueCrawl('technical-debt', 'xiaozhouli')
-getArticleUrlListwithTagYearCheck('python', 2022)
+
 
