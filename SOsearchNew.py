@@ -71,15 +71,16 @@ def getStackOverFlowDataset(toollist):
                 print("----> Page " + str(params['page']))
                 theResult = requests.get(theQuery, params=params)
                 thejson = theResult.json()
+                print(thejson)
                 questionslist = thejson['items']
                 count = 0
                 for question in questionslist:
                     count = count + 1
                     print("----> Question " + str(count))
                     questionitem = []
-                    # ['toolname','question_id', 'accepted_answer_id', 'answer_count', 'creation_date',
-                    # 'is_answered', 'last_activity_date', 'last_edit_date', 'owner_id'
-                    # 'owner_reputation', 'score', 'view_count', 'title', 'body']
+                    ['toolname','question_id', 'accepted_answer_id', 'answer_count', 'creation_date',
+                    'is_answered', 'last_activity_date', 'last_edit_date', 'owner_id'
+                    'owner_reputation', 'score', 'view_count', 'title', 'body']
                     #toolname, question_id, accepted_answer_id, answer_count, creation_date,
                     # is_answered, last_activity_date, last_edit_date, owner_id,
                     # owner_reputation, score, view_count, title, body
@@ -89,7 +90,7 @@ def getStackOverFlowDataset(toollist):
                     try:
                         questionitem.append(question['accepted_answer_id'])
                     except KeyError:
-                        questionitem.append(np.NaN)
+                        questionitem.append(np.nan)
                     questionitem.append(question['answer_count'])
                     questionitem.append(
                         datetime.datetime.fromtimestamp(question['creation_date']).strftime('%Y/%m/%d, %H:%M:%S'))
@@ -98,20 +99,20 @@ def getStackOverFlowDataset(toollist):
                         questionitem.append(datetime.datetime.fromtimestamp(question['last_activity_date']).strftime(
                             '%Y/%m/%d, %H:%M:%S'))
                     except KeyError:
-                        questionitem.append(np.NaN)
+                        questionitem.append(np.nan)
                     try:
                         questionitem.append(
                             datetime.datetime.fromtimestamp(question['last_edit_date']).strftime('%Y/%m/%d, %H:%M:%S'))
                     except KeyError:
-                        questionitem.append(np.NaN)
+                        questionitem.append(np.nan)
                     try:
                         questionitem.append(question['owner']['user_id'])
                     except KeyError:
-                        questionitem.append(np.NaN)
+                        questionitem.append(np.nan)
                     try:
                         questionitem.append(question['owner']['reputation'])
                     except KeyError:
-                        questionitem.append(np.NaN)
+                        questionitem.append(np.nan)
                     questionitem.append(question['score'])
                     questionitem.append(question['view_count'])
                     questionitem.append(question['title'])
@@ -137,15 +138,15 @@ def getStackOverFlowDataset(toollist):
                                     datetime.datetime.fromtimestamp(answer['last_activity_date']).strftime(
                                         '%Y/%m/%d, %H:%M:%S'))
                             except KeyError:
-                                answeritem.append(np.NaN)
+                                answeritem.append(np.nan)
                             try:
                                 answeritem.append(answer['owner']['reputation'])
                             except KeyError:
-                                answeritem.append(np.NaN)
+                                answeritem.append(np.nan)
                             try:
                                 answeritem.append(answer['owner']['user_id'])
                             except KeyError:
-                                answeritem.append(np.NaN)
+                                answeritem.append(np.nan)
                             answeritem.append(answer['score'])
                             answeritem.append(answer['body'])
                             with open('answers.csv', 'a', encoding="utf-8") as csvfile:
