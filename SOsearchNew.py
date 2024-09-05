@@ -71,7 +71,6 @@ def getStackOverFlowDataset(toollist):
                 print("----> Page " + str(params['page']))
                 theResult = requests.get(theQuery, params=params)
                 thejson = theResult.json()
-                print(thejson)
                 questionslist = thejson['items']
                 count = 0
                 for question in questionslist:
