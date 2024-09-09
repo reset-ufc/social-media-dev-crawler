@@ -411,7 +411,17 @@ def get_directory(year, month):
         os.makedirs(path)
     return path
 
+data = {
+    'AssignedTo': [],  # Usuários
+    'IdRun': [],       # IDs 
+    'Year': [],        # O Ano 
+    'Month': [],       # Os Meses
+    'Tag': [],         # A Tag
+    'Completed': []    # Arquivo completo
+}
 
+df = pd.DataFrame(data)
+df.to_csv('year_tocheck.csv', index=False)
 def WebScrapeAssignedMonth(username):
     print(f'Hi {username}!')
     df = pd.read_csv('year_tocheck.csv')
@@ -465,11 +475,8 @@ def WebScrapeAssigned(username):
         num_df_remaining = num_df_remaining - 1
         print(f"We have completed {year} dataset, now we have only to do {num_df_remaining}")
 
-
-
-
 #WebScrapeAssignedMonth('GilbertoPC1')
-#getArticleUrlListwithTag('deep-learning')
+#getArticleUrlListwithTag('technical-dept')
 #WebScrapeAssignedMonth('xiaozhou1')
 
 def makeFlagCSV(thetag, user):
