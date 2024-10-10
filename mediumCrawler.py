@@ -475,8 +475,8 @@ def WebScrapeAssigned(username):
         num_df_remaining = num_df_remaining - 1
         print(f"We have completed {year} dataset, now we have only to do {num_df_remaining}")
 
-#WebScrapeAssignedMonth('GilbertoPC1')
-#getArticleUrlListwithTag('technical-dept')
+WebScrapeAssignedMonth('Rafael')
+getArticleUrlListwithTag('technical-dept')
 #WebScrapeAssignedMonth('xiaozhou1')
 
 def makeFlagCSV(thetag, user):
