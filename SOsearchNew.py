@@ -69,8 +69,10 @@ def getStackOverFlowDataset(toollist):
             while has_more:
                 params['page'] = params['page'] + 1
                 print("----> Page " + str(params['page']))
+                print(theQuery)
                 theResult = requests.get(theQuery, params=params)
                 thejson = theResult.json()
+                print(thejson)
                 questionslist = thejson['items']
                 count = 0
                 for question in questionslist:
@@ -163,4 +165,4 @@ def getMonth(thestring):
 
 
 initiateCSVs()
-getStackOverFlowDataset(['Python'])
+getStackOverFlowDataset(["python;crypto"])

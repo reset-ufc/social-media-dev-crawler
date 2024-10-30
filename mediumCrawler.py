@@ -87,6 +87,8 @@ def getArticleUrlListwithTag(thetag):
     req = Request(theurl, headers=headers)
     html = urlopen(req).read()
     bsObj = BeautifulSoup(html, 'lxml')
+
+    print(bsObj)
     years = bsObj.find_all('div', {'class': 'timebucket u-inlineBlock u-width50'})
     # yearhrefs = [x.find('a').get('href') for x in years]
     # articleurls = []
@@ -553,7 +555,9 @@ def continueCrawl(thetag, user):
         #break
 
 
-makeFlagCSV('python', 2022)
+
+print(getArticleUrlListwithTag("python"))
+#makeFlagCSV('python', 2022)
 #continueCrawl('python', '2022')
 
 
