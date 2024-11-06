@@ -47,6 +47,23 @@ def initiateCSVs():
         writer = csv.writer(csvfile, delimiter=',')
         writer.writerow(comment_features)
 
+def save_comments_data(comments, tool):
+    with open('comments.csv', 'a', encoding="utf-8", newline='') as csvfile:
+        writer = csv.writer(csvfile, delimiter=',')
+        for comment in comments:
+            comment_data = [
+                tool,  # Tag
+                comment.get('comment_id', np.nan),
+                comment.get('answer_id', np.nan),
+                comment.get('question_id', np.nan),
+                datetime.datetime.fromtimestamp(comment['creation_date']).strftime('%Y/%m/%d, %H:%M:%S') if 'creation_date' in comment else np.nan,
+                comment.get('edited', False),
+                comment.get('owner', {}).get('reputation', np.nan),
+                comment.get('owner', {}).get('user_id', np.nan),
+                comment.get('score', np.nan),
+                comment.get('body', np.nan)
+            ]
+            writer.writerow(comment_data)
 
 def getStackOverFlowDataset(toollist):
     paramsorigin = {
@@ -85,7 +102,7 @@ def getStackOverFlowDataset(toollist):
                     #toolname, question_id, accepted_answer_id, answer_count, creation_date,
                     # is_answered, last_activity_date, last_edit_date, owner_id,
                     # owner_reputation, score, view_count, title, body
-
+                
                     questionitem.append(tool)
                     questionitem.append(question['question_id'])
                     try:
@@ -118,6 +135,10 @@ def getStackOverFlowDataset(toollist):
                     questionitem.append(question['view_count'])
                     questionitem.append(question['title'])
                     questionitem.append(question['body'])
+
+                    if 'comments' in question:
+                        save_comments_data(question['comments'], tool)
+                        
                     with open('questions.csv', 'a', encoding="utf-8") as csvfile:
                         writer = csv.writer(csvfile, delimiter=',')
                         writer.writerow(questionitem)
