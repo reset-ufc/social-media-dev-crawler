@@ -27,13 +27,13 @@ STACKEXCHANGE = "https://api.stackexchange.com/"
 VERSION = "2.3/"
 endpoint = STACKEXCHANGE + VERSION + 'search/advanced'
 
-question_features = ['tag', 'question_id', 'accepted_answer_id', 'answer_count', 'creation_date',
-                     'is_answered', 'last_activity_date', 'last_edit_date', 'owner_id',
-                     'owner_reputation', 'score', 'view_count', 'title', 'body']
+question_features = ['tag', 'question_id', 'accepted_answer_id', 'answer_count', 'creation_date', 'is_answered',
+                     'last_activity_date', 'last_edit_date', 'owner_id', 'owner_reputation', 'score', 'view_count',
+                     'title', 'body']
 answer_features = ['tag', 'answer_id', 'question_id', 'comment_count', 'creation_date', 'is_accepted',
                    'last_activity_date', 'owner_reputation', 'owner_id', 'score', 'body']
-comment_features = ['tag', 'comment_id', 'answer_id', 'question_id', 'creation_date', 'edited',
-                    'owner_reputation', 'owner_id', 'score', 'body']
+comment_features = ['tag', 'comment_id', 'post_id', 'creation_date', 'edited', 'owner_reputation', 'owner_id', 'score',
+                    'body']
 
 
 def initiateCSVs():
@@ -47,16 +47,21 @@ def initiateCSVs():
         writer = csv.writer(csvfile, delimiter=',')
         writer.writerow(comment_features)
 
+
 def save_comments_data(comments, tool):
+    #comment_features = ['tag', 'comment_id', 'answer_id', 'question_id', 'creation_date', 'edited',
+    #                   'owner_reputation', 'owner_id', 'score', 'body']
+
     with open('comments.csv', 'a', encoding="utf-8", newline='') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         for comment in comments:
             comment_data = [
                 tool,  # Tag
                 comment.get('comment_id', np.nan),
-                comment.get('answer_id', np.nan),
-                comment.get('question_id', np.nan),
-                datetime.datetime.fromtimestamp(comment['creation_date']).strftime('%Y/%m/%d, %H:%M:%S') if 'creation_date' in comment else np.nan,
+                #comment.get('answer_id', np.nan),
+                comment.get('post_id', np.nan),
+                datetime.datetime.fromtimestamp(comment['creation_date']).strftime(
+                    '%Y/%m/%d, %H:%M:%S') if 'creation_date' in comment else np.nan,
                 comment.get('edited', False),
                 comment.get('owner', {}).get('reputation', np.nan),
                 comment.get('owner', {}).get('user_id', np.nan),
@@ -64,6 +69,7 @@ def save_comments_data(comments, tool):
                 comment.get('body', np.nan)
             ]
             writer.writerow(comment_data)
+
 
 def getStackOverFlowDataset(toollist):
     paramsorigin = {
@@ -89,20 +95,17 @@ def getStackOverFlowDataset(toollist):
                 print(theQuery)
                 theResult = requests.get(theQuery, params=params)
                 thejson = theResult.json()
-                print(thejson)
+                #print(thejson)
                 questionslist = thejson['items']
                 count = 0
                 for question in questionslist:
                     count = count + 1
                     print("----> Question " + str(count))
                     questionitem = []
-                    ['toolname','question_id', 'accepted_answer_id', 'answer_count', 'creation_date',
-                    'is_answered', 'last_activity_date', 'last_edit_date', 'owner_id'
-                    'owner_reputation', 'score', 'view_count', 'title', 'body']
                     #toolname, question_id, accepted_answer_id, answer_count, creation_date,
                     # is_answered, last_activity_date, last_edit_date, owner_id,
                     # owner_reputation, score, view_count, title, body
-                
+                    #print(question)
                     questionitem.append(tool)
                     questionitem.append(question['question_id'])
                     try:
@@ -138,7 +141,7 @@ def getStackOverFlowDataset(toollist):
 
                     if 'comments' in question:
                         save_comments_data(question['comments'], tool)
-                        
+
                     with open('questions.csv', 'a', encoding="utf-8") as csvfile:
                         writer = csv.writer(csvfile, delimiter=',')
                         writer.writerow(questionitem)
@@ -171,6 +174,10 @@ def getStackOverFlowDataset(toollist):
                                 answeritem.append(np.nan)
                             answeritem.append(answer['score'])
                             answeritem.append(answer['body'])
+
+                            if 'comments' in answer:
+                                save_comments_data(answer['comments'], tool)
+
                             with open('answers.csv', 'a', encoding="utf-8") as csvfile:
                                 writer = csv.writer(csvfile, delimiter=',')
                                 writer.writerow(answeritem)
@@ -186,4 +193,6 @@ def getMonth(thestring):
 
 
 initiateCSVs()
-getStackOverFlowDataset(["python;crypto"])
+getStackOverFlowDataset(["crypto"])
+#getStackOverFlowDataset(["python", "crypto"])
+#getStackOverFlowDataset(["python;crypto"])
