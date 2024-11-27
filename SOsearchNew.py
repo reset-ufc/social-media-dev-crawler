@@ -26,7 +26,7 @@ key = "rl_J7pzw9qHytdmEgM2VvSN5A2sk"
 STACKEXCHANGE = "https://api.stackexchange.com/"
 VERSION = "2.3/"
 endpoint = STACKEXCHANGE + VERSION + 'search/advanced'
-
+  
 question_features = ['tag', 'question_id', 'accepted_answer_id', 'answer_count', 'creation_date', 'is_answered',
                      'last_activity_date', 'last_edit_date', 'owner_id', 'owner_reputation', 'score', 'view_count',
                      'title', 'body']
@@ -35,18 +35,34 @@ answer_features = ['tag', 'answer_id', 'question_id', 'comment_count', 'creation
 comment_features = ['tag', 'comment_id', 'post_id', 'creation_date', 'edited', 'owner_reputation', 'owner_id', 'score',
                     'body']
 
-
+# Function to fetch questions by tags from Stack Overflow
+def fetch_questions_by_multi_tags(tags, page=1, pagesize=50):
+    url = "https://security.stackexchange.com/2.3/questions" #https://api.stackexchange.com/2.3/questions
+    params = {
+        "order": "desc",
+        "sort": "creation",
+        "tagged": ";".join(tags),  # Combine tags with semicolon
+        "site": "stackoverflow",
+        "pagesize": pagesize,
+        "page": page
+    }
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Error: {response.status_code}, {response.text}")
+        return None
+               
 def initiateCSVs():
-    with open('questions.csv', 'a', encoding="utf-8") as csvfile:
+    with open('questions.csv', 'a', encoding="utf-8", newline='') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         writer.writerow(question_features)
-    with open('answers.csv', 'a', encoding="utf-8") as csvfile:
+    with open('answers.csv', 'a', encoding="utf-8", newline='') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         writer.writerow(answer_features)
-    with open('comments.csv', 'a', encoding="utf-8") as csvfile:
+    with open('comments.csv', 'a', encoding="utf-8", newline='') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         writer.writerow(comment_features)
-
 
 def save_comments_data(comments, tool):
     #comment_features = ['tag', 'comment_id', 'answer_id', 'question_id', 'creation_date', 'edited',
@@ -196,3 +212,5 @@ initiateCSVs()
 getStackOverFlowDataset(["crypto"])
 #getStackOverFlowDataset(["python", "crypto"])
 #getStackOverFlowDataset(["python;crypto"])
+                               
+
