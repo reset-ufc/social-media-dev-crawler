@@ -39,17 +39,16 @@ headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36',
     'Referer': 'https://steamcommunity.com/', 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'}
 
-testingurl1 = 'https://medium.com/picus-security-engineering/answers-to-faq-about-being-a-software-engineer-in-picus-ec94d3235f6a'
-testingurl2 = 'https://medium.com/@a.minaro/the-not-so-simple-life-of-data-scientists-84da4050328'
-
+#testingurl1 = 'https://medium.com/picus-security-engineering/answers-to-faq-about-being-a-software-engineer-in-picus-ec94d3235f6a'
+#testingurl2 = 'https://medium.com/@a.minaro/the-not-so-simple-life-of-data-scientists-84da4050328'
+#testingurl3 =  'https://medium.com/@cryptorand/ethereum-the-amazon-of-crypto-202da013ea9d'
 
 def readArticleLink(link):
     req = Request(link, headers=headers)
     html = urlopen(req).read()
-    # html = urlopen(link, context=context, header = )
+    #html = urlopen(link, context=context, header = )
     bsObj = BeautifulSoup(html, 'lxml')
     print(bsObj.prettify())
-
 
 def getArticleIdDateTitle(link):
     req = Request(link, headers=headers)
@@ -71,7 +70,6 @@ def getArticleDate(link):
     jsontext = json.loads(maintext)
     return jsontext['datePublished']
 
-
 def getArticleContent(link):
     req = Request(link, headers=headers)
     html = urlopen(req).read()
@@ -80,18 +78,15 @@ def getArticleContent(link):
     content = bsObj.find_all('p', {'class': 'pw-post-body-paragraph'})
     return ' '.join([x.get_text() for x in content])
 
-
 # let's run this method.
 def getArticleUrlListwithTag(thetag):
     theurl = f"https://medium.com/tag/{thetag}/archive"
     req = Request(theurl, headers=headers)
     html = urlopen(req).read()
     bsObj = BeautifulSoup(html, 'lxml')
-
-    print(bsObj)
     years = bsObj.find_all('div', {'class': 'timebucket u-inlineBlock u-width50'})
-    # yearhrefs = [x.find('a').get('href') for x in years]
-    # articleurls = []
+    #yearhrefs = [x.find('a').get('href') for x in years]
+    #articleurls = []
     with open(f"{thetag}_medium.csv", 'a') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         writer.writerow(['id', 'date', 'title', 'text'])
@@ -404,7 +399,6 @@ def makeupforbefore():
                 writer = csv.writer(csvfile, delimiter=',')
                 writer.writerow(tempinput)
 
-
 # function that return the path of the scraping directory
 # if the path doesn't exist it creates it
 def get_directory(year, month):
@@ -422,8 +416,11 @@ data = {
     'Completed': [False, False]    # Arquivo completo
 }
 
+#get_directory(data,)
+
 df = pd.DataFrame(data)
 df.to_csv('year_tocheck.csv', index=False)
+
 def WebScrapeAssignedMonth(username):
     print(f'Hi {username}!')
     df = pd.read_csv('year_tocheck.csv')
@@ -452,8 +449,6 @@ def WebScrapeAssignedMonth(username):
         num_df_remaining = num_df_remaining - 1
         print(f"We have completed {year} dataset, now we have only to do {num_df_remaining}")
 
-
-
 def WebScrapeAssigned(username):
     print(f'Hi {username}!')
     df = pd.read_csv('year_tocheck.csv')
@@ -477,9 +472,9 @@ def WebScrapeAssigned(username):
         num_df_remaining = num_df_remaining - 1
         print(f"We have completed {year} dataset, now we have only to do {num_df_remaining}")
 
-WebScrapeAssignedMonth('Rafael')
-getArticleUrlListwithTag('technical-dept')
-#WebScrapeAssignedMonth('xiaozhou1')
+WebScrapeAssignedMonth('Rafael Vieira')
+getArticleUrlListwithTag('Python')
+WebScrapeAssignedMonth('xiaozhou1')
 
 def makeFlagCSV(thetag, user):
     theurl = f"https://medium.com/tag/{thetag}/archive"
@@ -524,6 +519,7 @@ def makeFlagCSV(thetag, user):
                 except:
                     continue
 
+
 def continueCrawl(thetag, user):
     df_flag = pd.read_csv(f"./{thetag}-medium-flag.csv")
     df_flag_todo = df_flag.loc[(df_flag['complete']==0) & (df_flag['user']==user), :]
@@ -538,7 +534,7 @@ def continueCrawl(thetag, user):
         day_bsObj = BeautifulSoup(day_html, 'lxml')
         articles = [x.get('href') for x in day_bsObj.find_all('a', {
             'class': 'button button--smaller button--chromeless u-baseColor--buttonNormal'})]
-        #print(articles)
+        print(articles)
         for article in articles:
             tempinput = []
             try:
@@ -561,10 +557,5 @@ def continueCrawl(thetag, user):
         df_flag.to_csv(f"./{thetag}-medium-flag.csv", index=False)
         #break
 
-
-
-print(getArticleUrlListwithTag("python"))
-#makeFlagCSV('python', 2022)
-#continueCrawl('python', '2022')
-
-
+makeFlagCSV('Python', 2022)
+#readArticleLink(testingurl1)
