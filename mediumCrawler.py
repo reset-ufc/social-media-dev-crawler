@@ -414,12 +414,12 @@ def get_directory(year, month):
     return path
 
 data = {
-    'AssignedTo': [],  # Usuários
-    'IdRun': [],       # IDs 
-    'Year': [],        # O Ano 
-    'Month': [],       # Os Meses
-    'Tag': [],         # A Tag
-    'Completed': []    # Arquivo completo
+    'AssignedTo': ['Rafael Vieira', 'xiaozhou1'],  # Nome dos usuários
+    'IdRun': [1, 2],       # ID 
+    'Year': [2023, 2024],        # O Ano 
+    'Month': [1, 2],       # Os Meses
+    'Tag': ['Python', 'AI'],         # A Tag
+    'Completed': [False, False]    # Arquivo completo
 }
 
 df = pd.DataFrame(data)
