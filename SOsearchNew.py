@@ -36,12 +36,14 @@ comment_features = ['tag', 'comment_id', 'post_id', 'creation_date', 'edited', '
                     'body']
 
 # Function to fetch questions by tags from Stack Overflow
-def fetch_questions_by_multi_tags(tags, page=1, pagesize=50):
-    url = "https://security.stackexchange.com/2.3/questions" #https://api.stackexchange.com/2.3/questions
+search_tags = ["crypto", "python"]
+
+def fetch_tags_from_stackoverflow(tag, page=1, pagesize=50):
+    url = f"https://api.stackexchange.com/2.3/questions"
     params = {
         "order": "desc",
         "sort": "creation",
-        "tagged": ";".join(tags),  # Combine tags with semicolon
+        "tagged": tag,  # Busca por perguntas relacionadas à tag específica
         "site": "stackoverflow",
         "pagesize": pagesize,
         "page": page
@@ -50,8 +52,47 @@ def fetch_questions_by_multi_tags(tags, page=1, pagesize=50):
     if response.status_code == 200:
         return response.json()
     else:
-        print(f"Error: {response.status_code}, {response.text}")
+        print(f"Erro: {response.status_code}, {response.text}")
         return None
+
+def process_tags(data):
+    tags = []
+    for item in data.get("items", []):
+        tags.extend(item.get("tags", []))  # Adiciona todas as tags da pergunta
+    return tags
+
+# Script principal
+def main():
+    all_tags = []
+    for search_tag in search_tags:
+        print(f"Perguntas com a tag: {search_tag}")
+        page = 1
+        while True:
+            data = fetch_tags_from_stackoverflow(search_tag, page=page)
+            if not data or not data.get("items"):
+                break
+            tags = process_tags(data)
+            all_tags.extend(tags)
+            if not data.get("has_more"):
+                break
+            page += 1
+            time.sleep(1)  # Evita exceder os limites da API
+        
+    # Remove duplicatas e organiza as tags
+    unique_tags = list(set(all_tags))
+    unique_tags.sort()
+
+    # Salva as tags em um arquivo CSV
+    if unique_tags:
+        df = pd.DataFrame(unique_tags, columns=["Tags"])
+        filename = "stackoverflow_tags.csv"
+        df.to_csv(filename, index=False)
+        print(f"Tags salvas em {filename}")
+    else:
+        print("Nenhuma tag encontrada.")
+
+if __name__ == "__main__":
+    main()  
                
 def initiateCSVs():
     with open('questions.csv', 'a', encoding="utf-8", newline='') as csvfile:
