@@ -19,14 +19,12 @@ pd.set_option('display.width', desired_width)
 np.set_printoptions(linewidth=desired_width)
 pd.set_option('display.max_columns', 25)
 
-#key = "89B5kN5OqCqblqKTWBKkjA(("
-#key2 = "luNgbAqlXjNtw499eJrSBA(("
 key = "rl_J7pzw9qHytdmEgM2VvSN5A2sk"
 
 STACKEXCHANGE = "https://api.stackexchange.com/"
 VERSION = "2.3/"
 endpoint = STACKEXCHANGE + VERSION + 'search/advanced'
-  
+
 question_features = ['tag', 'question_id', 'accepted_answer_id', 'answer_count', 'creation_date', 'is_answered',
                      'last_activity_date', 'last_edit_date', 'owner_id', 'owner_reputation', 'score', 'view_count',
                      'title', 'body']
@@ -35,90 +33,34 @@ answer_features = ['tag', 'answer_id', 'question_id', 'comment_count', 'creation
 comment_features = ['tag', 'comment_id', 'post_id', 'creation_date', 'edited', 'owner_reputation', 'owner_id', 'score',
                     'body']
 
-# Function to fetch questions by tags from Stack Overflow
-search_tags = ["crypto", "python"]
-
-def fetch_tags_from_stackoverflow(tag, page=1, pagesize=50):
-    url = f"https://api.stackexchange.com/2.3/questions"
-    params = {
-        "order": "desc",
-        "sort": "creation",
-        "tagged": tag,  # Busca por perguntas relacionadas à tag específica
-        "site": "stackoverflow",
-        "pagesize": pagesize,
-        "page": page
-    }
-    response = requests.get(url, params=params)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        print(f"Erro: {response.status_code}, {response.text}")
-        return None
-
-def process_tags(data):
-    tags = []
-    for item in data.get("items", []):
-        tags.extend(item.get("tags", []))  # Adiciona todas as tags da pergunta
-    return tags
-
-# Script principal
-def main():
-    all_tags = []
-    for search_tag in search_tags:
-        print(f"Perguntas com a tag: {search_tag}")
-        page = 1
-        while True:
-            data = fetch_tags_from_stackoverflow(search_tag, page=page)
-            if not data or not data.get("items"):
-                break
-            tags = process_tags(data)
-            all_tags.extend(tags)
-            if not data.get("has_more"):
-                break
-            page += 1
-            time.sleep(1)  # Evita exceder os limites da API
-        
-    # Remove duplicatas e organiza as tags
-    unique_tags = list(set(all_tags))
-    unique_tags.sort()
-
-    # Salva as tags em um arquivo CSV
-    if unique_tags:
-        df = pd.DataFrame(unique_tags, columns=["Tags"])
-        filename = "stackoverflow_tags.csv"
-        df.to_csv(filename, index=False)
-        print(f"Tags salvas em {filename}")
-    else:
-        print("Nenhuma tag encontrada.")
-
-if __name__ == "__main__":
-    main()  
-               
 def initiateCSVs():
-    with open('questions.csv', 'a', encoding="utf-8", newline='') as csvfile:
-        writer = csv.writer(csvfile, delimiter=',')
-        writer.writerow(question_features)
-    with open('answers.csv', 'a', encoding="utf-8", newline='') as csvfile:
-        writer = csv.writer(csvfile, delimiter=',')
-        writer.writerow(answer_features)
-    with open('comments.csv', 'a', encoding="utf-8", newline='') as csvfile:
-        writer = csv.writer(csvfile, delimiter=',')
-        writer.writerow(comment_features)
+    if not os.path.exists('questions.csv'):
+        with open('questions.csv', 'w', encoding="utf-8", newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(question_features)
+    if not os.path.exists('answers.csv'):
+        with open('answers.csv', 'w', encoding="utf-8", newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(answer_features)
+    if not os.path.exists('comments.csv'):
+        with open('comments.csv', 'w', encoding="utf-8", newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(comment_features)
 
-def save_comments_data(comments, tool):
-    #comment_features = ['tag', 'comment_id', 'answer_id', 'question_id', 'creation_date', 'edited',
-    #                   'owner_reputation', 'owner_id', 'score', 'body']
-
+def save_comments_data(comments, tool, existing_comment_ids):
     with open('comments.csv', 'a', encoding="utf-8", newline='') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         for comment in comments:
+            c_id = comment.get('comment_id')
+            if c_id in existing_comment_ids:
+                continue
+            existing_comment_ids.add(c_id)
+
             comment_data = [
-                tool,  # Tag
-                comment.get('comment_id', np.nan),
-                #comment.get('answer_id', np.nan),
+                tool,
+                c_id,
                 comment.get('post_id', np.nan),
-                datetime.datetime.fromtimestamp(comment['creation_date']).strftime(
-                    '%Y/%m/%d, %H:%M:%S') if 'creation_date' in comment else np.nan,
+                datetime.datetime.fromtimestamp(comment['creation_date']).strftime('%Y/%m/%d, %H:%M:%S') if 'creation_date' in comment else np.nan,
                 comment.get('edited', False),
                 comment.get('owner', {}).get('reputation', np.nan),
                 comment.get('owner', {}).get('user_id', np.nan),
@@ -127,8 +69,30 @@ def save_comments_data(comments, tool):
             ]
             writer.writerow(comment_data)
 
-
 def getStackOverFlowDataset(toollist):
+    # Carrega IDs existentes para evitar duplicatas
+    existing_q_ids = set()
+    existing_a_ids = set()
+    existing_comment_ids = set()
+
+    if os.path.exists("questions.csv"):
+        try:
+            df_existing = pd.read_csv("questions.csv")
+            existing_q_ids = set(df_existing['question_id'].dropna().astype(int))
+        except: pass
+
+    if os.path.exists("answers.csv"):
+        try:
+            df_existing = pd.read_csv("answers.csv")
+            existing_a_ids = set(df_existing['answer_id'].dropna().astype(int))
+        except: pass
+
+    if os.path.exists("comments.csv"):
+        try:
+            df_existing = pd.read_csv("comments.csv")
+            existing_comment_ids = set(df_existing['comment_id'].dropna().astype(int))
+        except: pass
+
     paramsorigin = {
         "key": key,
         "pagesize": 100,
@@ -136,122 +100,97 @@ def getStackOverFlowDataset(toollist):
         "site": "stackoverflow",
         "filter": "!LGdawXSMGS0H5KeF1E6_cH"
     }
+
     theQuery = STACKEXCHANGE + VERSION + 'search/advanced'
-    for tool in toollist:
-        toolsearch = tool
-        print("----> " + toolsearch)
-        for searcharea in ['title', 'body']:
-            print("----> " + searcharea)
-            params = paramsorigin.copy()
-            has_more = 1
-            params['page'] = 0
-            params[searcharea] = toolsearch
-            while has_more:
-                params['page'] = params['page'] + 1
-                print("----> Page " + str(params['page']))
-                print(theQuery)
-                theResult = requests.get(theQuery, params=params)
-                thejson = theResult.json()
-                #print(thejson)
-                questionslist = thejson['items']
-                count = 0
-                for question in questionslist:
-                    count = count + 1
-                    print("----> Question " + str(count))
-                    questionitem = []
-                    #toolname, question_id, accepted_answer_id, answer_count, creation_date,
-                    # is_answered, last_activity_date, last_edit_date, owner_id,
-                    # owner_reputation, score, view_count, title, body
-                    #print(question)
-                    questionitem.append(tool)
-                    questionitem.append(question['question_id'])
-                    try:
-                        questionitem.append(question['accepted_answer_id'])
-                    except KeyError:
-                        questionitem.append(np.nan)
-                    questionitem.append(question['answer_count'])
-                    questionitem.append(
-                        datetime.datetime.fromtimestamp(question['creation_date']).strftime('%Y/%m/%d, %H:%M:%S'))
-                    questionitem.append(question['is_answered'])
-                    try:
-                        questionitem.append(datetime.datetime.fromtimestamp(question['last_activity_date']).strftime(
-                            '%Y/%m/%d, %H:%M:%S'))
-                    except KeyError:
-                        questionitem.append(np.nan)
-                    try:
-                        questionitem.append(
-                            datetime.datetime.fromtimestamp(question['last_edit_date']).strftime('%Y/%m/%d, %H:%M:%S'))
-                    except KeyError:
-                        questionitem.append(np.nan)
-                    try:
-                        questionitem.append(question['owner']['user_id'])
-                    except KeyError:
-                        questionitem.append(np.nan)
-                    try:
-                        questionitem.append(question['owner']['reputation'])
-                    except KeyError:
-                        questionitem.append(np.nan)
-                    questionitem.append(question['score'])
-                    questionitem.append(question['view_count'])
-                    questionitem.append(question['title'])
-                    questionitem.append(question['body'])
+    tag_query = ';'.join(toollist)
+    print("----> Buscando por tags:", tag_query)
 
-                    if 'comments' in question:
-                        save_comments_data(question['comments'], tool)
+    page = 1
+    has_more = True
 
-                    with open('questions.csv', 'a', encoding="utf-8") as csvfile:
-                        writer = csv.writer(csvfile, delimiter=',')
-                        writer.writerow(questionitem)
-                    if question['answer_count'] > 0:
-                        answers = question['answers']
-                        for answer in answers:
-                            # ['toolname', 'answer_id', 'question_id', 'comment_count', 'creation_date', 'is_accepted',
-                            # 'last_activity_date', 'owner_reputation', 'owner_id', 'score', 'body']
-                            answeritem = []
-                            answeritem.append(tool)
-                            answeritem.append(answer['answer_id'])
-                            answeritem.append(answer['question_id'])
-                            answeritem.append(answer['comment_count'])
-                            answeritem.append(
-                                datetime.datetime.fromtimestamp(answer['creation_date']).strftime('%Y/%m/%d, %H:%M:%S'))
-                            answeritem.append(answer['is_accepted'])
-                            try:
-                                answeritem.append(
-                                    datetime.datetime.fromtimestamp(answer['last_activity_date']).strftime(
-                                        '%Y/%m/%d, %H:%M:%S'))
-                            except KeyError:
-                                answeritem.append(np.nan)
-                            try:
-                                answeritem.append(answer['owner']['reputation'])
-                            except KeyError:
-                                answeritem.append(np.nan)
-                            try:
-                                answeritem.append(answer['owner']['user_id'])
-                            except KeyError:
-                                answeritem.append(np.nan)
-                            answeritem.append(answer['score'])
-                            answeritem.append(answer['body'])
+    while has_more:
+        params = paramsorigin.copy()
+        params['tagged'] = tag_query
+        params['page'] = page
 
-                            if 'comments' in answer:
-                                save_comments_data(answer['comments'], tool)
+        print(f"----> Página {page}")
+        try:
+            response = requests.get(theQuery, params=params)
+            if response.status_code != 200:
+                print(f"Erro HTTP {response.status_code}: {response.text}")
+                break
 
-                            with open('answers.csv', 'a', encoding="utf-8") as csvfile:
-                                writer = csv.writer(csvfile, delimiter=',')
-                                writer.writerow(answeritem)
-                    else:
-                        continue
-                has_more = thejson['has_more']
-            else:
-                continue
+            thejson = response.json()
+            questionslist = thejson.get('items', [])
+            if not questionslist:
+                print("Nenhuma pergunta nesta página.")
+                break
 
+            for question in questionslist:
+                q_id = question.get('question_id')
+                if q_id in existing_q_ids:
+                    continue
+                existing_q_ids.add(q_id)
 
-def getMonth(thestring):
-    return '-'.join(str(pd.to_datetime(thestring)).split()[0].split('-')[:2])
+                questionitem = [
+                    tag_query,
+                    q_id,
+                    question.get('accepted_answer_id', np.nan),
+                    question.get('answer_count', 0),
+                    datetime.datetime.fromtimestamp(question['creation_date']).strftime('%Y/%m/%d, %H:%M:%S'),
+                    question.get('is_answered', False),
+                    datetime.datetime.fromtimestamp(question.get('last_activity_date', 0)).strftime('%Y/%m/%d, %H:%M:%S') if 'last_activity_date' in question else np.nan,
+                    datetime.datetime.fromtimestamp(question.get('last_edit_date', 0)).strftime('%Y/%m/%d, %H:%M:%S') if 'last_edit_date' in question else np.nan,
+                    question.get('owner', {}).get('user_id', np.nan),
+                    question.get('owner', {}).get('reputation', np.nan),
+                    question.get('score', np.nan),
+                    question.get('view_count', np.nan),
+                    question.get('title', ''),
+                    question.get('body', '')
+                ]
 
+                with open('questions.csv', 'a', encoding="utf-8") as csvfile:
+                    writer = csv.writer(csvfile)
+                    writer.writerow(questionitem)
+
+                if 'answers' in question:
+                    for answer in question['answers']:
+                        a_id = answer.get('answer_id')
+                        if a_id in existing_a_ids:
+                            continue
+                        existing_a_ids.add(a_id)
+
+                        answeritem = [
+                            tag_query,
+                            a_id,
+                            answer.get('question_id'),
+                            answer.get('comment_count', 0),
+                            datetime.datetime.fromtimestamp(answer['creation_date']).strftime('%Y/%m/%d, %H:%M:%S'),
+                            answer.get('is_accepted', False),
+                            datetime.datetime.fromtimestamp(answer.get('last_activity_date', 0)).strftime('%Y/%m/%d, %H:%M:%S') if 'last_activity_date' in answer else np.nan,
+                            answer.get('owner', {}).get('reputation', np.nan),
+                            answer.get('owner', {}).get('user_id', np.nan),
+                            answer.get('score', np.nan),
+                            answer.get('body', '')
+                        ]
+
+                        with open('answers.csv', 'a', encoding="utf-8") as csvfile:
+                            writer = csv.writer(csvfile)
+                            writer.writerow(answeritem)
+
+                        if 'comments' in answer:
+                            save_comments_data(answer['comments'], tag_query, existing_comment_ids)
+
+                if 'comments' in question:
+                    save_comments_data(question['comments'], tag_query, existing_comment_ids)
+
+            has_more = thejson.get("has_more", False)
+            page += 1
+            time.sleep(1)
+
+        except Exception as e:
+            print(f"Erro inesperado: {e}")
+            break
 
 initiateCSVs()
-getStackOverFlowDataset(["crypto"])
-#getStackOverFlowDataset(["python", "crypto"])
-#getStackOverFlowDataset(["python;crypto"])
-                               
-
+getStackOverFlowDataset(["python", "cryptography"])
