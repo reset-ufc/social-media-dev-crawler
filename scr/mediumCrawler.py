@@ -1,27 +1,15 @@
-import pprint
+from pprint import pprint as print
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
-from urllib.error import HTTPError, URLError
 import datetime
 import ssl
 import requests
 import csv
 import os
-import urllib
-import time
-import operator
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-from sklearn.cluster import AgglomerativeClustering, KMeans
-from scipy.stats import pearsonr
 from sklearn.metrics import *
-import glob
 from urllib.request import Request, urlopen
-from urllib.error import URLError
 import json
 
 desired_width = 320
@@ -39,16 +27,18 @@ headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.80 Safari/537.36',
     'Referer': 'https://steamcommunity.com/', 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'}
 
-#testingurl1 = 'https://medium.com/picus-security-engineering/answers-to-faq-about-being-a-software-engineer-in-picus-ec94d3235f6a'
-#testingurl2 = 'https://medium.com/@a.minaro/the-not-so-simple-life-of-data-scientists-84da4050328'
-#testingurl3 =  'https://medium.com/@cryptorand/ethereum-the-amazon-of-crypto-202da013ea9d'
+# testingurl1 = 'https://medium.com/picus-security-engineering/answers-to-faq-about-being-a-software-engineer-in-picus-ec94d3235f6a'
+# testingurl2 = 'https://medium.com/@a.minaro/the-not-so-simple-life-of-data-scientists-84da4050328'
+# testingurl3 =  'https://medium.com/@cryptorand/ethereum-the-amazon-of-crypto-202da013ea9d'
+
 
 def readArticleLink(link):
     req = Request(link, headers=headers)
     html = urlopen(req).read()
-    #html = urlopen(link, context=context, header = )
+    # html = urlopen(link, context=context, header = )
     bsObj = BeautifulSoup(html, 'lxml')
     print(bsObj.prettify())
+
 
 def getArticleIdDateTitle(link):
     req = Request(link, headers=headers)
@@ -60,6 +50,7 @@ def getArticleIdDateTitle(link):
     jsontext = json.loads(maintext)
     return jsontext['identifier'], jsontext['datePublished'], jsontext['headline']
 
+
 def getArticleDate(link):
     req = Request(link, headers=headers)
     html = urlopen(req).read()
@@ -70,6 +61,7 @@ def getArticleDate(link):
     jsontext = json.loads(maintext)
     return jsontext['datePublished']
 
+
 def getArticleContent(link):
     req = Request(link, headers=headers)
     html = urlopen(req).read()
@@ -79,14 +71,17 @@ def getArticleContent(link):
     return ' '.join([x.get_text() for x in content])
 
 # let's run this method.
+
+
 def getArticleUrlListwithTag(thetag):
     theurl = f"https://medium.com/tag/{thetag}/archive"
     req = Request(theurl, headers=headers)
     html = urlopen(req).read()
     bsObj = BeautifulSoup(html, 'lxml')
-    years = bsObj.find_all('div', {'class': 'timebucket u-inlineBlock u-width50'})
-    #yearhrefs = [x.find('a').get('href') for x in years]
-    #articleurls = []
+    years = bsObj.find_all(
+        'div', {'class': 'timebucket u-inlineBlock u-width50'})
+    # yearhrefs = [x.find('a').get('href') for x in years]
+    # articleurls = []
     with open(f"{thetag}_medium.csv", 'a') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         writer.writerow(['id', 'date', 'title', 'text'])
@@ -95,16 +90,20 @@ def getArticleUrlListwithTag(thetag):
         year_req = Request(year.find('a').get('href'), headers=headers)
         year_html = urlopen(year_req).read()
         year_bsObj = BeautifulSoup(year_html, 'lxml')
-        months = year_bsObj.find_all('div', {'class': 'timebucket u-inlineBlock u-width80'})
+        months = year_bsObj.find_all(
+            'div', {'class': 'timebucket u-inlineBlock u-width80'})
         for month in months:
             try:
-                month_req = Request(month.find('a').get('href'), headers=headers)
+                month_req = Request(month.find(
+                    'a').get('href'), headers=headers)
                 month_html = urlopen(month_req).read()
                 month_bsObj = BeautifulSoup(month_html, 'lxml')
-                days = month_bsObj.find_all('div', {'class': 'timebucket u-inlineBlock u-width35'})
+                days = month_bsObj.find_all(
+                    'div', {'class': 'timebucket u-inlineBlock u-width35'})
                 for day in days:
                     try:
-                        day_req = Request(day.find('a').get('href'), headers=headers)
+                        day_req = Request(day.find('a').get(
+                            'href'), headers=headers)
                         day_html = urlopen(day_req).read()
                         day_bsObj = BeautifulSoup(day_html, 'lxml')
                         urls = [x.get('href') for x in day_bsObj.find_all('a', {
@@ -112,7 +111,8 @@ def getArticleUrlListwithTag(thetag):
                         # articleurls.extend(urls)
                         for url in urls:
                             tempinput = []
-                            theid, thedate, thetitle = getArticleIdDateTitle(url)
+                            theid, thedate, thetitle = getArticleIdDateTitle(
+                                url)
                             print(thedate)
                             tempinput.append(theid)
                             tempinput.append(thedate)
@@ -143,16 +143,20 @@ def getArticleUrlListwithTag(thetag):
         del year_bsObj
 
 
-# This method scrape all medium results of a tag in a predefined year.
 def getArticleUrlListwithTagYearCheck(thetag, year_tocheck):
+    """This method scrape all medium results of a tag in a predefined year."""
     theurl = f"https://medium.com/tag/{thetag}/archive"
     req = Request(theurl, headers=headers)
     html = urlopen(req).read()
     bsObj = BeautifulSoup(html, 'lxml')
-    years = bsObj.find_all('div', {'class': 'timebucket u-inlineBlock u-width50'})
+
+    years = bsObj.find_all(
+        'div', {'class': 'timebucket u-inlineBlock u-width50'})
+    
     with open(f"./results/{thetag}_medium_{year_tocheck}.csv", 'a') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         writer.writerow(['id', 'date', 'title', 'text'])
+
     count = 0
     for year in years:
         year_number = int(year.find('a').get_text())
@@ -162,16 +166,22 @@ def getArticleUrlListwithTagYearCheck(thetag, year_tocheck):
             if year_number > year_tocheck:
                 break
             print("Analyzing" + year.find('a').get_text())
+
         year_req = Request(year.find('a').get('href'), headers=headers)
         year_html = urlopen(year_req).read()
         year_bsObj = BeautifulSoup(year_html, 'lxml')
-        months = year_bsObj.find_all('div', {'class': 'timebucket u-inlineBlock u-width80'})
+
+        months = year_bsObj.find_all(
+            'div', {'class': 'timebucket u-inlineBlock u-width80'})
+        
         for month in months:
             try:
-                month_req = Request(month.find('a').get('href'), headers=headers)
+                month_req = Request(month.find(
+                    'a').get('href'), headers=headers)
                 month_html = urlopen(month_req).read()
                 month_bsObj = BeautifulSoup(month_html, 'lxml')
                 days = month_bsObj.find_all('div', {'class': 'timebucket u-inlineBlock u-width35'})
+
                 for day in days:
                     try:
                         day_req = Request(day.find('a').get('href'), headers=headers)
@@ -179,25 +189,25 @@ def getArticleUrlListwithTagYearCheck(thetag, year_tocheck):
                         day_bsObj = BeautifulSoup(day_html, 'lxml')
                         urls = [x.get('href') for x in day_bsObj.find_all('a', {
                             'class': 'button button--smaller button--chromeless u-baseColor--buttonNormal'})]
+                        
                         for url in urls:
-                            tempinput = []
                             theid, thedate, thetitle = getArticleIdDateTitle(url)
                             print(thedate + " is " + int(thedate[0:4]))
-                            tempinput.append(theid)
-                            tempinput.append(thedate)
-                            tempinput.append(thetitle)
+                            tempinput = [theid, thedate, thetitle]
                             tempinput.append(getArticleContent(url))
+
                             with open(f"./results/{thetag}_medium_{year_tocheck}.csv", 'a') as csvfile:
                                 writer = csv.writer(csvfile, delimiter=',')
                                 writer.writerow(tempinput)
-                            count = count + 1
+
+                            count += 1
                             print(count)
 
                         del day_req
                         del day_html
                         del day_bsObj
                     except (requests.ConnectionError, requests.Timeout) as exception:
-                        print("poor or no internet connection.")
+                        print(f"poor or no internet connection.", {exception})
                     except:
                         continue
 
@@ -213,9 +223,12 @@ def getArticleUrlListwithTagYearCheck(thetag, year_tocheck):
         del year_bsObj
 
 
-# This method scrape all medium results of a tag in a predefined year and a predefined month.
-# doesn't work still
-def getArticleUrlListwithTagYearMonthCheck(thetag, year_tocheck,month_tocheck):
+
+def getArticleUrlListwithTagYearMonthCheck(thetag, year_tocheck, month_tocheck):
+    """
+    This method scrape all medium results of a tag in a predefined year and a predefined month.
+    doesn't work still
+    """
     theurl = f"https://medium.com/tag/{thetag}/archive"
     req = Request(theurl, headers=headers)
     html = urlopen(req).read()
@@ -232,84 +245,86 @@ def getArticleUrlListwithTagYearMonthCheck(thetag, year_tocheck,month_tocheck):
                 return
         if year_number == year_tocheck:
             print(f"Analyzing {year_tocheck}")
+
         year_req = Request(year.find('a').get('href'), headers=headers)
         year_html = urlopen(year_req).read()
         year_bsObj = BeautifulSoup(year_html, 'lxml')
         months = year_bsObj.find_all('div', {'class': 'timebucket u-inlineBlock u-width80'})
+
         for month in months:
-                if(month.find('a')== None):
-                    continue
-                month_number = int(datetime.datetime.strptime(month.find('a').get_text(), "%B").month)
-                if month_number != month_tocheck:
-                    continue
-                if month_number == month_tocheck:
-                    print(f"Analyzing Year:{year_number} Month: {month_number}")
-                month_req = Request(month.find('a').get('href'), headers=headers)
-                month_html = urlopen(month_req).read()
-                month_bsObj = BeautifulSoup(month_html, 'lxml')
+            if (month.find('a') == None):
+                continue
+            month_number = int(datetime.datetime.strptime(
+                month.find('a').get_text(), "%B").month)
+            if month_number != month_tocheck:
+                continue
+            if month_number == month_tocheck:
+                print(f"Analyzing Year:{year_number} Month: {month_number}")
 
-                days = month_bsObj.find_all('div', {'class': 'timebucket u-inlineBlock u-width35'})
-                with open(
-                        f"{get_directory(year_number, month_number)}/{thetag}_medium_{year_tocheck}_{month_number}.csv",
-                        'w') as csvfile:
-                    writer = csv.writer(csvfile, delimiter=',')
-                    writer.writerow(['id', 'date', 'title', 'text'])
-                if days:
-                    for day in days:
-                        try:
-                            if (day.find('a') == None):
-                                continue
-                            day_req = Request(day.find('a').get('href'), headers=headers)
-                            day_html = urlopen(day_req).read()
-                            day_bsObj = BeautifulSoup(day_html, 'lxml')
-                            #select the 'Read More...' objects inside the page
-                            urls = [x.get('href') for x in day_bsObj.find_all('a', {
-                                'class': 'button button--smaller button--chromeless u-baseColor--buttonNormal'})]
-                            # articleurls.extend(urls)
-                            for url in urls:
-                                tempinput = []
-                                theid, thedate, thetitle = getArticleIdDateTitle(url)
-                                tempinput.append(theid)
-                                tempinput.append(thedate)
-                                tempinput.append(thetitle)
-                                tempinput.append(getArticleContent(url))
-                                with open(
-                                        f"{get_directory(year_number, month_number)}/{thetag}_medium_{year_tocheck}_{month_number}.csv",
-                                        'a') as csvfile:
-                                    writer = csv.writer(csvfile, delimiter=',')
-                                    writer.writerow(tempinput)
-                                count = count + 1
-                                print(count)
-                            del day_req
-                            del day_html
-                            del day_bsObj
-                        except (requests.ConnectionError, requests.Timeout) as exception:
-                            print("poor or no internet connection.")
-                        except:
+            month_req = Request(month.find('a').get('href'), headers=headers)
+            month_html = urlopen(month_req).read()
+            month_bsObj = BeautifulSoup(month_html, 'lxml')
+            days = month_bsObj.find_all('div', {'class': 'timebucket u-inlineBlock u-width35'})
+
+            with open(
+                    f"{get_directory(year_number, month_number)}/{thetag}_medium_{year_tocheck}_{month_number}.csv",
+                    'w') as csvfile:
+                writer = csv.writer(csvfile, delimiter=',')
+                writer.writerow(['id', 'date', 'title', 'text'])
+
+            if days:
+                for day in days:
+                    try:
+                        if (day.find('a') == None):
                             continue
+                        day_req = Request(day.find('a').get('href'), headers=headers)
+                        day_html = urlopen(day_req).read()
+                        day_bsObj = BeautifulSoup(day_html, 'lxml')
+                        # select the 'Read More...' objects inside the page
+                        urls = [x.get('href') for x in day_bsObj.find_all('a', {
+                            'class': 'button button--smaller button--chromeless u-baseColor--buttonNormal'})]
+                        # articleurls.extend(urls)
+                        for url in urls:
+                            theid, thedate, thetitle = getArticleIdDateTitle(url)
+                            tempinput = [theid, thedate, thetitle]
+                            tempinput.append(getArticleContent(url))
 
-                    del days
-                else:
-                    #in this case we have that medium doesn't collect data for each day, but collecting all the article in the whole month
-                    urls = [x.get('href') for x in month_bsObj.find_all('a', {
-                        'class': 'button button--smaller button--chromeless u-baseColor--buttonNormal'})]
-                    for url in urls:
-                        tempinput = []
-                        theid, thedate, thetitle = getArticleIdDateTitle(url)
-                        tempinput.append(theid)
-                        tempinput.append(thedate)
-                        tempinput.append(thetitle)
-                        tempinput.append(getArticleContent(url))
-                        with open(
-                                f"{get_directory(year_number, month_number)}/{thetag}_medium_{year_tocheck}_{month_number}.csv",
-                                'a') as csvfile:
-                            writer = csv.writer(csvfile, delimiter=',')
-                            writer.writerow(tempinput)
-                        count = count + 1
-                        print(count)
-                del month_req
-                del month_html
-                del month_bsObj
+                            with open(
+                                    f"{get_directory(year_number, month_number)}/{thetag}_medium_{year_tocheck}_{month_number}.csv",
+                                    'a') as csvfile:
+                                writer = csv.writer(csvfile, delimiter=',')
+                                writer.writerow(tempinput)
+
+                            count += 1
+                            print(count)
+
+                        del day_req
+                        del day_html
+                        del day_bsObj
+                    except (requests.ConnectionError, requests.Timeout) as exception:
+                        print("poor or no internet connection.")
+                    except:
+                        continue
+
+                del days
+            else:
+                # in this case we have that medium doesn't collect data for each day, but collecting all the article in the whole month
+                urls = [x.get('href') for x in month_bsObj.find_all('a', {
+                    'class': 'button button--smaller button--chromeless u-baseColor--buttonNormal'})]
+                for url in urls:
+                    theid, thedate, thetitle = getArticleIdDateTitle(url)
+                    tempinput = [theid, thedate, thetitle]
+                    tempinput.append(getArticleContent(url))
+                    with open(
+                            f"{get_directory(year_number, month_number)}/{thetag}_medium_{year_tocheck}_{month_number}.csv",
+                            'a') as csvfile:
+                        writer = csv.writer(csvfile, delimiter=',')
+                        writer.writerow(tempinput)
+                    count += 1
+                    print(count)
+            del month_req
+            del month_html
+            del month_bsObj
         del months
         del year_req
         del year_html
@@ -333,17 +348,19 @@ def getArticleUrlListwithTagContinue(thetag):
         year_req = Request(year.find('a').get('href'), headers=headers)
         year_html = urlopen(year_req).read()
         year_bsObj = BeautifulSoup(year_html, 'lxml')
-        months = year_bsObj.find_all('div', {'class': 'timebucket u-inlineBlock u-width80'})
+        months = year_bsObj.find_all(
+            'div', {'class': 'timebucket u-inlineBlock u-width80'})
         for month in months:
             try:
-                month_req = Request(month.find('a').get('href'), headers=headers)
+                month_req = Request(month.find(
+                    'a').get('href'), headers=headers)
                 month_html = urlopen(month_req).read()
                 month_bsObj = BeautifulSoup(month_html, 'lxml')
 
-                days = month_bsObj.find_all('div', {'class': 'timebucket u-inlineBlock u-width35'})
+                days = month_bsObj.find_all(
+                    'div', {'class': 'timebucket u-inlineBlock u-width35'})
                 for day in days:
                     try:
-
                         day_req = Request(day.find('a').get('href'), headers=headers)
                         day_html = urlopen(day_req).read()
                         day_bsObj = BeautifulSoup(day_html, 'lxml')
@@ -351,19 +368,16 @@ def getArticleUrlListwithTagContinue(thetag):
                             'class': 'button button--smaller button--chromeless u-baseColor--buttonNormal'})]
                         # articleurls.extend(urls)
                         for url in urls:
-                            tempinput = []
                             theid, thedate, thetitle = getArticleIdDateTitle(url)
                             if theid in existingids:
                                 continue
                             else:
-                                tempinput.append(theid)
-                                tempinput.append(thedate)
-                                tempinput.append(thetitle)
+                                tempinput = [theid, thedate, thetitle]
                                 tempinput.append(getArticleContent(url))
                                 with open(f"{thetag}-medium.csv", 'a') as csvfile:
                                     writer = csv.writer(csvfile, delimiter=',')
                                     writer.writerow(tempinput)
-                                count = count + 1
+                                count += 1
                                 print(count)
                     except:
                         continue
@@ -386,14 +400,12 @@ def makeupforbefore():
         req = Request(theurl, headers=headers)
         html = urlopen(req).read()
         bsObj = BeautifulSoup(html, 'lxml')
-        articles = bsObj.find_all('a', {'class': 'button button--smaller button--chromeless u-baseColor--buttonNormal'})
+        articles = bsObj.find_all(
+            'a', {'class': 'button button--smaller button--chromeless u-baseColor--buttonNormal'})
         for article in articles:
             url = article.get('href')
-            tempinput = []
             theid, thedate, thetitle = getArticleIdDateTitle(url)
-            tempinput.append(theid)
-            tempinput.append(thedate)
-            tempinput.append(thetitle)
+            tempinput = [theid, thedate, thetitle]
             tempinput.append(getArticleContent(url))
             with open(f"ai-medium.csv", 'a') as csvfile:
                 writer = csv.writer(csvfile, delimiter=',')
@@ -401,25 +413,29 @@ def makeupforbefore():
 
 # function that return the path of the scraping directory
 # if the path doesn't exist it creates it
+
+
 def get_directory(year, month):
     path = f'./results/{year}/{month}'
     if not os.path.exists(path):
         os.makedirs(path)
     return path
 
+
 data = {
     'AssignedTo': ['Rafael Vieira', 'xiaozhou1'],  # Nome dos usuários
-    'IdRun': [1, 2],       # ID 
-    'Year': [2023, 2024],        # O Ano 
-    'Month': [1, 2],       # Os Meses
-    'Tag': ['Python', 'AI'],         # A Tag
-    'Completed': [False, False]    # Arquivo completo
+    'IdRun': [1, 2],             # ID
+    'Year': [2023, 2024],        # O Ano
+    'Month': [1, 2],             # Os Meses
+    'Tag': ['Python', 'AI'],     # A Tag
+    'Completed': [False, False]  # Arquivo completo
 }
 
-#get_directory(data,)
+# get_directory(data,)
 
 df = pd.DataFrame(data)
 df.to_csv('year_tocheck.csv', index=False)
+
 
 def WebScrapeAssignedMonth(username):
     print(f'Hi {username}!')
@@ -431,23 +447,27 @@ def WebScrapeAssignedMonth(username):
     print(f"We have to actually scrape the remaining {num_df_remaining} parts out of {num_df_total}, "
           f"thank you for your support.")
     id_list_to_do = df_remaining_part['IdRun'].values
+
     for id in id_list_to_do:
         df_line = df_remaining_part[df_remaining_part['IdRun'] == id]
         year = df_line['Year'].values[0]
         tag = df_line['Tag'].values[0]
         month = df_line['Month'].values[0]
-        index=month
+        index = month
         print(f'Starting to scrape {tag} in {year}')
-        while index<12:
+
+        while index < 12:
             print(f'Month:{index+1}')
-            getArticleUrlListwithTagYearMonthCheck(tag, year,index+1)
+            getArticleUrlListwithTagYearMonthCheck(tag, year, index+1)
             df.loc[id - 1, 'Month'] = index+1
             df.to_csv('year_tocheck.csv', index=False)
-            index=index+1
+            index += 1
         df.loc[id - 1, 'Completed'] = True
         df.to_csv('year_tocheck.csv', index=False)
-        num_df_remaining = num_df_remaining - 1
-        print(f"We have completed {year} dataset, now we have only to do {num_df_remaining}")
+        num_df_remaining -= 1
+        print(
+            f"We have completed {year} dataset, now we have only to do {num_df_remaining}")
+
 
 def WebScrapeAssigned(username):
     print(f'Hi {username}!')
@@ -459,22 +479,25 @@ def WebScrapeAssigned(username):
     print(f"We have to actually scrape the remaining {num_df_remaining} parts out of {num_df_total}, "
           f"thank you for your support.")
     id_list_to_do = df_remaining_part['IdRun'].values
+
     for id in id_list_to_do:
         df_line = df_remaining_part[df_remaining_part['IdRun'] == id]
         year = df_line['Year'].values[0]
         tag = df_line['Tag'].values[0]
         month = df_line['Month'].values[0]
-        index=month
         print(f'Starting to scrape {tag} in {year}')
-        getArticleUrlListwithTagYearCheck(tag,year)
+        getArticleUrlListwithTagYearCheck(tag, year)
         df.loc[id - 1, 'Completed'] = True
         df.to_csv('year_tocheck.csv', index=False)
-        num_df_remaining = num_df_remaining - 1
-        print(f"We have completed {year} dataset, now we have only to do {num_df_remaining}")
+        num_df_remaining -= 1
+        print(
+            f"We have completed {year} dataset, now we have only to do {num_df_remaining}")
+
 
 WebScrapeAssignedMonth('Rafael Vieira')
 getArticleUrlListwithTag('Python')
 WebScrapeAssignedMonth('xiaozhou1')
+
 
 def makeFlagCSV(thetag, user):
     theurl = f"https://medium.com/tag/{thetag}/archive"
@@ -482,17 +505,20 @@ def makeFlagCSV(thetag, user):
     html = urlopen(req).read()
     bsObj = BeautifulSoup(html, 'lxml')
     years = bsObj.find_all('div', {'class': 'timebucket u-inlineBlock u-width50'})
+
     for item in years:
         print(item)
-    count = 0
+
     with open(f"./{thetag}-medium-flag.csv", 'a') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         writer.writerow(['url', 'complete', 'user'])
+
     for year in years:
         year_req = Request(year.find('a').get('href'), headers=headers)
         year_html = urlopen(year_req).read()
         year_bsObj = BeautifulSoup(year_html, 'lxml')
-        months = year_bsObj.find_all('div', {'class': 'timebucket u-inlineBlock u-width80'})
+        months = year_bsObj.find_all(
+            'div', {'class': 'timebucket u-inlineBlock u-width80'})
         if len(months) == 0:
             with open(f"./{thetag}-medium-flag.csv", 'a') as csvfile:
                 writer = csv.writer(csvfile, delimiter=',')
@@ -500,20 +526,24 @@ def makeFlagCSV(thetag, user):
         else:
             for monthitem in months:
                 try:
-                    month_req = Request(monthitem.find('a').get('href'), headers=headers)
+                    month_req = Request(monthitem.find(
+                        'a').get('href'), headers=headers)
                     month_html = urlopen(month_req).read()
                     month_bsObj = BeautifulSoup(month_html, 'lxml')
-                    days = month_bsObj.find_all('div', {'class': 'timebucket u-inlineBlock u-width35'})
+                    days = month_bsObj.find_all(
+                        'div', {'class': 'timebucket u-inlineBlock u-width35'})
                     if len(days) == 0:
                         with open(f"./{thetag}-medium-flag.csv", 'a') as csvfile:
                             writer = csv.writer(csvfile, delimiter=',')
-                            writer.writerow([monthitem.find('a').get('href'), 0, user])
+                            writer.writerow(
+                                [monthitem.find('a').get('href'), 0, user])
                     else:
                         for dayitem in days:
                             try:
                                 with open(f"./{thetag}-medium-flag.csv", 'a') as csvfile:
                                     writer = csv.writer(csvfile, delimiter=',')
-                                    writer.writerow([dayitem.find('a').get('href'), 0, user])
+                                    writer.writerow(
+                                        [dayitem.find('a').get('href'), 0, user])
                             except:
                                 continue
                 except:
@@ -522,7 +552,8 @@ def makeFlagCSV(thetag, user):
 
 def continueCrawl(thetag, user):
     df_flag = pd.read_csv(f"./{thetag}-medium-flag.csv")
-    df_flag_todo = df_flag.loc[(df_flag['complete']==0) & (df_flag['user']==user), :]
+    df_flag_todo = df_flag.loc[(df_flag['complete'] == 0) & (
+        df_flag['user'] == user), :]
     urllist = df_flag_todo['url'].values.tolist()
     dfexist = pd.read_csv(f"{thetag}-medium-3.csv")
     existingids = dfexist['id'].values.tolist()
@@ -551,11 +582,12 @@ def continueCrawl(thetag, user):
                 with open(f"{thetag}-medium-3.csv", 'a') as csvfile:
                     writer = csv.writer(csvfile, delimiter=',')
                     writer.writerow(tempinput)
-                count = count + 1
+                count += 1
                 print(count)
-        df_flag.loc[df_flag['url']==url, 'complete']=1
+        df_flag.loc[df_flag['url'] == url, 'complete'] = 1
         df_flag.to_csv(f"./{thetag}-medium-flag.csv", index=False)
-        #break
+        # break
+
 
 makeFlagCSV('Python', 2022)
-#readArticleLink(testingurl1)
+# readArticleLink(testingurl1)
