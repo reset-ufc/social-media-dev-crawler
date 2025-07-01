@@ -1,5 +1,5 @@
 import os
-from pprint import pprint as print
+from pprint import pprint
 import requests
 import pandas as pd
 import numpy as np
@@ -72,6 +72,7 @@ def save_comments_data(comments, tool, existing_comment_ids):
 
 
 def getStackOverFlowDataset(toollist):
+
     # Carrega IDs existentes para evitar duplicatas
     existing_q_ids = set()
     existing_a_ids = set()
@@ -82,23 +83,23 @@ def getStackOverFlowDataset(toollist):
             df_existing = pd.read_csv("questions.csv")
             existing_q_ids = set(
                 df_existing['question_id'].dropna().astype(int))
-        except:
-            pass
+        except Exception as e:
+            print(e)
 
     if os.path.exists("answers.csv"):
         try:
             df_existing = pd.read_csv("answers.csv")
             existing_a_ids = set(df_existing['answer_id'].dropna().astype(int))
-        except:
-            pass
+        except Exception as e:
+            print(e)
 
     if os.path.exists("comments.csv"):
         try:
             df_existing = pd.read_csv("comments.csv")
             existing_comment_ids = set(
                 df_existing['comment_id'].dropna().astype(int))
-        except:
-            pass
+        except Exception as e:
+            print(e)
 
     paramsorigin = {
         "key": key,

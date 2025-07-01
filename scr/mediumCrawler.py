@@ -494,11 +494,6 @@ def WebScrapeAssigned(username):
             f"We have completed {year} dataset, now we have only to do {num_df_remaining}")
 
 
-WebScrapeAssignedMonth('Rafael Vieira')
-getArticleUrlListwithTag('Python')
-WebScrapeAssignedMonth('xiaozhou1')
-
-
 def makeFlagCSV(thetag, user):
     theurl = f"https://medium.com/tag/{thetag}/archive"
     req = Request(theurl, headers=headers)
@@ -587,6 +582,11 @@ def continueCrawl(thetag, user):
         df_flag.loc[df_flag['url'] == url, 'complete'] = 1
         df_flag.to_csv(f"./{thetag}-medium-flag.csv", index=False)
         # break
+
+
+WebScrapeAssignedMonth('Rafael Vieira')
+getArticleUrlListwithTag('Python')
+WebScrapeAssignedMonth('xiaozhou1')
 
 
 makeFlagCSV('Python', 2022)
