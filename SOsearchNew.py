@@ -194,8 +194,8 @@ def getStackOverFlowDataset(toollist, site='stackoverflow'):
 initiateCSVs()
 
 # Tagas Stack Overflow
-getStackOverFlowDataset(["python", "cryptography"], site="stackoverflow")
+getStackOverFlowDataset(["python","encryption","rsa"], site="stackoverflow") #testar o ssl,openssl, esta em toda a web
 # Tags Crypto Stack Exchange
-getStackOverFlowDataset(["encryption"], site="crypto")
+getStackOverFlowDataset(["python","encryption","rsa"], site="crypto")
 # tags Security Stack Exchange
-getStackOverFlowDataset(["vulnerability"], site="security")
+getStackOverFlowDataset(["python","encryption","rsa"], site="security")
