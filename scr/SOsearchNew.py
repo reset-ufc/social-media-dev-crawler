@@ -23,12 +23,12 @@ STACKEXCHANGE = "https://api.stackexchange.com/"
 VERSION = "2.3/"
 endpoint = STACKEXCHANGE + VERSION + 'search/advanced'
 
-question_features = ['tag', 'question_id', 'accepted_answer_id', 'answer_count', 'creation_date', 'is_answered',
+question_features = ['site', 'tag', 'question_id', 'accepted_answer_id', 'answer_count', 'creation_date', 'is_answered',
                      'last_activity_date', 'last_edit_date', 'owner_id', 'owner_reputation', 'score', 'view_count',
                      'title', 'body']
-answer_features = ['tag', 'answer_id', 'question_id', 'comment_count', 'creation_date', 'is_accepted',
+answer_features = ['site', 'tag', 'answer_id', 'question_id', 'comment_count', 'creation_date', 'is_accepted',
                    'last_activity_date', 'owner_reputation', 'owner_id', 'score', 'body']
-comment_features = ['tag', 'comment_id', 'post_id', 'creation_date', 'edited', 'owner_reputation', 'owner_id', 'score',
+comment_features = ['site', 'tag', 'comment_id', 'post_id', 'creation_date', 'edited', 'owner_reputation', 'owner_id', 'score',
                     'body']
 
 
@@ -46,8 +46,12 @@ def initiateCSVs():
             writer = csv.writer(csvfile)
             writer.writerow(comment_features)
 
+<<<<<<< HEAD:scr/SOsearchNew.py
 
 def save_comments_data(comments, tool, existing_comment_ids):
+=======
+def save_comments_data(comments, tool, site, existing_comment_ids):
+>>>>>>> f9deef23dd64c67630260a6c619af5ae3ebb27b0:SOsearchNew.py
     with open('comments.csv', 'a', encoding="utf-8", newline='') as csvfile:
         writer = csv.writer(csvfile, delimiter=',')
         for comment in comments:
@@ -57,6 +61,7 @@ def save_comments_data(comments, tool, existing_comment_ids):
             existing_comment_ids.add(c_id)
 
             comment_data = [
+                site,
                 tool,
                 c_id,
                 comment.get('post_id', np.nan),
@@ -70,10 +75,14 @@ def save_comments_data(comments, tool, existing_comment_ids):
             ]
             writer.writerow(comment_data)
 
+<<<<<<< HEAD:scr/SOsearchNew.py
 
 def getStackOverFlowDataset(toollist):
 
     # Carrega IDs existentes para evitar duplicatas
+=======
+def getStackOverFlowDataset(toollist, site='stackoverflow'):
+>>>>>>> f9deef23dd64c67630260a6c619af5ae3ebb27b0:SOsearchNew.py
     existing_q_ids = set()
     existing_a_ids = set()
     existing_comment_ids = set()
@@ -105,13 +114,13 @@ def getStackOverFlowDataset(toollist):
         "key": key,
         "pagesize": 100,
         "sort": "votes",
-        "site": "stackoverflow",
+        "site": site,
         "filter": "!LGdawXSMGS0H5KeF1E6_cH"
     }
 
     theQuery = STACKEXCHANGE + VERSION + 'search/advanced'
     tag_query = ';'.join(toollist)
-    print("----> Buscando por tags:", tag_query)
+    print(f"----> [{site}] Buscando por tags: {tag_query}")
 
     page = 1
     has_more = True
@@ -141,6 +150,7 @@ def getStackOverFlowDataset(toollist):
                 existing_q_ids.add(q_id)
 
                 questionitem = [
+                    site,
                     tag_query,
                     q_id,
                     question.get('accepted_answer_id', np.nan),
@@ -160,7 +170,7 @@ def getStackOverFlowDataset(toollist):
                     question.get('body', '')
                 ]
 
-                with open('questions.csv', 'a', encoding="utf-8") as csvfile:
+                with open('questions.csv', 'a', encoding="utf-8", newline='') as csvfile:
                     writer = csv.writer(csvfile)
                     writer.writerow(questionitem)
 
@@ -172,6 +182,7 @@ def getStackOverFlowDataset(toollist):
                         existing_a_ids.add(a_id)
 
                         answeritem = [
+                            site,
                             tag_query,
                             a_id,
                             answer.get('question_id'),
@@ -187,17 +198,24 @@ def getStackOverFlowDataset(toollist):
                             answer.get('body', '')
                         ]
 
-                        with open('answers.csv', 'a', encoding="utf-8") as csvfile:
+                        with open('answers.csv', 'a', encoding="utf-8", newline='') as csvfile:
                             writer = csv.writer(csvfile)
                             writer.writerow(answeritem)
 
                         if 'comments' in answer:
+<<<<<<< HEAD:scr/SOsearchNew.py
                             save_comments_data(
                                 answer['comments'], tag_query, existing_comment_ids)
 
                 if 'comments' in question:
                     save_comments_data(
                         question['comments'], tag_query, existing_comment_ids)
+=======
+                            save_comments_data(answer['comments'], tag_query, site, existing_comment_ids)
+
+                if 'comments' in question:
+                    save_comments_data(question['comments'], tag_query, site, existing_comment_ids)
+>>>>>>> f9deef23dd64c67630260a6c619af5ae3ebb27b0:SOsearchNew.py
 
             has_more = thejson.get("has_more", False)
             page += 1
@@ -209,4 +227,10 @@ def getStackOverFlowDataset(toollist):
 
 
 initiateCSVs()
-getStackOverFlowDataset(["python", "cryptography"])
+
+# Tagas Stack Overflow
+getStackOverFlowDataset(["python", "cryptography"], site="stackoverflow")
+# Tags Crypto Stack Exchange
+getStackOverFlowDataset(["encryption"], site="crypto")
+# tags Security Stack Exchange
+getStackOverFlowDataset(["vulnerability"], site="security")
