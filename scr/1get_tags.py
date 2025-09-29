@@ -7,9 +7,10 @@ BASE_DIR = "./dump"
 
 
 def preprocess_posts(df):
+    """ 
+    Adequa a coluna Tags para busca
+    """
     df.dropna(subset=['Tags'], inplace=True)
-
-    # Adequa as tags para busca
     df['Tags'] = df['Tags'].str.strip('<>').str.split('><')
     return df
 
@@ -22,7 +23,14 @@ def get_main_tag_posts():
     df = preprocess_posts(
         pd.read_xml(posts_path)
     )
-    print(df['Tags'].head())
+    df_filtred = df[
+        df['Tags'].apply(lambda l: QUESTION_TAG in l)
+    ]
+    return df_filtred
 
 
-get_main_tag_posts()
+def search_releated_tags(df_filtred):
+    ...
+
+
+print(get_main_tag_posts().head())
