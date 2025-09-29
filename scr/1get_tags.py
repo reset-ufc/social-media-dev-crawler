@@ -2,9 +2,7 @@ import os
 import pandas as pd
 import re
 
-QUESTION_TAG = "encryption"
-#QUESTION_TAG = "discussion"
-BASE_DIR = "./dump"
+from config import *
 
 
 def preprocess_posts(df):
@@ -16,30 +14,30 @@ def preprocess_posts(df):
     return df
 
 
-def get_main_tag_posts():
-    posts_path = os.path.join(BASE_DIR, "Posts.xml")
-    if not os.path.exists(posts_path):
-        print(f"⚠ Posts.xml não encontrado em: {posts_path}")
+def make_df_coarse():
+    if not os.path.exists(DUMP_POST_PATH):
+        print(f"⚠ Posts.xml não encontrado em: {DUMP_POST_PATH}")
         return
-    df = preprocess_posts(
-        pd.read_xml(posts_path)
-    )
-    df_filtred = df[
-        df['Tags'].apply(lambda l: QUESTION_TAG in l)
-    ]
-    # Salvar o df filtrado para evitar mais execuções
-    return df_filtred
+    if not os.path.exists(COARSE_POST_PATH):
+        df = preprocess_posts(
+            pd.read_xml(DUMP_POST_PATH)
+        )
+        df_coarse = df[
+            df['Tags'].apply(lambda l: QUESTION_TAG in l)
+        ]
+        df_coarse.to_csv(COARSE_POST_PATH)
 
 
 def search_releated_tags():
-    df_filtred = get_main_tag_posts()
+    df_coarse = pd.read_csv(COARSE_POST_PATH)
 
-    explode_tags = df_filtred['Tags'].explode()
+    explode_tags = df_coarse['Tags'].explode()
     releated_tags = explode_tags.unique().tolist()
-    releated_tags.remove(QUESTION_TAG)
+    if QUESTION_TAG in releated_tags:
+        releated_tags.remove(QUESTION_TAG)
 
     print(releated_tags)
     
 
-
+make_df_coarse()
 print(search_releated_tags())
