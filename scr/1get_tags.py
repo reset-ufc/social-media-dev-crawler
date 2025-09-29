@@ -3,6 +3,7 @@ import pandas as pd
 import re
 
 QUESTION_TAG = "encryption"
+#QUESTION_TAG = "discussion"
 BASE_DIR = "./dump"
 
 
@@ -26,11 +27,19 @@ def get_main_tag_posts():
     df_filtred = df[
         df['Tags'].apply(lambda l: QUESTION_TAG in l)
     ]
+    # Salvar o df filtrado para evitar mais execuções
     return df_filtred
 
 
-def search_releated_tags(df_filtred):
-    ...
+def search_releated_tags():
+    df_filtred = get_main_tag_posts()
+
+    explode_tags = df_filtred['Tags'].explode()
+    releated_tags = explode_tags.unique().tolist()
+    releated_tags.remove(QUESTION_TAG)
+
+    print(releated_tags)
+    
 
 
-print(get_main_tag_posts().head())
+print(search_releated_tags())
