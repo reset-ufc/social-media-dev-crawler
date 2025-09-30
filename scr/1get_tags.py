@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import re
+import ast
 
 from config import *
 
@@ -28,16 +29,33 @@ def make_df_coarse():
         df_coarse.to_csv(COARSE_POST_PATH)
 
 
-def search_releated_tags():
-    df_coarse = pd.read_csv(COARSE_POST_PATH)
+def make_releated_tags():
+    if not os.path.exists(RELEATED_TAGS):
+        df_coarse = pd.read_csv(COARSE_POST_PATH)
 
-    explode_tags = df_coarse['Tags'].explode()
-    releated_tags = explode_tags.unique().tolist()
-    if QUESTION_TAG in releated_tags:
-        releated_tags.remove(QUESTION_TAG)
-
-    print(releated_tags)
+        df_coarse['Tags'] = df_coarse['Tags'].apply(ast.literal_eval)
+        
+        explode_tags = df_coarse['Tags'].explode()
+        releated_tags = explode_tags.value_counts().to_dict()
+        
+        if QUESTION_TAG in releated_tags.keys():
+            releated_tags.pop(QUESTION_TAG)
+        
+        rt = pd.DataFrame.from_dict(releated_tags, orient='index', columns=['ocorr'])
+        rt = rt.reset_index().rename(columns={'index': 'tag'})
+        
+        rt.to_json(RELEATED_TAGS, orient='records', lines=True)
     
 
+def find_representative_tags():
+    releated_tags = pd.read_json(RELEATED_TAGS, lines=True)
+
+
+def make_df_fine():
+    ...
+
+
 make_df_coarse()
-print(search_releated_tags())
+make_releated_tags()
+
+pd.read_json(RELEATED_TAGS, lines=True)
