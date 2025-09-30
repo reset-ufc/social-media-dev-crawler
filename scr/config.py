@@ -1,7 +1,5 @@
 import os
 
-QUESTION_TAG = "encryption"
-QUESTION_TAG = "discussion"
 BASE_DIR = "./dump"
 DATA = './data'
 
@@ -11,6 +9,11 @@ SITES = {
     "crypto": "crypto.stackexchange.com",
     "security": "security.stackexchange.com"
 }
+
+
+QUESTION_TAG = "encryption"
+QUESTION_TAG = "discussion"
+
 
 QUESTION_TAGS = {
     "stackoverflow": [QUESTION_TAG],
