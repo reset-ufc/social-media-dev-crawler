@@ -27,9 +27,9 @@ COARSE_PATH = os.path.join(DATA, "coarse")
 
 RELEATED_TAGS = os.path.join(DATA, 'releated_tags.json')
 
-QUESTIONS_CSV = os.path.join(COARSE_PATH, "questions_dump.csv")
-ANSWERS_CSV = os.path.join(COARSE_PATH, "answers_dump.csv")
-COMMENTS_CSV = os.path.join(COARSE_PATH, "comments_dump.csv")
+COARSE_QUESTIONS = os.path.join(COARSE_PATH, "questions_dump.csv")
+COARSE_ANSWERS = os.path.join(COARSE_PATH, "answers_dump.csv")
+COARSE_COMMENTS = os.path.join(COARSE_PATH, "comments_dump.csv")
 
 RELEATED_TAGS =  os.path.join(DATA, "releated_tags.csv")
 

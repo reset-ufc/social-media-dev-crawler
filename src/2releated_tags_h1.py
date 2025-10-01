@@ -11,13 +11,13 @@ def make_releated_tags():
     e salva o resultado em um novo arquivo CSV com a coluna 'a'.
     """
     try:
-        df_coarse = pd.read_csv(QUESTIONS_CSV)
+        df_coarse = pd.read_csv(COARSE_QUESTIONS)
     except FileNotFoundError:
-        print(f"ERRO: Arquivo de perguntas não encontrado: {QUESTIONS_CSV}.")
+        print(f"ERRO: Arquivo de perguntas não encontrado: {COARSE_QUESTIONS}.")
         return
 
     if 'tags' not in df_coarse.columns:
-        print(f"ERRO: Coluna 'tags' não encontrada em {QUESTIONS_CSV}.")
+        print(f"ERRO: Coluna 'tags' não encontrada em {COARSE_QUESTIONS}.")
         return
 
     df_coarse.dropna(subset=['tags'], inplace=True)

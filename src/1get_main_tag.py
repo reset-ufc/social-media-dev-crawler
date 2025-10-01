@@ -15,8 +15,8 @@ question_features = [
 
 def initiateCSVs():
     # criação do csv de questões
-    if not os.path.exists(QUESTIONS_CSV):
-        with open(QUESTIONS_CSV, "w", encoding="utf-8", newline="") as f:
+    if not os.path.exists(COARSE_QUESTIONS):
+        with open(COARSE_QUESTIONS, "w", encoding="utf-8", newline="") as f:
             csv.writer(f).writerow(question_features)
 
 
@@ -68,7 +68,7 @@ def parse_posts(site_alias):
                         elem.attrib.get("Title", ""),
                         elem.attrib.get("Body", "")
                     ]
-                    with open(QUESTIONS_CSV, "a", encoding="utf-8", newline="") as f:
+                    with open(COARSE_QUESTIONS, "a", encoding="utf-8", newline="") as f:
                         csv.writer(f).writerow(row)
 
         elem.clear()

@@ -1,31 +1,35 @@
 import pandas as pd
 import os
+import xml.etree.ElementTree as ET
 from config import *
+
 
 def calculate_c():
     """
-    Calcula c = número total de perguntas no QUESTIONS_CSV que contêm QUESTION_TAG.
+    Calcula c = número total de perguntas nos arquivos Posts.xml que contêm QUESTION_TAG.
     Retorna um inteiro (0 se não puder calcular).
     """
-    print("Calculando a constante 'c' (nº de perguntas que contêm a tag principal)...")
-    try:
-        df_q = pd.read_csv(QUESTIONS_CSV, dtype={'tags': str})
-    except FileNotFoundError:
-        print(f"ERRO: arquivo não encontrado: {QUESTIONS_CSV}")
-        return 0
+    print("Calculando a constante 'c' (nº de perguntas que contêm a tag principal) a partir dos dumps...")
+    c = 0
+    
+    for site_alias, site_name in SITES.items():
+        posts_path = os.path.join(BASE_DIR, site_name, "Posts.xml")
+        if not os.path.exists(posts_path):
+            print(f"AVISO: Arquivo Posts.xml não encontrado para o site '{site_alias}' em: {posts_path}")
+            continue
 
-    if 'tags' not in df_q.columns:
-        print(f"ERRO: coluna 'tags' não encontrada em {QUESTIONS_CSV}")
-        return 0
+        print(f"Processando: {posts_path}")
+        context = ET.iterparse(posts_path, events=("start",))
+        for _, elem in context:
+            if elem.tag == "row":
+                if elem.attrib.get("PostTypeId") == "1":
+                    tags_field = elem.attrib.get("Tags", "")
+                    if tags_field:
+                        tags = tags_field.strip('|').split('|')
+                        if QUESTION_TAG in tags:
+                            c += 1
+            elem.clear()
 
-    # Garantir string e sem NaN
-    df_q['tags'] = df_q['tags'].fillna('')
-
-    # Procuramos a tag principal como token (ex.: tags separadas por ';')
-    # padrão: (^|;)TAG(;|$) - insensível a maiúsculas/minúsculas
-    pattern = rf'(^|;)\s*{QUESTION_TAG}\s*(;|$)'
-    contains_main = df_q['tags'].str.contains(pattern, case=False, na=False, regex=True)
-    c = int(contains_main.sum())
     print(f"Constante c = {c}")
     return c
 
@@ -36,6 +40,7 @@ def calculate_h2():
     com a coluna 'h2' adicionada (substitui/atualiza RELEATED_TAGS).
     """
     print("Calculando h2 = a / c ...")
+    
     if not os.path.exists(RELEATED_TAGS):
         print(f"ERRO: arquivo {RELEATED_TAGS} não encontrado. Execute make_releated_tags() (H1) primeiro.")
         return
