@@ -32,3 +32,6 @@ ANSWERS_CSV = os.path.join(COARSE_PATH, "answers_dump.csv")
 COMMENTS_CSV = os.path.join(COARSE_PATH, "comments_dump.csv")
 
 RELEATED_TAGS =  os.path.join(DATA, "releated_tags.csv")
+
+
+THRE1 = 0.1
