@@ -1,12 +1,12 @@
 import os
 
-BASE_DIR = "./dump"
+BASE_DIR = "C:/Users/flynn/Documents/GitHub/social-media-dev-crawler/Extraidos dump"
 DATA = './data'
 QUESTION_TAG = "encryption"
 
 
 SITES = {
-    "stackoverflow": "stackoverflow.com",
+    "stackoverflow": "stackapps.com",
     "crypto": "crypto.stackexchange.com",
     "security": "security.stackexchange.com"
 }
