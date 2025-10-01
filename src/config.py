@@ -35,3 +35,4 @@ RELEATED_TAGS =  os.path.join(DATA, "releated_tags.csv")
 
 
 THRE1 = 0.1
+THRE2 = 0.01
