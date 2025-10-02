@@ -15,9 +15,8 @@ question_features = [
 
 def initiateCSVs():
     # criação do csv de questões
-    if not os.path.exists(COARSE_QUESTIONS):
-        with open(COARSE_QUESTIONS, "w", encoding="utf-8", newline="") as f:
-            csv.writer(f).writerow(question_features)
+    with open(COARSE_QUESTIONS, "w", encoding="utf-8", newline="") as f:
+        csv.writer(f).writerow(question_features)
 
 
 def safe_date(ts):

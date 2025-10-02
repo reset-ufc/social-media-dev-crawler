@@ -8,8 +8,9 @@ from config import *
 
 def make_releated_tags():
     """
-    Lê o arquivo CSV de perguntas, extrai todas as tags, conta a ocorrência de cada uma
-    e salva o resultado em um novo arquivo CSV com a coluna 'a'.
+    Lê o arquivo CSV de perguntas, filtra as que contêm a QUESTION_TAG,
+    conta a ocorrência das tags associadas e salva o resultado em um
+    novo arquivo CSV com a coluna 'a'.
     """
     try:
         df_coarse = pd.read_csv(COARSE_QUESTIONS)
@@ -22,15 +23,22 @@ def make_releated_tags():
         return
 
     df_coarse.dropna(subset=['tags'], inplace=True)
-    explode_tags = df_coarse['tags'].str.findall(r'<(.+?)>').explode()
-    tag_counts_series = explode_tags.value_counts()
+
+    # Filtra as linhas que contêm a QUESTION_TAG
+    df_filtered = df_coarse[df_coarse['tags'].str.contains(f'<{QUESTION_TAG}>')]
+
+    # Extrai todas as tags da coluna 'tags' do dataframe filtrado
+    all_tags = df_filtered['tags'].str.findall(r'<(.+?)>').explode()
+
+    # Conta a ocorrência de cada tag
+    tag_counts_series = all_tags.value_counts()
 
     releated_tags_df = tag_counts_series.reset_index()
     releated_tags_df.columns = ['tag', 'a']
 
+    # Remove a própria QUESTION_TAG da contagem, se ela existir
     if QUESTION_TAG in releated_tags_df['tag'].values:
-        releated_tags_df = releated_tags_df[releated_tags_df['tag']
-                                            != QUESTION_TAG]
+        releated_tags_df = releated_tags_df[releated_tags_df['tag'] != QUESTION_TAG]
 
     releated_tags_df.to_csv(RELEATED_TAGS, index=False)
     print(
@@ -39,9 +47,18 @@ def make_releated_tags():
 
 def calculate_b():
     """
-    Calcula a coluna 'b': a contagem de cada tag diretamente dos arquivos Posts.xml originais.
+    Calcula a coluna 'b': a contagem de cada tag de releated_tags diretamente dos arquivos Posts.xml originais.
     """
     print("Calculando a coluna 'b' a partir dos arquivos de dump originais...")
+
+    try:
+        releated_tags_df = pd.read_csv(RELEATED_TAGS)
+    except FileNotFoundError:
+        print(
+            f"ERRO: Arquivo {RELEATED_TAGS} não encontrado. Execute make_releated_tags() primeiro.")
+        return
+
+    tags_to_count = set(releated_tags_df['tag'])
     tag_counter = Counter()
 
     for site_alias, site_name in SITES.items():
@@ -57,26 +74,15 @@ def calculate_b():
             if elem.tag == "row":
                 tags_field = elem.attrib.get("Tags", "")
                 if tags_field:
-                    tags = re.findall(r'<(.+?)>', tags_field)
-                    tag_counter.update(tags)
+                    tags_in_post = re.findall(r'<(.+?)>', tags_field)
+                    for tag in tags_in_post:
+                        if tag in tags_to_count:
+                            tag_counter.update([tag])
             elem.clear()
 
-    if not tag_counter:
-        print("Nenhuma tag encontrada nos arquivos de dump.")
-        return
+    releated_tags_df['b'] = releated_tags_df['tag'].map(tag_counter).fillna(0).astype(int)
 
-    b_df = pd.DataFrame(tag_counter.items(), columns=['tag', 'b'])
-
-    try:
-        a_df = pd.read_csv(RELEATED_TAGS)
-    except FileNotFoundError:
-        print(
-            f"ERRO: Arquivo {RELEATED_TAGS} não encontrado. Execute make_releated_tags() primeiro.")
-        return
-
-    merged_df = pd.merge(a_df, b_df, on='tag', how='left')
-
-    merged_df.to_csv(RELEATED_TAGS, index=False)
+    releated_tags_df.to_csv(RELEATED_TAGS, index=False)
     print(f"Coluna 'b' adicionada e arquivo salvo em: {RELEATED_TAGS}")
 
 
