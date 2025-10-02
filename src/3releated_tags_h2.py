@@ -25,7 +25,7 @@ def calculate_c():
                 if elem.attrib.get("PostTypeId") == "1":
                     tags_field = elem.attrib.get("Tags", "")
                     if tags_field:
-                        tags = tags_field.strip('|').split('|')
+                        tags = tags_field.replace('><', ' ').strip('<>').split()
                         if QUESTION_TAG in tags:
                             c += 1
             elem.clear()

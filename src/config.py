@@ -1,6 +1,6 @@
 import os
 
-BASE_DIR = "C:/Users/flynn/Documents/GitHub/social-media-dev-crawler/Extraidos dump"
+BASE_DIR = "./Extraidos dump"
 DATA = './data'
 QUESTION_TAG = "encryption"
 

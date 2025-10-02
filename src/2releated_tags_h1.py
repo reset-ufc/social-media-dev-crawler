@@ -1,6 +1,7 @@
 import pandas as pd
 import xml.etree.ElementTree as ET
 import os
+import re
 from collections import Counter
 from config import *
 
@@ -21,7 +22,7 @@ def make_releated_tags():
         return
 
     df_coarse.dropna(subset=['tags'], inplace=True)
-    explode_tags = df_coarse['tags'].str.split(';').explode()
+    explode_tags = df_coarse['tags'].str.findall(r'<(.+?)>').explode()
     tag_counts_series = explode_tags.value_counts()
 
     releated_tags_df = tag_counts_series.reset_index()
@@ -56,7 +57,7 @@ def calculate_b():
             if elem.tag == "row":
                 tags_field = elem.attrib.get("Tags", "")
                 if tags_field:
-                    tags = tags_field.strip('|').split('|')
+                    tags = re.findall(r'<(.+?)>', tags_field)
                     tag_counter.update(tags)
             elem.clear()
 
