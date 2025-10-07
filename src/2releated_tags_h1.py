@@ -6,10 +6,13 @@ from collections import Counter
 from config import *
 
 # --- Utils ---------------------------------------------------------
+
+
 def ensure_parent_dir(path):
     parent = os.path.dirname(path)
     if parent and not os.path.exists(parent):
         os.makedirs(parent, exist_ok=True)
+
 
 def extract_tag_list(tags_field):
     """
@@ -43,7 +46,8 @@ def make_releated_tags():
     """
     print("-> make_releated_tags: começando...")
     if not os.path.exists(COARSE_QUESTIONS):
-        print(f"ERRO: arquivo {COARSE_QUESTIONS} não encontrado. Verifique config.py e paths.")
+        print(
+            f"ERRO: arquivo {COARSE_QUESTIONS} não encontrado. Verifique config.py e paths.")
         return
 
     df = pd.read_csv(COARSE_QUESTIONS, dtype=str)
@@ -59,8 +63,10 @@ def make_releated_tags():
     df['tag_list'] = df['tags'].apply(extract_tag_list)
 
     # quantas têm QUESTION_TAG?
-    num_with_question_tag = df['tag_list'].apply(lambda L: QUESTION_TAG in L).sum()
-    print(f"  Posts que contém a tag principal '{QUESTION_TAG}': {num_with_question_tag}")
+    num_with_question_tag = df['tag_list'].apply(
+        lambda L: QUESTION_TAG in L).sum()
+    print(
+        f"  Posts que contém a tag principal '{QUESTION_TAG}': {num_with_question_tag}")
 
     # filtra apenas os posts que contém QUESTION_TAG
     df_filtered = df[df['tag_list'].apply(lambda L: QUESTION_TAG in L)]
@@ -77,12 +83,14 @@ def make_releated_tags():
 
     # remove a própria QUESTION_TAG (se presente)
     if QUESTION_TAG in releated_tags_df['tag'].values:
-        releated_tags_df = releated_tags_df[releated_tags_df['tag'] != QUESTION_TAG]
+        releated_tags_df = releated_tags_df[releated_tags_df['tag']
+                                            != QUESTION_TAG]
 
     # garante diretório e salva
     ensure_parent_dir(RELEATED_TAGS)
     releated_tags_df.to_csv(RELEATED_TAGS, index=False, encoding='utf-8')
-    print(f"  Arquivo salvo em: {RELEATED_TAGS} (linhas: {len(releated_tags_df)})")
+    print(
+        f"  Arquivo salvo em: {RELEATED_TAGS} (linhas: {len(releated_tags_df)})")
     if len(releated_tags_df) > 0:
         print("  Top 10 tags (a):")
         print(releated_tags_df.head(10).to_string(index=False))
@@ -95,7 +103,8 @@ def calculate_b():
     """
     print("-> calculate_b: começando...")
     if not os.path.exists(RELEATED_TAGS):
-        print(f"ERRO: arquivo {RELEATED_TAGS} não encontrado. Execute make_releated_tags() primeiro.")
+        print(
+            f"ERRO: arquivo {RELEATED_TAGS} não encontrado. Execute make_releated_tags() primeiro.")
         return
 
     releated_tags_df = pd.read_csv(RELEATED_TAGS, dtype={'tag': str})
@@ -105,7 +114,8 @@ def calculate_b():
     for site_alias, site_name in SITES.items():
         posts_path = os.path.join(BASE_DIR, site_name, "Posts.xml")
         if not os.path.exists(posts_path):
-            print(f"  AVISO: Posts.xml não encontrado para {site_alias} em {posts_path}")
+            print(
+                f"  AVISO: Posts.xml não encontrado para {site_alias} em {posts_path}")
             continue
         print(f"  Processando dump: {posts_path} ...")
         context = ET.iterparse(posts_path, events=("start",))
@@ -113,7 +123,7 @@ def calculate_b():
             if elem.tag == "row":
                 tags_field = elem.attrib.get("Tags", "")
                 if tags_field:
-                    # extrai tags no formato <tag> 
+                    # extrai tags no formato <tag>
                     tags_in_post = extract_tag_list(tags_field)
                     for t in tags_in_post:
                         if t in tags_to_count:
@@ -121,7 +131,8 @@ def calculate_b():
             elem.clear()
 
     # mapeia contagens para dataframe
-    releated_tags_df['b'] = releated_tags_df['tag'].map(tag_counter).fillna(0).astype(int)
+    releated_tags_df['b'] = releated_tags_df['tag'].map(
+        tag_counter).fillna(0).astype(int)
     releated_tags_df.to_csv(RELEATED_TAGS, index=False, encoding='utf-8')
     print(f"  Coluna 'b' adicionada e arquivo salvo em: {RELEATED_TAGS}")
 
@@ -136,7 +147,8 @@ def calculate_h1():
         print("ERRO: colunas 'a' e 'b' necessárias não existem.")
         return
     # divisão segura
-    df['h1'] = (df['a'] / df['b']).replace([float('inf'), -float('inf')], 0).fillna(0)
+    df['h1'] = (df['a'] / df['b']
+                ).replace([float('inf'), -float('inf')], 0).fillna(0)
     df.to_csv(RELEATED_TAGS, index=False, encoding='utf-8')
     print(f"  Coluna 'h1' calculada e salva em {RELEATED_TAGS}.")
 
@@ -153,10 +165,11 @@ def filter_by_h1_threshold():
     original = len(df)
     df = df[df['h1'] >= THRE1]
     df.to_csv(RELEATED_TAGS, index=False, encoding='utf-8')
-    print(f"  Filtragem por THRE1={THRE1} aplicada. Removidas {original - len(df)} linhas. Salvo em {RELEATED_TAGS}")
+    print(
+        f"  Filtragem por THRE1={THRE1} aplicada. Removidas {original - len(df)} linhas. Salvo em {RELEATED_TAGS}")
 
 
-#função main
+# função main
 if __name__ == "__main__":
     ensure_parent_dir(COARSE_QUESTIONS)  # só garante pastas se desejar
     make_releated_tags()
