@@ -1,6 +1,6 @@
 import os
 
-BASE_DIR = "./Extraidos dump"
+BASE_DIR = "C:/Extraidos dump"
 DATA = './data'
 QUESTION_TAG = "encryption"
 
