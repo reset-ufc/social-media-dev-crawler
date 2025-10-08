@@ -33,7 +33,7 @@ def parse_posts(site_alias):
 
     site_name = SITES[site_alias]
     folder = os.path.join(BASE_DIR, site_name)
-    posts_path = os.path.join(folder, "Posts.xml")
+    posts_path = os.path.join(folder, "Posts.xml") #qual arquivo vai procurar nos sites
     if not os.path.exists(posts_path):
         print(f"[{site_alias}] Posts.xml não encontrado em: {posts_path}")
         return
