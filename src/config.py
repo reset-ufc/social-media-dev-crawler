@@ -24,8 +24,9 @@ COARSE_QUESTIONS = os.path.join(COARSE_PATH, "questions_dump.csv")
 COARSE_ANSWERS = os.path.join(COARSE_PATH, "answers_dump.csv")
 COARSE_COMMENTS = os.path.join(COARSE_PATH, "comments_dump.csv")
 
-RELEATED_TAGS =  os.path.join(DATA, "releated_tags.csv")
+RELEATED_TAGS = os.path.join(DATA, "releated_tags.csv")
 RELEATED_POSTS = os.path.join(DATA, "releated_posts.csv")
+CONNECTED_POSTS = os.path.join(DATA, "connected_posts.csv")
 
 THRE1 = 0.1
 THRE2 = 0.01

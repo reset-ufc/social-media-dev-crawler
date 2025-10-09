@@ -8,9 +8,10 @@ import py7zr
 from config import *
 
 POST_FEATURES = [
-    'site', 'tags', 'question_id', 'accepted_answer_id', 'answer_count',
+    'site_alias', 'tags', 'question_id', 'accepted_answer_id', 'answer_count',
     'creation_date', 'last_activity_date', 'last_edit_date',
-    'owner_id', 'score', 'view_count', 'title', 'body'
+    'owner_id', 'score', 'view_count', 'title', 'body',
+    'local_id', 'site'
 ]
 
 
@@ -132,7 +133,9 @@ def find_and_save_related_posts(related_tags):
                                         elem.attrib.get("Score", "0"),
                                         elem.attrib.get("ViewCount", "0"),
                                         elem.attrib.get("Title", ""),
-                                        elem.attrib.get("Body", "")
+                                        elem.attrib.get("Body", ""),
+                                        post_id,
+                                        site_name
                                     ]
 
                                     with open(RELEATED_POSTS, "a", encoding="utf-8", newline="") as f_csv:
