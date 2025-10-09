@@ -5,7 +5,6 @@ import datetime
 import py7zr
 import tempfile
 import shutil
-
 from config import *
 
 question_features = [
@@ -14,8 +13,15 @@ question_features = [
     'owner_id', 'score', 'view_count', 'title', 'body'
 ]
 
+def ensure_parent_dir(path):
+    """Garante que o diretório pai de um arquivo exista."""
+    parent_dir = os.path.dirname(path)
+    if parent_dir and not os.path.exists(parent_dir):
+        os.makedirs(parent_dir, exist_ok=True)
+
 def initiateCSVs():
     """Cria o CSV principal com cabeçalhos, se não existir."""
+    ensure_parent_dir(COARSE_QUESTIONS)
     if not os.path.exists(COARSE_QUESTIONS):
         with open(COARSE_QUESTIONS, "w", encoding="utf-8", newline="") as f:
             csv.writer(f).writerow(question_features)
