@@ -2,9 +2,10 @@ import os
 import csv
 import xml.etree.ElementTree as ET
 import datetime
-
+import py7zr
+import tempfile
+import shutil
 from config import *
-
 
 question_features = [
     'site', 'tags', 'question_id', 'accepted_answer_id', 'answer_count',
@@ -12,43 +13,60 @@ question_features = [
     'owner_id', 'score', 'view_count', 'title', 'body'
 ]
 
+def ensure_parent_dir(path):
+    """Garante que o diretório pai de um arquivo exista."""
+    parent_dir = os.path.dirname(path)
+    if parent_dir and not os.path.exists(parent_dir):
+        os.makedirs(parent_dir, exist_ok=True)
 
 def initiateCSVs():
-    # criação do csv de questões
-    with open(COARSE_QUESTIONS, "w", encoding="utf-8", newline="") as f:
-        csv.writer(f).writerow(question_features)
-
+    """Cria o CSV principal com cabeçalhos, se não existir."""
+    ensure_parent_dir(COARSE_QUESTIONS)
+    if not os.path.exists(COARSE_QUESTIONS):
+        with open(COARSE_QUESTIONS, "w", encoding="utf-8", newline="") as f:
+            csv.writer(f).writerow(question_features)
 
 def safe_date(ts):
-
+    """Padroniza o formato de data, ignorando erros."""
     try:
         dt = datetime.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S.%f")
         return dt.strftime('%Y/%m/%d, %H:%M:%S')
     except Exception:
-
         return ts
 
+def parse_posts_from_7z(site_alias):
+    """Extrai e processa apenas o arquivo Posts.xml de dentro do .7z."""
+    site_file = SITES[site_alias]
+    archive_path = os.path.join(BASE_DIR, site_file)
 
-def parse_posts(site_alias):
-
-    site_name = SITES[site_alias]
-    folder = os.path.join(BASE_DIR, site_name)
-    posts_path = os.path.join(folder, "Posts.xml") #qual arquivo vai procurar nos sites
-    if not os.path.exists(posts_path):
-        print(f"[{site_alias}] Posts.xml não encontrado em: {posts_path}")
+    if not os.path.exists(archive_path):
+        print(f"[{site_alias}] Arquivo não encontrado: {archive_path}")
         return
 
-    print(f"[{site_alias}] Processando Posts: {posts_path}")
+    print(f"[{site_alias}] Lendo arquivo compactado: {archive_path}")
 
-    context = ET.iterparse(posts_path, events=("start",))
-    for _, elem in context:
-        if elem.tag == "row":
-            post_type = elem.attrib.get("PostTypeId")
+    try:
+        with py7zr.SevenZipFile(archive_path, mode='r') as archive:
+            file_list = archive.getnames()
+            posts_files = [f for f in file_list if "Posts.xml" in f]
+            if not posts_files:
+                print(f"[{site_alias}] Nenhum Posts.xml encontrado dentro do .7z.")
+                return
 
-            if post_type == "1":
-                tags_field = elem.attrib.get("Tags", "")
-                # Apenas processa se o campo de tags não estiver vazio
-                if tags_field:
+            # Criar pasta temporária
+            temp_dir = tempfile.mkdtemp()
+            archive.extract(path=temp_dir, targets=posts_files)
+            posts_path = os.path.join(temp_dir, posts_files[0])
+
+            print(f"[{site_alias}] Processando {posts_path} ...")
+
+            context = ET.iterparse(posts_path, events=("start",))
+            for _, elem in context:
+                if elem.tag == "row" and elem.attrib.get("PostTypeId") == "1":
+                    tags_field = elem.attrib.get("Tags", "")
+                    if not tags_field:
+                        continue
+
                     all_tags = tags_field.strip('|').split('|')
                     tags_str = ";".join(all_tags)
 
@@ -67,17 +85,25 @@ def parse_posts(site_alias):
                         elem.attrib.get("Title", ""),
                         elem.attrib.get("Body", "")
                     ]
+
                     with open(COARSE_QUESTIONS, "a", encoding="utf-8", newline="") as f:
                         csv.writer(f).writerow(row)
+                elem.clear()
 
-        elem.clear()
+            # Limpa o arquivo temporário
+            shutil.rmtree(temp_dir)
 
+    except Exception as e:
+        print(f"[{site_alias}] Erro ao processar {archive_path}: {e}")
 
-if __name__ == "__main__":
+def main():
     print("Inicializando CSVs …")
     initiateCSVs()
 
     for site_alias in SITES.keys():
-        parse_posts(site_alias)
+        parse_posts_from_7z(site_alias)
 
     print("Processamento concluído!")
+
+if __name__ == "__main__":
+    main()
