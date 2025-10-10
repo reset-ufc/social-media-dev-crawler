@@ -26,6 +26,13 @@ Task:
 
 4. Provide a numeric confidence score between 0.00 and 1.00 (two decimal places).
 
+Restrictions:
+- Output MUST be valid JSON and nothing else. - All text fields must be ≤ 300 characters.
+- If classification == 2, set misuse_categories = [] and evidence can be [] or ["N/A"].
+- If classification == 3, concisely explain why it is unclear (missing code, ambiguous text, unrelated tags).
+
+{post}
+
 Output format (MUST be valid JSON only—no extra text):
 {
 "id": "Post ID",
@@ -35,11 +42,6 @@ Output format (MUST be valid JSON only—no extra text):
 "confidence": 0.00, // 0.00 - 1.00
 "notes": "<optional short note, maximum 30 words>" // optional
 }
-
-Restrictions:
-- Output MUST be valid JSON and nothing else. - All text fields must be ≤ 300 characters.
-- If classification == 2, set misuse_categories = [] and evidence can be [] or ["N/A"].
-- If classification == 3, concisely explain why it is unclear (missing code, ambiguous text, unrelated tags).
 """
 
 
@@ -65,6 +67,11 @@ expressed. Classify them into one or more categories:
 
 4. Provide a numeric confidence score between 0.00 and 1.00 (two decimal places).
 
+Restrictions:
+- Output MUST be valid JSON and nothing else. - All text fields must be ≤ 300 characters.
+
+{post}
+
 Output format (MUST be valid JSON only—no extra text):
 {
 "id": "Post ID",
@@ -74,9 +81,6 @@ Output format (MUST be valid JSON only—no extra text):
 "confidence": 0.00, // 0.00 - 1.00
 "notes": "<optional short note, maximum 30 words>" // optional
 }
-
-Restrictions:
-- Output MUST be valid JSON and nothing else. - All text fields must be ≤ 300 characters.
 """
 
 
