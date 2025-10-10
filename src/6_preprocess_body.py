@@ -44,7 +44,7 @@ def main():
         body) for body in tqdm(df['Body'], desc="Limpando HTML")]
 
     # Salva o resultado em um novo arquivo para não sobrescrever o original
-    output_path = os.path.join(config.DATA, "releated_posts_cleaned.csv")
+    output_path = config.FILTERED_POSTS
     df.to_csv(output_path, index=False)
     print(f"Processamento concluído. Arquivo salvo em: {output_path}")
 

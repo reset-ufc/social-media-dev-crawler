@@ -28,5 +28,8 @@ RELEATED_TAGS = os.path.join(DATA, "releated_tags.csv")
 RELEATED_POSTS = os.path.join(DATA, "releated_posts.csv")
 CONNECTED_POSTS = os.path.join(DATA, "connected_posts.csv")
 
+FILTERED_POSTS = os.path.join(DATA, "releated_posts_cleaned.csv")
+MISUSE_CASES = os.path.join(DATA, "misuse_cases.json")
+
 THRE1 = 0.1
 THRE2 = 0.01
