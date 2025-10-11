@@ -2,186 +2,148 @@ import os
 import csv
 import pandas as pd
 import xml.etree.ElementTree as ET
-import datetime
 import io
 import py7zr
+import re
 from config import *
 
+# --- Configurações ---
+POSTS_OUTPUT = os.path.join(DATA, "coarse", "final_posts.csv")
+
+
 POST_FEATURES = [
-    'site_alias', 'tags', 'question_id', 'accepted_answer_id', 'answer_count',
-    'creation_date', 'last_activity_date', 'last_edit_date',
-    'owner_id', 'score', 'view_count', 'title', 'body',
-    'local_id', 'site'
+    "site", "tags", "question_id", "accepted_answer_id", "answer_count",
+    "creation_date", "last_activity_date", "last_edit_date",
+    "owner_id", "score", "view_count", "title", "body"
 ]
+os.makedirs(os.path.dirname(RELEATED_POSTS), exist_ok=True)
 
+# --- Utils ---------------------------------------------------------
+def ensure_parent_dir(path):
+    parent = os.path.dirname(path)
+    if parent and not os.path.exists(parent):
+        os.makedirs(parent, exist_ok=True)
 
-def safe_date(ts):
-    """Converte uma data ISO em formato legível."""
-    try:
-        dt = datetime.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S.%f")
-        return dt.strftime('%Y/%m/%d, %H:%M:%S')
-    except (ValueError, TypeError):
-        return ts
+def safe_date(value):
+    """Retorna a data como string legível, mesmo se o formato estiver estranho."""
+    return value[:19].replace("T", " ") if isinstance(value, str) else ""
 
+def extract_tag_list(tags_field):
+    """Normaliza tags em formato semântico (python;crypto)."""
+    if not tags_field:
+        return ""
+    if '<' in tags_field and '>' in tags_field:
+        tags = [t.strip() for t in re.findall(r'<(.+?)>', tags_field)]
+    else:
+        tags = [t.strip() for t in re.split(r'[\s,;|]+', tags_field) if t.strip()]
+    return ";".join(tags)
 
-def get_related_tags():
-    """Lê as tags relacionadas do arquivo CSV gerado nas heurísticas."""
-    try:
-        df = pd.read_csv(RELEATED_TAGS)
-        return set(df['tag'])
-    except FileNotFoundError:
-        print(
-            f"ERRO: Arquivo de tags relacionadas não encontrado: {RELEATED_TAGS}")
-        return set()
-
-
+# --- Funções principais --------------------------------------------
 def initialize_csv(path):
-    """Cria o CSV com cabeçalho, se ainda não existir."""
+    """Cria o CSV com cabeçalho se não existir."""
     if not os.path.exists(path):
+        ensure_parent_dir(path)
         with open(path, "w", encoding="utf-8", newline="") as f:
             csv.writer(f).writerow(POST_FEATURES)
 
+def extract_post_data(elem, site_alias):
+    """Extrai os atributos relevantes de uma entrada <row>."""
+    tags_field = elem.attrib.get("Tags", "")
+    return [
+        site_alias,
+        extract_tag_list(tags_field),
+        elem.attrib.get("Id", ""),
+        elem.attrib.get("AcceptedAnswerId", ""),
+        elem.attrib.get("AnswerCount", "0"),
+        safe_date(elem.attrib.get("CreationDate", "")),
+        safe_date(elem.attrib.get("LastActivityDate", "")),
+        safe_date(elem.attrib.get("LastEditDate", "")),
+        elem.attrib.get("OwnerUserId", ""),
+        elem.attrib.get("Score", "0"),
+        elem.attrib.get("ViewCount", "0"),
+        elem.attrib.get("Title", ""),
+        elem.attrib.get("Body", "")
+    ]
 
-def has_answers_or_comments(post_id, site_name):
-    """
-    Verifica se o post tem respostas ou comentários
-    dentro dos arquivos compactados .7z.
-    """
-    base_path = os.path.join(BASE_DIR, f"{site_name}.7z")
+def get_related_post_ids():
+    """Lê os IDs de posts do arquivo RELEATED_POSTS."""
+    if not os.path.exists(RELEATED_POSTS):
+        print(f"ERRO: {RELEATED_POSTS} não encontrado. Rode o script anterior primeiro.")
+        return {}
 
-    # Verifica comentários
-    with py7zr.SevenZipFile(base_path, mode='r') as archive:
-        for file in archive.getnames():
-            if "Comments.xml" in file:
-                with archive.read([file])[file] as f:
-                    for line in io.TextIOWrapper(f, encoding="utf-8", errors="ignore"):
-                        if f'PostId="{post_id}"' in line:
-                            return True  # Encontrou comentário
+    df = pd.read_csv(RELEATED_POSTS, dtype=str)
+    grouped = df.groupby("site")["question_id"].apply(set).to_dict()
+    print(f"Sites carregados: {list(grouped.keys())}")
+    return grouped
 
-            if "Posts.xml" in file:  # Verifica respostas
-                with archive.read([file])[file] as f:
-                    for line in io.TextIOWrapper(f, encoding="utf-8", errors="ignore"):
-                        if f'ParentId="{post_id}"' in line:
-                            return True  # Encontrou resposta
-    return False
-
-
-def find_and_save_related_posts(related_tags):
-    """Procura e salva posts que tenham as tags relacionadas e pelo menos uma resposta/comentário."""
-    if not related_tags:
-        print("Nenhuma tag relacionada para processar.")
+def extract_posts_from_archives():
+    """Extrai os posts completos de acordo com os IDs de interesse."""
+    site_post_ids = get_related_post_ids()
+    if not site_post_ids:
         return
 
-    processed_posts = set()
-    site_post_counts = {}
-    file_post_counts = []
+    initialize_csv(POSTS_OUTPUT)
 
-    initialize_csv(RELEATED_POSTS)
+    site_post_counts = {}
 
     for site_alias, site_name in SITES.items():
-        site_archive = os.path.join(BASE_DIR, f"{site_name}.7z")
-        site_count = 0
-
-        if not os.path.exists(site_archive):
-            print(
-                f"AVISO: Arquivo compactado não encontrado para '{site_alias}' em: {site_archive}")
+        if site_alias not in site_post_ids:
             continue
 
-        print(f" Processando: {site_archive}")
+        ids_to_find = site_post_ids[site_alias]
+        archive_path = os.path.join(BASE_DIR, site_name)
 
-        with py7zr.SevenZipFile(site_archive, mode='r') as archive:
-            for file in archive.getnames():
-                # contamos apenas arquivos de posts
-                if not file.endswith("Posts.xml"):
-                    continue
+        if not os.path.exists(archive_path):
+            print(f"AVISO: {archive_path} não encontrado.")
+            continue
 
-                file_count = 0
-                with archive.read([file])[file] as f:
-                    context = ET.iterparse(io.TextIOWrapper(
-                        f, encoding="utf-8", errors="ignore"), events=("start",))
+        print(f"[{site_alias}] Extraindo posts ({len(ids_to_find)} IDs) de {archive_path}...")
+
+        count = 0
+        with py7zr.SevenZipFile(archive_path, mode="r") as archive:
+            post_files = [f for f in archive.getnames() if f.endswith("Posts.xml")]
+            if not post_files:
+                print(f"  Nenhum Posts.xml encontrado em {archive_path}")
+                continue
+
+            with archive.read([post_files[0]])[post_files[0]] as f:
+                context = ET.iterparse(io.TextIOWrapper(f, encoding="utf-8", errors="ignore"), events=("start",))
+                with open(POSTS_OUTPUT, "a", encoding="utf-8", newline="") as out_csv:
+                    writer = csv.writer(out_csv)
                     for _, elem in context:
-                        if elem.tag == "row":
-                            post_id = elem.attrib.get("Id")
-                            if post_id in processed_posts:
-                                elem.clear()
-                                continue
+                        if elem.tag != "row":
+                            continue
+                        post_id = elem.attrib.get("Id")
+                        if post_id in ids_to_find:
+                            writer.writerow(extract_post_data(elem, site_alias))
+                            count += 1
+                            ids_to_find.remove(post_id)
+                        elem.clear()
 
-                            tags_field = elem.attrib.get("Tags", "")
-                            if tags_field:
-                                post_tags = set(
-                                    tags_field.strip('|').split('|'))
-                                if not related_tags.isdisjoint(post_tags):
-                                    # Só inclui posts com respostas/comentários
-                                    if not has_answers_or_comments(post_id, site_name):
-                                        elem.clear()
-                                        continue
+        site_post_counts[site_alias] = count
+        print(f"  → {site_alias}: {count} posts extraídos")
 
-                                    row = [
-                                        site_alias,
-                                        ";".join(post_tags),
-                                        post_id,
-                                        elem.attrib.get(
-                                            "AcceptedAnswerId", ""),
-                                        elem.attrib.get("AnswerCount", "0"),
-                                        safe_date(elem.attrib.get(
-                                            "CreationDate", "")),
-                                        safe_date(elem.attrib.get(
-                                            "LastActivityDate", "")),
-                                        safe_date(elem.attrib.get(
-                                            "LastEditDate", "")),
-                                        elem.attrib.get("OwnerUserId", ""),
-                                        elem.attrib.get("Score", "0"),
-                                        elem.attrib.get("ViewCount", "0"),
-                                        elem.attrib.get("Title", ""),
-                                        elem.attrib.get("Body", ""),
-                                        post_id,
-                                        site_name
-                                    ]
-
-                                    with open(RELEATED_POSTS, "a", encoding="utf-8", newline="") as f_csv:
-                                        csv.writer(f_csv).writerow(row)
-
-                                    processed_posts.add(post_id)
-                                    site_count += 1
-                                    file_count += 1
-
-                            elem.clear()
-
-                # registra quantos posts foram extraídos deste arquivo
-                file_post_counts.append((f"{site_alias}/{file}", file_count))
-                print(f"  → Arquivo: {file} -> {file_count} posts")
-
-        site_post_counts[site_alias] = site_count
-        print(f"→ {site_alias}: {site_count} posts encontrados ")
-
+    # --- resumo final ---
     print("\nResumo final:")
+    total = 0
     for site, count in site_post_counts.items():
         print(f"  - {site}: {count} posts válidos")
+        total += count
+    print(f"\n Total geral: {total} posts extraídos")
+    print(f"Arquivo consolidado salvo em: {POSTS_OUTPUT}")
 
-    site_post_counts_path = os.path.join(DATA, "site_post_counts.csv")
-    with open(site_post_counts_path, "w", encoding="utf-8", newline="") as f:
+    # salva contagem por site
+    counts_csv = os.path.join(DATA, "coarse", "post_counts.csv")
+    with open(counts_csv, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["site", "total_posts"])
         for site, count in site_post_counts.items():
             writer.writerow([site, count])
+        writer.writerow(["TOTAL", total])
+    print(f"Arquivo 'post_counts.csv' salvo em: {counts_csv}")
 
-    print("\n Arquivo 'site_post_counts.csv' salvo com sucesso!")
-
-    # Salva o CSV com a contagem por arquivo processado
-    os.makedirs(DATA, exist_ok=True)
-    posts_per_file_path = os.path.join(DATA, "posts_per_file.csv")
-    with open(posts_per_file_path, "w", encoding="utf-8", newline="") as f_pf:
-        writer = csv.writer(f_pf)
-        writer.writerow(["site", "posts"])
-        for site_file, cnt in file_post_counts:
-            writer.writerow([site_file, cnt])
-
-    print(f"\n Arquivo '{posts_per_file_path}' salvo com sucesso!")
-
-
+# --- Execução principal ---
 if __name__ == "__main__":
-    print("Inicializando coleta dentro dos arquivos compactados...")
-    tags_to_find = get_related_tags()
-    print("Buscando posts relacionados com respostas/comentários...")
-    find_and_save_related_posts(tags_to_find)
-    print("Processamento concluído!")
+    print("Iniciando 4get_posts.py ...")
+    extract_posts_from_archives()
+    print("Processamento concluído com sucesso!")
