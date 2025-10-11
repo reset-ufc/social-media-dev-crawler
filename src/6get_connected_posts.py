@@ -6,7 +6,8 @@ import io
 import tempfile
 import py7zr
 import shutil
-from paths import *
+from paths import BASE_DIR, CONNECTED_POSTS, RELEATED_POSTS, SITES
+from utils import safe_date
 
 # Colunas para os posts, consistente com 4get_posts.py
 POST_FEATURES = [
@@ -94,7 +95,9 @@ def find_and_save_answers(relevant_questions):
                                 site_alias, "",  # tags
                                 parent_id,  # question_id
                                 # accepted_answer_id, answer_count, etc.
-                                "", "", "", "", "",
+                                "", "",  # accepted_answer_id, answer_count
+                                safe_date(elem.attrib.get("CreationDate", "")),
+                                "", "",  # last_activity_date, last_edit_date
                                 elem.attrib.get("OwnerUserId", ""),
                                 elem.attrib.get("Score", "0"),
                                 "",  # view_count
