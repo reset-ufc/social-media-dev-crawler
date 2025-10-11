@@ -1,5 +1,5 @@
 def detect_misuse():
-    return"""
+    return """
 You are a security expert specializing in software cryptography. Given a complete Stack Overflow 
 post (title, body, and answers), classify whether the post contains cryptographic misuse.
 
@@ -34,14 +34,14 @@ Restrictions:
 {post}
 
 Output format (MUST be valid JSON only—no extra text):
-{
+{{
 "id": "Post ID",
 "classification": 1|2|3,
 "rationale": ["concise bullet 1", "bullet 2"], // maximum of 3 bullets
 "evidence": ["excerpt 1", "excerpt 2"], // optional, or []
 "confidence": 0.00, // 0.00 - 1.00
 "notes": "<optional short note, maximum 30 words>" // optional
-}
+}}
 """
 
 
@@ -142,10 +142,12 @@ Restrictions:
 Output format (MUST be valid JSON only—no extra text):
 {
 "id": "Post ID",
-"misuse_categories": ["A", "B", "C...],
+"misuse_group": group,
+"misuse_category": category,
+"misuse_subtype": subtype,
 "rationale": ["concise bullet 1", "bullet 2"], // maximum of 3 bullets
 "evidence": ["excerpt 1", "excerpt 2"], // optional, or []
-"confidence": 0.00, // 0.00 - 1.00
+"confidence": low|medium|high
 "notes": "<optional short note, maximum 30 words>" // optional
 }
 """
