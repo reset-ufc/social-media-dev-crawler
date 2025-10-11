@@ -1,15 +1,18 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils import *
+from paths import *
 import os
 import csv
 import pandas as pd
 import xml.etree.ElementTree as ET
-import datetime
 import re
 import py7zr
 import tempfile
 import shutil
 
-from paths import *
-from utils import *
 
 
 POST_FEATURES = [
@@ -195,7 +198,7 @@ def find_and_save_related_posts(related_tags):
         print(f"  - {site}: {count} posts válidos")
 
 
-if __name__ == "__main__":
+def main():
     print("Inicializando coleta dentro dos arquivos compactados...")
     tags_to_find = get_related_tags()
     print("Buscando posts relacionados com respostas/comentários...")

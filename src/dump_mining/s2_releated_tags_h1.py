@@ -1,14 +1,18 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import pandas as pd
 import xml.etree.ElementTree as ET
 import os
-import re
 import py7zr
 import tempfile
 import shutil
 from collections import Counter
 
-from paths import *
 from utils import *
+from paths import *
+
 
 
 def make_releated_tags():
@@ -140,10 +144,8 @@ def filter_by_h1_threshold():
     print(
         f"  Filtragem por THRE1={THRE1} aplicada. Removidas {original - len(df)} linhas.")
 
-# --- main ----------------------------------------------------------
 
-
-if __name__ == "__main__":
+def main():
     ensure_parent_dir(COARSE_QUESTIONS)
     make_releated_tags()
     calculate_b()

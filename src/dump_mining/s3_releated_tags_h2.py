@@ -1,13 +1,15 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils import *
+from paths import *
 import pandas as pd
 import os
 import xml.etree.ElementTree as ET
 import py7zr
 import tempfile
 import shutil
-import re
-
-from paths import *
-from utils import *
 
 
 # --- Calcula C ---
@@ -110,7 +112,7 @@ def filter_by_h2_threshold():
 
 
 # --- MAIN ---
-if __name__ == "__main__":
+def main():
     calculate_h2()
     filter_by_h2_threshold()
     print("Processo da Heurística 2 finalizado com sucesso!")

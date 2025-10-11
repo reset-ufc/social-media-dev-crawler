@@ -1,12 +1,16 @@
+import sys
 import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils import *
+from paths import *
+
 import csv
 import xml.etree.ElementTree as ET
 import py7zr
 import tempfile
 import shutil
 
-from paths import *
-from utils import *
 
 
 question_features = [
@@ -14,6 +18,7 @@ question_features = [
     'creation_date', 'last_activity_date', 'last_edit_date',
     'owner_id', 'score', 'view_count', 'title', 'body'
 ]
+
 
 def initiateCSVs():
     """Cria o CSV principal com cabeçalhos, se não existir."""
@@ -86,6 +91,7 @@ def parse_posts_from_7z(site_alias):
     except Exception as e:
         print(f"[{site_alias}] Erro ao processar {archive_path}: {e}")
 
+
 def main():
     print("Inicializando CSVs …")
     initiateCSVs()
@@ -94,6 +100,7 @@ def main():
         parse_posts_from_7z(site_alias)
 
     print("Processamento concluído!")
+
 
 if __name__ == "__main__":
     main()

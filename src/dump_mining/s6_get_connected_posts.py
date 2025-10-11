@@ -1,13 +1,16 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils import safe_date
+from paths import BASE_DIR, CONNECTED_POSTS, RELEATED_POSTS, SITES
 import os
 import csv
 import pandas as pd
 import xml.etree.ElementTree as ET
-import io
 import tempfile
 import py7zr
 import shutil
-from paths import BASE_DIR, CONNECTED_POSTS, RELEATED_POSTS, SITES
-from utils import safe_date
 
 # Colunas para os posts, consistente com 4get_posts.py
 POST_FEATURES = [
@@ -124,7 +127,7 @@ def find_and_save_answers(relevant_questions):
     print(f"Arquivo final salvo em: {CONNECTED_POSTS}")
 
 
-if __name__ == "__main__":
+def main():
     print("Iniciando a busca por posts conectados (respostas)...")
 
     # Pega as perguntas que já foram filtradas como relevantes
