@@ -4,7 +4,7 @@ import os
 from tqdm import tqdm
 
 # Importa as configurações para obter os caminhos dos arquivos
-import paths
+from paths import *
 
 
 def clean_html_body(html_text: str) -> str:
@@ -34,17 +34,17 @@ def main():
     """
     Função principal para carregar, processar e salvar os dados.
     """
-    print(f"Carregando posts de: {paths.RELEATED_POSTS}")
-    df = pd.read_csv(paths.RELEATED_POSTS)
+    print(f"Carregando posts de: {CONNECTED_POSTS}")
+    df = pd.read_csv(CONNECTED_POSTS)
 
-    print("Pré-processando a coluna 'Body'...")
+    print("Pré-processando a coluna 'body'...")
     # Garante que a coluna 'Body' seja do tipo string
-    df['Body'] = df['Body'].astype(str)
-    df['Cleaned_Body'] = [clean_html_body(
-        body) for body in tqdm(df['Body'], desc="Limpando HTML")]
+    df['body'] = df['body'].astype(str)
+    df['body'] = [clean_html_body(
+        body) for body in tqdm(df['body'], desc="Limpando HTML")]
 
     # Salva o resultado em um novo arquivo para não sobrescrever o original
-    output_path = paths.FILTERED_POSTS
+    output_path = PREPROCESSED_POSTS
     df.to_csv(output_path, index=False)
     print(f"Processamento concluído. Arquivo salvo em: {output_path}")
 

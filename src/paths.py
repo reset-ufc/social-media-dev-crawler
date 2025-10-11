@@ -23,9 +23,12 @@ COARSE_QUESTIONS = os.path.join(DATA, "questions_dump.csv")
 
 RELEATED_TAGS = os.path.join(DATA, "releated_tags.csv")
 RELEATED_POSTS = os.path.join(DATA, "releated_posts.csv")
-CONNECTED_POSTS = os.path.join(DATA, "connected_posts.csv")
 
-FILTERED_POSTS = os.path.join(DATA, "releated_posts_cleaned.csv")
+FILTRED_POSTS = os.path.join(DATA, "filtred_posts.csv")
+
+CONNECTED_POSTS = os.path.join(DATA, "connected_posts.csv")
+PREPROCESSED_POSTS = os.path.join(DATA, "preprocessed_full_posts.csv")
+
 MISUSE_CASES = os.path.join(DATA, "misuse_cases.json")
 
 THRE1 = 0.1
