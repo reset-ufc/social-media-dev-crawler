@@ -1,6 +1,5 @@
 import pandas as pd
 from paths import PREPROCESSED_POSTS
-from tqdm import tqdm
 import warnings
 
 
