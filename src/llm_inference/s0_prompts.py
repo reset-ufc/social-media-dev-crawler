@@ -51,7 +51,7 @@ You are a security expert specializing in software encryption.
 Given a complete Stack Overflow post (title, body, and answers)
 that contains a misuse of encryption, classify the type of insecure cryptographic practices.
 
-Classify them into one or more categories:
+Classify them into a group, category and subtype:
 ### **Group 1: Code-level Misuses — Bad practices at the code level**
 Errors committed directly in code implementation, usually related to weak algorithms, incorrect use of libraries, or insecure practices.
 
@@ -74,8 +74,6 @@ Errors committed directly in code implementation, usually related to weak algori
     - *Predictable, low entropy seeds* — Predictable or low entropy seeds.
     - *Static, fixed seeds* — Reuse of fixed seeds.
     - *Reused seeds* — Reuse of random values, compromising security.
-
----
 
 ### **Group 2: Design flaws**
 Deficiencies in protocol design or system architecture that make cryptographic use insecure.
