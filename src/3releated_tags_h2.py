@@ -5,20 +5,9 @@ import py7zr
 import tempfile
 import shutil
 import re
-from config import *
 
-# --- Utils ---
-def extract_tag_list(tags_field):
-    """Extrai tags em qualquer formato comum (<tag> ou separadas por ; | espaço)."""
-    if not isinstance(tags_field, str) or tags_field.strip() == "":
-        return []
-    if '<' in tags_field and '>' in tags_field:
-        return re.findall(r'<(.+?)>', tags_field)
-    if ';' in tags_field:
-        return [t.strip() for t in tags_field.split(';') if t.strip()]
-    if '|' in tags_field:
-        return [t.strip() for t in tags_field.split('|') if t.strip()]
-    return [t.strip() for t in re.split(r'[\s,;|]+', tags_field) if t.strip()]
+from paths import *
+from utils import *
 
 
 # --- Calcula C ---
@@ -33,13 +22,14 @@ def calculate_c():
     for site_alias, site_file in SITES.items():
         archive_path = os.path.join(BASE_DIR, site_file)
         if not os.path.exists(archive_path):
-            print(f"[{site_alias}] Arquivo .7z não encontrado em: {larchive_path}")
+            print(f"[{site_alias}] Arquivo .7z não encontrado em: {archive_path}")
             continue
 
         print(f"[{site_alias}] Lendo compactado: {archive_path}")
         try:
             with py7zr.SevenZipFile(archive_path, mode='r') as archive:
-                posts_files = [f for f in archive.getnames() if "Posts.xml" in f]
+                posts_files = [
+                    f for f in archive.getnames() if "Posts.xml" in f]
                 if not posts_files:
                     print(f"[{site_alias}] Nenhum Posts.xml dentro do .7z.")
                     continue
@@ -58,6 +48,7 @@ def calculate_c():
                         if QUESTION_TAG in tags:
                             c += 1
                     elem.clear()
+                del context  # Garante que o arquivo XML seja liberado
 
                 shutil.rmtree(temp_dir)
 
@@ -114,7 +105,8 @@ def filter_by_h2_threshold():
     removed = original - len(df)
 
     df.to_csv(RELEATED_TAGS, index=False, encoding='utf-8')
-    print(f"Filtro aplicado. {removed} tags removidas. Salvo em: {RELEATED_TAGS}")
+    print(
+        f"Filtro aplicado. {removed} tags removidas. Salvo em: {RELEATED_TAGS}")
 
 
 # --- MAIN ---

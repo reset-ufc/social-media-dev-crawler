@@ -1,23 +1,19 @@
 import os
 import csv
 import xml.etree.ElementTree as ET
-import datetime
 import py7zr
 import tempfile
 import shutil
-from config import *
+
+from paths import *
+from utils import *
+
 
 question_features = [
     'site', 'tags', 'question_id', 'accepted_answer_id', 'answer_count',
     'creation_date', 'last_activity_date', 'last_edit_date',
     'owner_id', 'score', 'view_count', 'title', 'body'
 ]
-
-def ensure_parent_dir(path):
-    """Garante que o diretório pai de um arquivo exista."""
-    parent_dir = os.path.dirname(path)
-    if parent_dir and not os.path.exists(parent_dir):
-        os.makedirs(parent_dir, exist_ok=True)
 
 def initiateCSVs():
     """Cria o CSV principal com cabeçalhos, se não existir."""
@@ -26,13 +22,6 @@ def initiateCSVs():
         with open(COARSE_QUESTIONS, "w", encoding="utf-8", newline="") as f:
             csv.writer(f).writerow(question_features)
 
-def safe_date(ts):
-    """Padroniza o formato de data, ignorando erros."""
-    try:
-        dt = datetime.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S.%f")
-        return dt.strftime('%Y/%m/%d, %H:%M:%S')
-    except Exception:
-        return ts
 
 def parse_posts_from_7z(site_alias):
     """Extrai e processa apenas o arquivo Posts.xml de dentro do .7z."""
@@ -89,6 +78,7 @@ def parse_posts_from_7z(site_alias):
                     with open(COARSE_QUESTIONS, "a", encoding="utf-8", newline="") as f:
                         csv.writer(f).writerow(row)
                 elem.clear()
+            del context  # Garante que o arquivo XML seja liberado
 
             # Limpa o arquivo temporário
             shutil.rmtree(temp_dir)

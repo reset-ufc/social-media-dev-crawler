@@ -8,7 +8,7 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.exceptions import OutputParserException
 from dotenv import load_dotenv
 
-import config
+import paths
 from src import prompts
 
 
@@ -61,7 +61,7 @@ def main():
     # Carrega o arquivo de posts. Usamos o arquivo limpo do passo 6.
     # O usuário mencionou 'filtered_posts.csv', mas o script 6 gera 'releated_posts_cleaned.csv'.
     # Usaremos o que está no config.py como FILTERED_POSTS.
-    input_path = config.FILTERED_POSTS
+    input_path = paths.FILTERED_POSTS
     if not os.path.exists(input_path):
         print(f"Erro: Arquivo de entrada não encontrado em '{input_path}'.")
         print("Certifique-se de que o script 6_preprocess_body.py foi executado.")
@@ -102,7 +102,7 @@ def main():
                 f"Erro inesperado ao processar o post ID {row['local_id']}: {e}")
 
     # 4. Salvando os resultados
-    output_path = config.MISUSE_CASES
+    output_path = paths.MISUSE_CASES
     print(
         f"\nProcessamento concluído. {len(results)} resultados foram gerados.")
     print(f"Salvando resultados em: {output_path}")

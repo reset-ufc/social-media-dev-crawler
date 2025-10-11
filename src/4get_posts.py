@@ -7,7 +7,10 @@ import re
 import py7zr
 import tempfile
 import shutil
-from config import *
+
+from paths import *
+from utils import *
+
 
 POST_FEATURES = [
     'site_alias', 'tags', 'question_id', 'accepted_answer_id', 'answer_count',
@@ -15,15 +18,6 @@ POST_FEATURES = [
     'owner_id', 'score', 'view_count', 'title', 'body',
     'local_id', 'site'
 ]
-
-
-def safe_date(ts):
-    """Converte uma data ISO em formato legível."""
-    try:
-        dt = datetime.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S.%f")
-        return dt.strftime('%Y/%m/%d, %H:%M:%S')
-    except (ValueError, TypeError):
-        return ts
 
 
 def get_related_tags():
@@ -83,6 +77,7 @@ def preload_commented_and_answered_posts(site_archive_path):
                         if parent_id:
                             answered_post_ids.add(parent_id)
                     elem.clear()
+                del context  # Garante que o arquivo XML seja liberado
     except Exception as e:
         print(f"  AVISO: Erro ao pré-carregar comentários/respostas: {e}")
     finally:
@@ -183,6 +178,7 @@ def find_and_save_related_posts(related_tags):
                             file_count += 1
 
                     elem.clear()
+                del context  # Garante que o arquivo XML seja liberado
             finally:
                 shutil.rmtree(temp_dir)
 

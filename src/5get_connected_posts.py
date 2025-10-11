@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 import io
 import py7zr
 import shutil
-from config import *
+from paths import *
 
 # Colunas para os posts, consistente com 4get_posts.py
 POST_FEATURES = [
