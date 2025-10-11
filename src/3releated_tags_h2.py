@@ -33,7 +33,7 @@ def calculate_c():
     for site_alias, site_file in SITES.items():
         archive_path = os.path.join(BASE_DIR, site_file)
         if not os.path.exists(archive_path):
-            print(f"[{site_alias}] Arquivo .7z não encontrado em: {archive_path}")
+            print(f"[{site_alias}] Arquivo .7z não encontrado em: {larchive_path}")
             continue
 
         print(f"[{site_alias}] Lendo compactado: {archive_path}")
