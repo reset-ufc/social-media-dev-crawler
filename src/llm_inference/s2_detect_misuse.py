@@ -52,7 +52,9 @@ def test_on_sample():
         try:
             post_content = create_llm_input_string(str(row['id']))
             response = chain.invoke({"post": post_content})
+            # Adiciona o ID e o nome do site à resposta antes de salvá-la
             response['id'] = str(row['id'])
+            response['site'] = str(row['site']) # Assumindo que a coluna 'site' existe no DataFrame
             results.append(response)
         except Exception as e:
             print(f"Erro ao processar o post de teste ID {row['id']}: {e}")

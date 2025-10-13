@@ -46,7 +46,8 @@ Restrictions:
 
 Output format (MUST be valid JSON only—no extra text):
 {{
-"id": "Post ID",
+"id": ,
+"site": ,
 "classification": 1|2|3,
 "rationale": ["concise bullet 1", "bullet 2"], // maximum of 3 bullets
 "evidence": ["excerpt 1", "excerpt 2"], // optional, or []
