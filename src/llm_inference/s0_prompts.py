@@ -152,7 +152,7 @@ Restrictions:
 {post}
 
 Output format (MUST be valid JSON only—no extra text):
-{
+{{
 "id": "Post ID",
 "misuse_group": group,
 "misuse_category": category,
@@ -161,7 +161,7 @@ Output format (MUST be valid JSON only—no extra text):
 "evidence": ["excerpt 1", "excerpt 2"], // optional, or []
 "confidence": low|medium|high
 "notes": "<optional short note, maximum 30 words>" // optional
-}
+}}
 """
 
 

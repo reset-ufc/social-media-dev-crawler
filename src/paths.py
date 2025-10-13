@@ -30,6 +30,7 @@ CONNECTED_POSTS = os.path.join(DATA, "connected_posts.csv")
 PREPROCESSED_POSTS = os.path.join(DATA, "preprocessed_full_posts.csv")
 
 MISUSE_CASES = os.path.join(DATA, "misuse_cases.json")
+CLASSIFIED_MISUSES = os.path.join(DATA, "classified_misuses.json")
 
 THRE1 = 0.1
 THRE2 = 0.01
