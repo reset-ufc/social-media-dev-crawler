@@ -42,6 +42,7 @@ def create_llm_input_string(post_id: str, posts_filepath: str = PREPROCESSED_POS
                          & (df['type'] == 'answer')]
     sorted_answers = related_answers.sort_values(by='creation_date')
     post_str = f"""Id: {question['id']}
+Site: {question['site']}
 Title: {question['title']}
 
 Question body:
@@ -65,7 +66,7 @@ def main():
     """
     Função principal que demonstra como usar create_llm_input_string.
     """
-    print(create_llm_input_string('12789'))
+    print(create_llm_input_string('853'))
 
 
 if __name__ == "__main__":
