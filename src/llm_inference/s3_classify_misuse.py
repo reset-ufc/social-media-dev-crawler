@@ -23,7 +23,6 @@ def main():
     """
     print("Iniciando o processo de classificação de uso indevido...")
 
-    # 1. Carregar os casos de uso indevido já detectados
     if not os.path.exists(MISUSE_CASES):
         print(
             f"Erro: Arquivo de casos de uso indevido não encontrado em '{MISUSE_CASES}'.")
@@ -65,7 +64,6 @@ def main():
 
     chain = prompt_template | llm | parser
 
-    # 4. Iterar e classificar cada post
     results = []
     print(f"Classificando {len(df_to_process)} posts com o LLM...")
 
@@ -74,7 +72,6 @@ def main():
             post_content = create_llm_input_string(str(row['id']))
             response = chain.invoke({"post": post_content})
 
-            # Adiciona id e site ao resultado
             response['id'] = str(row['id'])
             response['site'] = str(row['site'])
             results.append(response)
@@ -85,7 +82,6 @@ def main():
         except Exception as e:
             print(f"Erro inesperado ao processar o post ID {row['id']}: {e}")
 
-    # 5. Salvar os resultados classificados
     output_path = CLASSIFIED_MISUSES
     print(
         f"\nProcessamento concluído. {len(results)} classificações foram geradas.")
