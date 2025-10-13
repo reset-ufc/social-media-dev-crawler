@@ -21,7 +21,6 @@ def create_llm_input_string(post_id: str, posts_filepath: str = PREPROCESSED_POS
         Retorna uma string vazia se a pergunta não for encontrada ou ocorrer um erro.
     """
     try:
-        # Suprime o aviso de tipo misto, pois lidamos com isso explicitamente
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", pd.errors.DtypeWarning)
             df = pd.read_csv(posts_filepath, dtype={
@@ -31,31 +30,34 @@ def create_llm_input_string(post_id: str, posts_filepath: str = PREPROCESSED_POS
             f"ERRO: Arquivo de posts pré-processados não encontrado em: {posts_filepath}")
         return ""
 
-    # Converte 'creation_date' para datetime para garantir a ordenação correta
     df['creation_date'] = pd.to_datetime(df['creation_date'], errors='coerce')
 
-    # Encontra a pergunta específica
     question_series = df[(df['id'] == post_id) & (df['type'] == 'post')]
     if question_series.empty:
-        # print(f"AVISO: Pergunta com ID '{post_id}' não encontrada.")
         return ""
 
     question = question_series.iloc[0]
 
-    # Encontra as respostas para a pergunta atual, garantindo que sejam do tipo 'answer'
     related_answers = df[(df['question_id'] == post_id)
                          & (df['type'] == 'answer')]
     sorted_answers = related_answers.sort_values(by='creation_date')
+    post_str = f"""Id: {question['id']}
+Title: {question['title']}
 
-    # Formata a parte da pergunta
-    post_str = f"Id: {question['id']}\n"
-    post_str += f"Title: {question['title']}\n\n"
-    post_str += f"Body: {str(question.get('body', ''))}\n\n"
+Question body:
 
-    # Adiciona cada resposta formatada
+{str(question.get('body', ''))}
+
+End of body
+"""
     for _, answer in sorted_answers.iterrows():
-        post_str += f"Answer: {str(answer.get('body', ''))}\n"
+        post_str += f"""
+Answer:
 
+{str(answer.get('body', ''))}
+
+End of Answer
+"""
     return post_str.strip()
 
 
@@ -63,7 +65,7 @@ def main():
     """
     Função principal que demonstra como usar create_llm_input_string.
     """
-    print(create_llm_input_string('66450'))
+    print(create_llm_input_string('12789'))
 
 
 if __name__ == "__main__":

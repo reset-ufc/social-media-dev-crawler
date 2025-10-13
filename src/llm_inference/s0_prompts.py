@@ -3,16 +3,11 @@ def detect_misuse():
 You are a security expert specializing in software cryptography. Given a complete Stack Overflow 
 post (title, body, and answers), classify whether the post contains cryptographic misuse.
 
-Definition of cryptographic misuse (examples):
-- obsolete/weak algorithms (e.g., MD5, DES),
-- insecure modes (e.g., ECB),
-- hardcoded keys or IVs,
-- static salts or reused IVs,
-- missing authentication (no MAC or AEAD),
-- insecure randomness or omitted randomness,
-- missing/incorrect key derivation (no KDF, raw password used),
-- incorrect padding handling,
-- misuse of cryptographic library APIs (e.g., incorrect parameter order, insecure default functions).
+Definition of cryptographic misuse:
+A cryptographic misuse occurs when a developer uses cryptography incorrectly, 
+leading to security weaknesses. It is not a flaw in the cryptographic algorithm itself, 
+but a programming or design error in how cryptography is applied. Misuses often arise 
+from insecure key management, poor configuration, or misunderstanding of cryptographic primitives.
 
 Task:
 1. Choose a classification code:
@@ -24,7 +19,7 @@ Task:
 
 3. Optionally, include up to 2 short excerpts of "evidence" (each ≤ 25 words) taken verbatim from the post/code that justify the classification.
 
-4. Provide a numeric confidence score between 0.00 and 1.00 (two decimal places).
+4. Provide a confidence rating for the classification (1, 2 or 3) which should be low if there is uncertainty, medium or high when it is very likely to be correct.
 
 Restrictions:
 - Output MUST be valid JSON and nothing else. - All text fields must be ≤ 300 characters.
@@ -39,7 +34,7 @@ Output format (MUST be valid JSON only—no extra text):
 "classification": 1|2|3,
 "rationale": ["concise bullet 1", "bullet 2"], // maximum of 3 bullets
 "evidence": ["excerpt 1", "excerpt 2"], // optional, or []
-"confidence": 0.00, // 0.00 - 1.00
+"confidence": low|medium|high
 "notes": "<optional short note, maximum 30 words>" // optional
 }}
 """

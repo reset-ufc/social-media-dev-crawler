@@ -6,31 +6,47 @@ import pandas as pd
 from bs4 import BeautifulSoup
 import os
 from tqdm import tqdm
+import html
+import re
 
 from paths import *
 
 
-def clean_html_body(html_text: str) -> str:
-    """
-    Remove tags HTML de uma string, preservando o texto.
-
-    Args:
-        html_text: Uma string contendo o corpo do post em formato HTML.
-
-    Returns:
-        O texto limpo, sem tags HTML. Retorna uma string vazia se a entrada
-        não for uma string.
-    """
-    if not isinstance(html_text, str):
+def clean_text(text: str) -> str:
+    if not isinstance(text, str):
         return ""
 
-    # Usa BeautifulSoup para parsear o HTML
-    soup = BeautifulSoup(html_text, 'html.parser')
+    # Desescapa entidades HTML (&lt;, &gt;, &amp;, etc.)
+    text = html.unescape(text)
 
-    # O método get_text() extrai todo o texto e remove as tags,
-    # preservando o conteúdo textual de hyperlinks (<a>) e ignorando
-    # tags sem texto como <img>.
-    return soup.get_text()
+    # Substitui <br>, <p>, </p> por quebras de linha
+    text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'</p\s*>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'<p\s*>', '', text, flags=re.IGNORECASE)
+
+    # Converte "\\n" em quebras reais
+    text = text.replace("\\n", "\n")
+
+    # Preserva conteúdo dentro de <code>...</code>
+    code_blocks = []
+    def _preserve_code(match):
+        code_blocks.append(match.group(0))  # mantém a tag <code> original
+        return f"[[CODE_BLOCK_{len(code_blocks)-1}]]"  # marcador temporário
+
+    text = re.sub(r'<code>.*?</code>', _preserve_code, text, flags=re.DOTALL | re.IGNORECASE)
+
+    # Remove todas as outras tags HTML restantes
+    text = re.sub(r'<[^>]+>', '', text)
+
+    # Restaura os blocos <code> preservados
+    for i, code_block in enumerate(code_blocks):
+        text = text.replace(f"[[CODE_BLOCK_{i}]]", code_block)
+
+    # Remove espaços e múltiplas quebras de linha redundantes
+    text = re.sub(r'\n\s*\n+', '\n\n', text)
+    text = text.strip()
+
+    return text
 
 
 def main():
@@ -41,12 +57,10 @@ def main():
     df = pd.read_csv(CONNECTED_POSTS)
 
     print("Pré-processando a coluna 'body'...")
-    # Garante que a coluna 'Body' seja do tipo string
     df['body'] = df['body'].astype(str)
-    df['body'] = [clean_html_body(
+    df['body'] = [clean_text(
         body) for body in tqdm(df['body'], desc="Limpando HTML")]
 
-    # Salva o resultado em um novo arquivo para não sobrescrever o original
     output_path = PREPROCESSED_POSTS
     df.to_csv(output_path, index=False)
     print(f"Processamento concluído. Arquivo salvo em: {output_path}")

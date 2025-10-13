@@ -7,7 +7,7 @@ import pandas as pd
 from langchain_core.exceptions import OutputParserException
 from langchain_core.output_parsers import JsonOutputParser
 from langchain.prompts import ChatPromptTemplate
-from langchain_community.chat_models import ChatOllama
+from langchain_ollama import ChatOllama
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -37,7 +37,6 @@ def test_on_sample(sample_size: int = 1):
     sample_df = df.sample(n=min(sample_size, len(df)))
     row = sample_df.iloc[0]
 
-    # Configura a cadeia LLM (mesma configuração da função main)
     llm = ChatOllama(model="gemma3:1b", temperature=0, format="json")
     parser = JsonOutputParser()
     prompt_template = ChatPromptTemplate.from_template(
@@ -48,12 +47,10 @@ def test_on_sample(sample_size: int = 1):
     print(
         f"\nAnalisando post de amostra com id: {row['id']}")
 
-    # Gera o conteúdo para o prompt
     post_content = create_llm_input_string(str(row['id']))
     print("\n--- Conteúdo enviado para o LLM ---")
-    print(post_content)
+    print(f'\n{post_content}\n')
 
-    # Invoca o modelo e imprime a resposta
     response = chain.invoke({"post": post_content})
     print("\n--- Resposta recebida do LLM ---")
     print(json.dumps(response, indent=2, ensure_ascii=False))
@@ -77,7 +74,6 @@ def main():
 
     llm = ChatOllama(model="gemma3:1b", temperature=0, format="json")
 
-    # O parser de JSON já está configurado para tratar a saída do modelo.
     parser = JsonOutputParser()
     prompt_template = ChatPromptTemplate.from_template(
         detect_misuse()
@@ -85,7 +81,6 @@ def main():
 
     chain = prompt_template | llm | parser
 
-    # 3. Processamento dos Posts
     results = []
     print(
         f"Processando {len(df)} posts com o LLM. Isso pode levar um tempo...")
@@ -108,7 +103,6 @@ def main():
             print(
                 f"Erro inesperado ao processar o post ID {row['local_id']}: {e}")
 
-    # 4. Salvando os resultados
     output_path = MISUSE_CASES
     print(
         f"\nProcessamento concluído. {len(results)} resultados foram gerados.")
