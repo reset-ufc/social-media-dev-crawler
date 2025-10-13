@@ -1,30 +1,46 @@
 def detect_misuse():
     return """
-You are a security expert specializing in software cryptography. Given a complete Stack Overflow 
-post (title, body, and answers), classify whether the post contains cryptographic misuse.
+You are a security expert specializing in software cryptography. 
+Given a complete Stack Overflow post (title, body, and answers), classify whether the post contains cryptographic misuse.
 
 Definition of cryptographic misuse:
-A cryptographic misuse occurs when a developer uses cryptography incorrectly, 
-leading to security weaknesses. It is not a flaw in the cryptographic algorithm itself, 
-but a programming or design error in how cryptography is applied. Misuses often arise 
-from insecure key management, poor configuration, or misunderstanding of cryptographic primitives.
+A cryptographic misuse occurs when a developer applies cryptography incorrectly, introducing or implying a real security weakness in implementation or design.
+This includes:
+- Using weak or deprecated algorithms,
+- Using insecure modes or parameters,
+- Hardcoding keys or secrets,
+- Incorrect use of random number generators,
+- Insecure padding or truncation in code,
+- Omitting authentication or verification steps.
+
+Do **NOT** classify as misuse:
+- Posts that only discuss **protocol specifications** (e.g., TLS, RFCs) without showing incorrect implementation
+- Posts that quote RFCs, explain correct behavior, or discuss **alignment, encoding, version negotiation**, or other non-security-logic details
+- Theoretical, conceptual, or documentation-level questions
+- Questions without code, configuration, or clear implementation context
+
+If the post merely discusses how a protocol field *should* behave according to a specification (e.g., "legacy_session_id must be zero-length"), it is **not misuse**.
 
 Task:
 1. Choose a classification code:
-- 1 = "Misuse detected"
-- 2 = "No misuse detected"
-- 3 = "Unclear/Unrelated"
+   - 1 = "Misuse detected"
+   - 2 = "No misuse detected"
 
-2. Produce a short, non-sensitive justification ("rationale"), consisting of no more than 3 concise bullet points (each ≤ 25 words). **Do not** reveal the internal chain of thought.
+2. Provide a short, factual justification ("rationale") with up to **3 concise bullet points** (each ≤ 25 words). 
+   Focus on the reasoning, not speculation. Do **not** reveal internal reasoning.
 
-3. Optionally, include up to 2 short excerpts of "evidence" (each ≤ 25 words) taken verbatim from the post/code that justify the classification.
+3. Optionally include up to **2 short excerpts of evidence** (≤ 25 words each) taken verbatim from the post.
 
-4. Provide a confidence rating for the classification (1, 2 or 3) which should be low if there is uncertainty, medium or high when it is very likely to be correct.
+4. Assign a confidence rating:
+   - low = uncertain or ambiguous
+   - medium = somewhat clear but incomplete
+   - high = clear and well-evidenced classification
 
 Restrictions:
-- Output MUST be valid JSON and nothing else. - All text fields must be ≤ 300 characters.
-- If classification == 2, set misuse_categories = [] and evidence can be [] or ["N/A"].
-- If classification == 3, concisely explain why it is unclear (missing code, ambiguous text, unrelated tags).
+- Output MUST be **valid JSON only**, no explanations or extra text.
+- All text fields ≤ 300 characters.
+
+---
 
 {post}
 
