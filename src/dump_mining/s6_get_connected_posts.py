@@ -10,9 +10,8 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from paths import *
 from utils import safe_date
-
+from paths import *
 
 # ==============================
 # Configurações e constantes
@@ -24,15 +23,11 @@ POST_FEATURES = [
     "title", "body", "site", "id", "type"
 ]
 
-COMMENT_FEATURES = [
-    "site_alias", "post_id", "comment_id", "user_id",
-    "score", "creation_date", "text"
-]
-
-
 # ==============================
 # Funções utilitárias
 # ==============================
+
+
 def get_relevant_questions(input_path: Path):
     """Lê o arquivo de entrada e retorna um conjunto de (site_alias, question_id)."""
     try:
@@ -184,15 +179,18 @@ def filter_self_answered_posts():
 
 def find_and_save_comments():
     """Adiciona comentários de Comments.xml dos sites aos posts existentes."""
+    print("\nAdicionando comentários aos posts e respostas...")
     try:
         df_posts = pd.read_csv(CONNECTED_POSTS, dtype=str)
     except FileNotFoundError:
         print(f"ERRO: {CONNECTED_POSTS} não encontrado.")
         return
 
-    post_ids = set(df_posts["id"].astype(str))
-    output_comments = CONNECTED_POSTS.replace(".csv", "_comments.csv")
-    write_csv_header(output_comments, COMMENT_FEATURES)
+    # Mapeia post_id -> (question_id, site_file) para referência rápida
+    post_info_map = {}
+    for _, row in df_posts.iterrows():
+        question_id = row['id'] if row['type'] == 'post' else row['question_id']
+        post_info_map[row['id']] = (question_id, row['site'])
 
     total_comments = 0
     for site_alias, site_file in SITES.items():
@@ -219,30 +217,32 @@ def find_and_save_comments():
                 if elem.tag != "row":
                     continue
                 post_id = elem.attrib.get("PostId")
-                if post_id not in post_ids:
+                if post_id not in post_info_map:
                     elem.clear()
                     continue
 
+                question_id, site_name = post_info_map[post_id]
+                comment_id = elem.attrib.get("Id", "")
+
                 row = [
-                    site_alias,
-                    post_id,
-                    elem.attrib.get("Id", ""),
-                    elem.attrib.get("UserId", ""),
-                    elem.attrib.get("Score", "0"),
+                    # site_alias, tags, question_id, ...
+                    site_alias, "", question_id, "", "",
                     safe_date(elem.attrib.get("CreationDate", "")),
-                    elem.attrib.get("Text", "").replace("\n", " ").strip()
+                    "", "",  # last_activity, last_edit
+                    elem.attrib.get("UserId", ""),  # owner_id
+                    elem.attrib.get("Score", "0"),  # score
+                    "", "0",  # view_count, comment_count
+                    "", elem.attrib.get("Text", ""),  # title, body
+                    site_name, comment_id, "comment"  # site, id, type
                 ]
-                append_to_csv(output_comments, row)
+                append_to_csv(CONNECTED_POSTS, row)
                 total_comments += 1
                 site_comments += 1
                 elem.clear()
 
             shutil.rmtree(temp_dir)
-
         print(f"  → {site_comments} comentários de {site_alias}")
-
     print(f"\nTotal de comentários extraídos: {total_comments}")
-    print(f"Arquivo final salvo em: {output_comments}")
 
 
 # ==============================
@@ -253,7 +253,7 @@ def main():
     relevant_questions = get_relevant_questions(FILTRED_POSTS)
     find_and_save_answers(relevant_questions, FILTRED_POSTS)
     filter_self_answered_posts()
-    # find_and_save_comments() # Comentado para focar na lógica de posts
+    find_and_save_comments()
     print("=== Etapa 6 Concluída com Sucesso ===")
 
 
