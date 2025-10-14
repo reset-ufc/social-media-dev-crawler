@@ -4,7 +4,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils import safe_date
 from paths import BASE_DIR, CONNECTED_POSTS, RELEATED_POSTS, SITES
-import os
 import csv
 import pandas as pd
 import xml.etree.ElementTree as ET
@@ -12,128 +11,141 @@ import tempfile
 import py7zr
 import shutil
 
-# Colunas para os posts, consistente com 4get_posts.py
+# Colunas padronizadas com o pipeline (agora com CommentCount)
 POST_FEATURES = [
-    'site_alias', 'tags', 'question_id', 'accepted_answer_id', 'answer_count',
-    'creation_date', 'last_activity_date', 'last_edit_date',
-    'owner_id', 'score', 'view_count', 'title', 'body', 'site',
-    'id', 'type'
+    "site_alias", "tags", "question_id", "accepted_answer_id", "answer_count",
+    "creation_date", "last_activity_date", "last_edit_date",
+    "owner_id", "score", "view_count", "comment_count",
+    "title", "body", "site", "id", "type"
 ]
 
 
 def get_relevant_questions():
     """
-    Lê o arquivo RELEATED_POSTS e retorna um conjunto de tuplas (site, local_id)
-    para uma busca eficiente.
+    Lê o arquivo RELEATED_POSTS e retorna um conjunto de (site, local_id)
+    para busca eficiente das respostas correspondentes.
     """
     try:
-        df = pd.read_csv(RELEATED_POSTS)
-        # Usamos 'site' (nome completo) e 'id' (ID da pergunta)
-        return set(zip(df['site'], df['local_id'].astype(str)))
+        df = pd.read_csv(RELEATED_POSTS, dtype=str)
+        if 'local_id' not in df.columns:
+            print("ERRO: Coluna 'local_id' não encontrada em RELEATED_POSTS.")
+            return set()
+        return set(zip(df['site'], df['local_id']))
     except FileNotFoundError:
-        print(
-            f"ERRO: Arquivo de posts relacionados não encontrado: {RELEATED_POSTS}")
+        print(f"ERRO: Arquivo não encontrado: {RELEATED_POSTS}")
         return set()
+    except Exception as e:
+        print(f"Erro ao carregar RELEATED_POSTS: {e}")
+        return set()
+
+
+def write_csv_header():
+    """Cria o arquivo CONNECTED_POSTS com cabeçalho."""
+    os.makedirs(os.path.dirname(CONNECTED_POSTS), exist_ok=True)
+    with open(CONNECTED_POSTS, "w", encoding="utf-8", newline="") as f:
+        csv.writer(f).writerow(POST_FEATURES)
+
+
+def append_to_csv(row):
+    """Adiciona uma linha ao CSV de posts conectados."""
+    with open(CONNECTED_POSTS, "a", encoding="utf-8", newline="") as f:
+        csv.writer(f).writerow(row)
 
 
 def find_and_save_answers(relevant_questions):
     """
-    Encontra e salva as respostas (PostTypeId="2") para as perguntas relevantes.
+    Localiza e adiciona respostas (PostTypeId=2) às perguntas relevantes.
+    Também mantém os posts originais e adiciona coluna 'comment_count'.
     """
     if not relevant_questions:
-        print("Nenhuma pergunta relevante para processar.")
+        print("Nenhuma pergunta relevante encontrada.")
         return
 
-    # 1. Lê o arquivo de perguntas, adiciona a coluna 'type' e renomeia 'local_id'
-    print(
-        f"Processando posts originais de {RELEATED_POSTS} para {CONNECTED_POSTS}...")
+    print(f"Lendo perguntas originais de: {RELEATED_POSTS}")
     try:
-        df_questions = pd.read_csv(RELEATED_POSTS)
-        # Renomeia a coluna 'local_id' para 'id'
-        df_questions.rename(columns={'local_id': 'id'}, inplace=True)
-        # Adiciona a coluna 'type' com o valor 'post' para as perguntas
-        df_questions['type'] = 'post'
-        # Garante que a ordem das colunas esteja correta
+        df_questions = pd.read_csv(RELEATED_POSTS, dtype=str)
+        df_questions.rename(columns={"local_id": "id"}, inplace=True)
+        df_questions["type"] = "question"
+        df_questions["comment_count"] = "0"  # Inicializa
         df_questions = df_questions.reindex(columns=POST_FEATURES)
-        # Salva o arquivo base já modificado
         df_questions.to_csv(CONNECTED_POSTS, index=False, header=True)
-        print("Processamento dos posts originais concluído.")
-    except FileNotFoundError:
-        print(f"ERRO: Arquivo de origem {RELEATED_POSTS} não encontrado.")
+        print("Perguntas base adicionadas ao arquivo CONNECTED_POSTS.")
+    except Exception as e:
+        print(f"ERRO ao carregar perguntas de {RELEATED_POSTS}: {e}")
         return
 
     total_answers_found = 0
 
-    # 2. Itera sobre os arquivos .7z para encontrar as respostas
-    for site_alias, site_name in SITES.items():
-        site_archive = os.path.join(BASE_DIR, f"{site_name}")
-
-        if not os.path.exists(site_archive):
-            print(
-                f"AVISO: Arquivo compactado não encontrado para '{site_alias}': {site_archive}")
+    # Itera pelos sites e extrai respostas
+    for site_alias, site_file in SITES.items():
+        archive_path = os.path.join(BASE_DIR, site_file)
+        if not os.path.exists(archive_path):
+            print(f"AVISO: Arquivo não encontrado: {archive_path}")
             continue
 
-        print(f"Processando respostas em: {site_archive}")
+        print(f"[{site_alias}] Processando: {archive_path}")
         site_answers_count = 0
 
-        with py7zr.SevenZipFile(site_archive, mode='r') as archive:
-            # Assumimos que há apenas um Posts.xml por site
-            posts_xml_path = "Posts.xml"
-            if posts_xml_path not in archive.getnames():
+        with py7zr.SevenZipFile(archive_path, mode="r") as archive:
+            posts_files = [f for f in archive.getnames() if "Posts.xml" in f]
+            if not posts_files:
+                print(f"[{site_alias}] Nenhum Posts.xml encontrado.")
                 continue
 
             temp_dir = tempfile.mkdtemp()
+            archive.extract(path=temp_dir, targets=posts_files)
+            posts_path = os.path.join(temp_dir, posts_files[0])
+
             try:
-                archive.extract(path=temp_dir, targets=[posts_xml_path])
-                xml_path = os.path.join(temp_dir, posts_xml_path)
-
-                context = ET.iterparse(xml_path, events=("start",))
+                context = ET.iterparse(posts_path, events=("start",))
                 for _, elem in context:
-                    if elem.tag == "row" and elem.attrib.get("PostTypeId") == "2":
-                        parent_id = elem.attrib.get("ParentId")
-                        # Verifica se a resposta pertence a uma pergunta relevante
-                        if (site_name, parent_id) in relevant_questions:
-                            post_id = elem.attrib.get("Id")
-                            row = [
-                                site_alias, "",  # tags
-                                parent_id,  # question_id
-                                # accepted_answer_id, answer_count, etc.
-                                "", "",  # accepted_answer_id, answer_count
-                                safe_date(elem.attrib.get("CreationDate", "")),
-                                "", "",  # last_activity_date, last_edit_date
-                                elem.attrib.get("OwnerUserId", ""),
-                                elem.attrib.get("Score", "0"),
-                                "",  # view_count
-                                "",  # title
-                                elem.attrib.get("Body", ""),
-                                site_name,
-                                post_id,  # id
-                                "answer"  # type
-                            ]
+                    if elem.tag != "row" or elem.attrib.get("PostTypeId") != "2":
+                        continue
 
-                            with open(CONNECTED_POSTS, "a", encoding="utf-8", newline="") as f_csv:
-                                csv.writer(f_csv).writerow(row)
+                    parent_id = elem.attrib.get("ParentId")
+                    if (site_file, parent_id) not in relevant_questions:
+                        elem.clear()
+                        continue
 
-                            site_answers_count += 1
+                    post_id = elem.attrib.get("Id", "")
+                    row = [
+                        site_alias,  # site_alias
+                        "",  # tags
+                        parent_id,  # question_id
+                        "",  # accepted_answer_id
+                        "",  # answer_count
+                        safe_date(elem.attrib.get("CreationDate", "")),
+                        safe_date(elem.attrib.get("LastActivityDate", "")),
+                        safe_date(elem.attrib.get("LastEditDate", "")),
+                        elem.attrib.get("OwnerUserId", ""),
+                        elem.attrib.get("Score", "0"),
+                        "",  # view_count
+                        elem.attrib.get("CommentCount", "0"),  # 👈 novo campo
+                        "",  # title
+                        elem.attrib.get("Body", ""),
+                        site_file,  # site
+                        post_id,  # id
+                        "answer",  # type
+                    ]
+                    append_to_csv(row)
+                    site_answers_count += 1
                     elem.clear()
             finally:
                 shutil.rmtree(temp_dir)
 
         total_answers_found += site_answers_count
-        print(
-            f"  → {site_answers_count} respostas encontradas para {site_alias}.")
+        print(f"  → {site_answers_count} respostas extraídas de {site_alias}")
 
     print(f"\nTotal de respostas adicionadas: {total_answers_found}")
-    print(f"Arquivo final salvo em: {CONNECTED_POSTS}")
+    print(f"Arquivo final consolidado salvo em: {CONNECTED_POSTS}")
 
 
 def main():
-    print("Iniciando a busca por posts conectados (respostas)...")
+    print("=== Iniciando Etapa 6: Conectando Perguntas e Respostas ===")
+    relevant_questions = get_relevant_questions()
+    find_and_save_answers(relevant_questions)
+    print("=== Etapa 6 Concluída com Sucesso ===")
 
-    # Pega as perguntas que já foram filtradas como relevantes
-    questions_to_find_answers_for = get_relevant_questions()
 
-    # Busca as respostas para essas perguntas e as adiciona ao novo arquivo
-    find_and_save_answers(questions_to_find_answers_for)
-
-    print("\nProcessamento de posts conectados concluído!")
+if __name__ == "__main__":
+    main()
