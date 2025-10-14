@@ -1,7 +1,9 @@
-def detect_misuse():
+def classify_misuse_and_categories():
     return """
-You are a security expert specializing in software cryptography. 
-Given a complete Stack Overflow post (title, body, and answers), classify whether the post contains cryptographic misuse.
+You are a security expert specializing in software encryption. 
+Given a complete Stack Overflow post (title, body, answers and coments), 
+your task is to identify whether the post contains cryptographic misuse and, if so, 
+and classify what types of misuse it contains.
 
 Definition of cryptographic misuse:
 A cryptographic misuse occurs when a developer applies cryptography incorrectly, introducing or implying a real security weakness in implementation or design.
@@ -19,55 +21,11 @@ Do **NOT** classify as misuse:
 - Theoretical, conceptual, or documentation-level questions
 - Questions without code, configuration, or clear implementation context
 
-If the post merely discusses how a protocol field *should* behave according to a specification (e.g., "legacy_session_id must be zero-length"), it is **not misuse**.
-
-Task:
-1. Choose a classification code:
-   - 1 = "Misuse detected"
-   - 2 = "No misuse detected"
-
-2. Provide a short, factual justification ("rationale") with up to **3 concise bullet points** (each ≤ 25 words). 
-   Focus on the reasoning, not speculation. Do **not** reveal internal reasoning.
-
-3. Optionally include up to **2 short excerpts of evidence** (≤ 25 words each) taken verbatim from the post.
-
-4. Assign a confidence rating:
-   - low = uncertain or ambiguous
-   - medium = somewhat clear but incomplete
-   - high = clear and well-evidenced classification
-
-Restrictions:
-- Output MUST be **valid JSON only**, no explanations or extra text.
-- All text fields ≤ 300 characters.
-
----
-
-{post}
-
-Output format (MUST be valid JSON only—no extra text):
-{{
-"id": ,
-"site": ,
-"classification": 1|2,
-"rationale": ["concise bullet 1", "bullet 2"], // maximum of 3 bullets
-"evidence": ["excerpt 1", "excerpt 2"], // optional, or []
-"confidence": low|medium|high
-"notes": "<optional short note, maximum 30 words>" // optional
-}}
-"""
-
-
-def classify_misuse_categories():
-    return """
-You are a security expert specializing in software encryption.
-Given a complete Stack Overflow post (title, body, and answers), your task is to identify and classify the **primary insecure cryptographic practice** contained within it.
-
----
+Only if any misuse is detected should you classify which types were found.
 
 ### Classification Rules
 1.  **Focus on the Core Issue:** The classification must target the **most explicit and severe cryptographic error** discussed in the post.
-2.  **Avoid Inference:** Classify the issue strictly based on the primitives mentioned. **DO NOT infer the use of CBC mode, IV management, or AES/RSA** if those terms are not explicitly present in the text.
-3.  **Select the Best Subtype:** Choose the **most specific Subtype** from the structure below that accurately describes the misuse.
+2.  **Select the Best Subtype:** Choose the **most specific Subtype** from the structure below that accurately describes the misuse.
 
 ### Classification Structure (Group, Category, Subtype)
 
@@ -134,12 +92,13 @@ Given a complete Stack Overflow post (title, body, and answers), your task is to
     - PKI and CA Issues
 
 **Field Constraints:**
-* **Rationale:** Maximum of 3 concise bullet points (each ≤ 25 words).
-* **Evidence:** Up to 2 short verbatim excerpts (each ≤ 25 words) from the post, or `[]` if none.
-* **Confidence:** Must be `low`, `medium`, or `high`.
-* **All text fields:** Must be ≤ 300 characters total.
+* is_misuse: yes or no
+* Rationale: Maximum of 3 concise bullet points (each ≤ 25 words).
+* Evidence: Up to 2 short verbatim excerpts (each ≤ 25 words) from the post, or `[]` if none.
+* Confidence: reliability of inference
+* All text fields: Must be ≤ 300 characters total.
 
-The complete Stack Overflow post
+The complete Stack Overflow post:
 {post}
 
 **Output:** **MUST** be valid JSON and nothing else.
@@ -147,18 +106,79 @@ The complete Stack Overflow post
 ```json
 {{
 "id": "Post ID",
-"misuse_group": "Group Name Only",
-"misuse_category": "Acronym Only",
-"misuse_subtype": "Subtype Name Only",
-"rationale": ["concise bullet 1", "bullet 2"], // maximum 3 bullets
-"evidence": ["excerpt 1", "excerpt 2"], // optional, or []
-"confidence": "low|medium|high",
+"is_misuse":,
+"misuse_groups": "Group Name Only",
+"misuse_categories": "Acronym Only",
+"misuse_subtypes": "Subtype Name Only",
+"rationale": ["concise bullet 1", "bullet 2"], // maximum 3 
+"evidence": ["excerpt 1", ...], // optional
+"confidence": "0%-100%",
 "notes": "<optional short note, maximum 30 words>" // optional
 }}
 """
 
 
-def rq3():
+def judge():
     return """
+YYou are an **independent security expert** acting as a **judge** between model predictions.  
+You are given:
+1. The **complete Stack Overflow post**.  
+2. The **official inference prompt** used to classify cryptographic misuse.  
+3. Two **model outputs** (Model A and Model B) generated using that same inference prompt.
 
+Your goal is to **evaluate the agreement and quality** of both model outputs in relation to each other, without introducing new classifications or reinterpreting the post.
+
+---
+
+### Step 1. Evaluation Criteria
+
+You must assess the following dimensions:
+
+1. **Misuse Detection Agreement (0-1):**  
+   - 1 → both models agree (same `is_misuse` value)  
+   - 0 → one says “yes” and the other says “no”  
+
+2. **Classification Match (0-1):**  
+   - 1 → identical `misuse_groups`, `misuse_categories`, and `misuse_subtypes`  
+   - 0.5 → partial match (same group or category but different subtype)  
+   - 0 → completely different classifications  
+
+3. **Rationale Alignment (0-1):**  
+   - 1 → rationales express the same reasoning or highlight the same issue  
+   - 0.5 → partially similar reasoning  
+   - 0 → reasoning differs significantly  
+
+4. **Evidence Overlap (0-1):**  
+   - 1 → both cite similar or overlapping excerpts  
+   - 0.5 → partial overlap  
+   - 0 → unrelated or missing excerpts  
+
+5. **Confidence Agreement (0-1):**  
+   - 1 → identical or very close (≤10% difference)  
+   - 0.5 → moderately different (10-30% difference)  
+   - 0 → large difference (>30%)  
+
+Then compute:  
+**disagreement_score = 1 - average(five scores above)**  
+
+Finally, indicate which model produced the **most coherent and rule-consistent** classification.
+
+---
+
+### Step 2. Output Format
+
+Your output **must** be valid JSON and nothing else.
+
+```json
+{{
+  "id": "Post ID",
+  "misuse_detection_agreement": 0|1,
+  "classification_match": 0|0.5|1,
+  "rationale_alignment": 0|0.5|1,
+  "evidence_overlap": 0|0.5|1,
+  "confidence_agreement": 0|0.5|1,
+  "disagreement_score": "float between 0 and 1",
+  "preferred_model": "A | B | tie",
+  "justification": "Short explanation (max 50 words)."
+}}
 """
