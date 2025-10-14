@@ -1,6 +1,6 @@
+from s0_prompts import classify_misuse_and_categories
 from s1_make_llm_input import create_llm_input_string
-from s0_prompts import detect_misuse
-
+from paths import *
 from tqdm import tqdm
 import json
 import pandas as pd
@@ -12,22 +12,20 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from paths import *
-
 
 def test_on_sample():
     """
     Executa o processo de detecção nos 10 primeiros posts do dataset
-    e salva o resultado em 'rq1_test.json'.
+    e salva o resultado no caminho padrão MISUSE_CASES.
     """
     print("--- MODO DE TESTE: Executando nos 10 primeiros posts do dataset ---")
 
     input_path = PREPROCESSED_POSTS
-    if not os.path.exists(input_path):
+    if not input_path.exists():
         print(f"Erro: Arquivo de entrada não encontrado em '{input_path}'.")
         return
 
-    output_path = os.path.join(os.path.dirname(MISUSE_CASES), 'rq1_test.json')
+    output_path = MISUSE_CASES
 
     df = pd.read_csv(input_path)
     if df.empty:
@@ -40,7 +38,7 @@ def test_on_sample():
     llm = ChatOllama(model="llama3.2:3b", temperature=0, format="json")
     parser = JsonOutputParser()
     prompt_template = ChatPromptTemplate.from_template(
-        detect_misuse()
+        classify_misuse_and_categories()
     ).partial(format_instructions=parser.get_format_instructions())
 
     chain = prompt_template | llm | parser
@@ -54,7 +52,8 @@ def test_on_sample():
             response = chain.invoke({"post": post_content})
             # Adiciona o ID e o nome do site à resposta antes de salvá-la
             response['id'] = str(row['id'])
-            response['site'] = str(row['site']) # Assumindo que a coluna 'site' existe no DataFrame
+            # Assumindo que a coluna 'site' existe no DataFrame
+            response['site'] = str(row['site'])
             results.append(response)
         except Exception as e:
             print(f"Erro ao processar o post de teste ID {row['id']}: {e}")
@@ -65,9 +64,9 @@ def test_on_sample():
     try:
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(results, f, indent=4, ensure_ascii=False)
-        print("Arquivo de teste salvo com sucesso!")
+        print("Arquivo salvo com sucesso!")
     except Exception as e:
-        print(f"Erro ao salvar o arquivo JSON de teste: {e}")
+        print(f"Erro ao salvar o arquivo JSON: {e}")
     print("\n--- FIM DO MODO DE TESTE ---")
 
 
@@ -79,18 +78,18 @@ def main():
     print("Iniciando o processo de detecção de uso indevido de criptografia...")
 
     input_path = PREPROCESSED_POSTS
-    if not os.path.exists(input_path):
+    if not input_path.exists():
         print(f"Erro: Arquivo de entrada não encontrado em '{input_path}'.")
         return
 
     print(f"Carregando posts de: {input_path}")
     df = pd.read_csv(input_path)
 
-    llm = ChatOllama(model="gemma3:1b", temperature=0, format="json")
+    llm = ChatOllama(model="llama3.2:3b", temperature=0, format="json")
 
     parser = JsonOutputParser()
     prompt_template = ChatPromptTemplate.from_template(
-        detect_misuse()
+        classify_misuse_and_categories()
     ).partial(format_instructions=parser.get_format_instructions())
 
     chain = prompt_template | llm | parser
@@ -108,6 +107,7 @@ def main():
             response = chain.invoke({"post": post_content})
 
             response['id'] = str(row['id'])
+            response['site'] = str(row['site'])
             results.append(response)
 
         except OutputParserException as e:
@@ -115,7 +115,7 @@ def main():
                 f"Erro de parsing na resposta do LLM para o post ID {row['id']}: {e}")
         except Exception as e:
             print(
-                f"Erro inesperado ao processar o post ID {row['local_id']}: {e}")
+                f"Erro inesperado ao processar o post ID {row['id']}: {e}")
 
     output_path = MISUSE_CASES
     print(

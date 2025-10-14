@@ -29,8 +29,10 @@ FILTRED_POSTS = DATA / "filtred_posts.csv"
 CONNECTED_POSTS = DATA / "connected_posts.csv"
 PREPROCESSED_POSTS = DATA / "preprocessed_full_posts.csv"
 
-MISUSE_CASES = DATA / "misuse_cases.json"
-CLASSIFIED_MISUSES = DATA / "classified_misuses.json"
+LLM_INFERENCE = DATA / "llm_inference"
+
+MISUSE_CASES = LLM_INFERENCE / "misuse_cases.json"
+JUDGEMENT = LLM_INFERENCE / 'judgement.json'
 
 THRE1 = 0.1
 THRE2 = 0.01

@@ -112,7 +112,7 @@ The complete Stack Overflow post:
 "misuse_subtypes": "Subtype Name Only",
 "rationale": ["concise bullet 1", "bullet 2"], // maximum 3 
 "evidence": ["excerpt 1", ...], // optional
-"confidence": "0%-100%",
+"confidence": "0-100%",
 "notes": "<optional short note, maximum 30 words>" // optional
 }}
 """
