@@ -1,5 +1,6 @@
 from dump_mining.s7_preprocess_body import main as run_7_preprocess_body
-from dump_mining.s6_get_connected_posts import main as run_6_get_connected_posts
+from dump_mining.s6_filter_posts import main as run_6_filter_posts
+from dump_mining.s5_get_connected_posts import main as run_5_get_connected_posts
 from dump_mining.s4_get_posts import main as run_4_get_posts
 from dump_mining.s3_releated_tags_h2 import main as run_3_releated_tags_h2
 from dump_mining.s2_releated_tags_h1 import main as run_2_releated_tags_h1
@@ -30,7 +31,10 @@ def run_full_pipeline():
     run_4_get_posts()
 
     print("\n--- ETAPA 6: Conectando perguntas com suas respectivas respostas ---")
-    run_6_get_connected_posts()
+    run_5_get_connected_posts()
+
+    print("\n--- ETAPA 6: Conectando perguntas com suas respectivas respostas ---")
+    run_6_filter_posts()
 
     print("\n--- ETAPA 7: Pré-processando e limpando o corpo dos posts e respostas ---")
     run_7_preprocess_body()

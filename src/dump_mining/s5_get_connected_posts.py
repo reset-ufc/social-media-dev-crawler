@@ -1,3 +1,5 @@
+from paths import *
+from utils import safe_date
 import shutil
 import py7zr
 import tempfile
@@ -10,8 +12,6 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils import safe_date
-from paths import *
 
 # ==============================
 # Configurações e constantes
@@ -250,8 +250,8 @@ def find_and_save_comments():
 # ==============================
 def main():
     print("=== Etapa 6: Conectando Perguntas, Respostas e Comentários ===")
-    relevant_questions = get_relevant_questions(FILTRED_POSTS)
-    find_and_save_answers(relevant_questions, FILTRED_POSTS)
+    relevant_questions = get_relevant_questions(RELEATED_POSTS)
+    find_and_save_answers(relevant_questions, RELEATED_POSTS)
     filter_self_answered_posts()
     find_and_save_comments()
     print("=== Etapa 6 Concluída com Sucesso ===")

@@ -53,8 +53,8 @@ def main():
     """
     Função principal para carregar, processar e salvar os dados.
     """
-    print(f"Carregando posts de: {CONNECTED_POSTS}")
-    df = pd.read_csv(CONNECTED_POSTS)
+    print(f"Carregando posts de: {FILTRED_POSTS}")
+    df = pd.read_csv(FILTRED_POSTS)
 
     print("Pré-processando a coluna 'body'...")
     df['body'] = df['body'].astype(str)
