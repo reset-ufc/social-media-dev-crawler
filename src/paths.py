@@ -1,8 +1,8 @@
-import os
+from pathlib import Path
 
 
-BASE_DIR = "./Extraidos dump"
-DATA = './data'
+BASE_DIR = Path("./Extraidos dump")
+DATA = Path('./data')
 QUESTION_TAG = "encryption"
 
 SITES = {
@@ -17,20 +17,20 @@ QUESTION_TAGS = {
     "security": [QUESTION_TAG]
 }
 
-DUMP_POST_PATH = os.path.join(BASE_DIR, "Posts.xml")
+DUMP_POST_PATH = BASE_DIR / "Posts.xml"
 
-COARSE_QUESTIONS = os.path.join(DATA, "questions_dump.csv")
+COARSE_QUESTIONS = DATA / "questions_dump.csv"
 
-RELEATED_TAGS = os.path.join(DATA, "releated_tags.csv")
-RELEATED_POSTS = os.path.join(DATA, "releated_posts.csv")
+RELEATED_TAGS = DATA / "releated_tags.csv"
+RELEATED_POSTS = DATA / "releated_posts.csv"
 
-FILTRED_POSTS = os.path.join(DATA, "filtred_posts.csv")
+FILTRED_POSTS = DATA / "filtred_posts.csv"
 
-CONNECTED_POSTS = os.path.join(DATA, "connected_posts.csv")
-PREPROCESSED_POSTS = os.path.join(DATA, "preprocessed_full_posts.csv")
+CONNECTED_POSTS = DATA / "connected_posts.csv"
+PREPROCESSED_POSTS = DATA / "preprocessed_full_posts.csv"
 
-MISUSE_CASES = os.path.join(DATA, "misuse_cases.json")
-CLASSIFIED_MISUSES = os.path.join(DATA, "classified_misuses.json")
+MISUSE_CASES = DATA / "misuse_cases.json"
+CLASSIFIED_MISUSES = DATA / "classified_misuses.json"
 
 THRE1 = 0.1
 THRE2 = 0.01

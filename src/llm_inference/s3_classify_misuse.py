@@ -11,10 +11,9 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from s0_prompts import classify_misuse_categories
-from s1_make_llm_input import create_llm_input_string
 from paths import *
-
+from s1_make_llm_input import create_llm_input_string
+from s0_prompts import classify_misuse_categories
 
 def main():
     """
@@ -23,7 +22,7 @@ def main():
     """
     print("Iniciando o processo de classificação de uso indevido...")
 
-    if not os.path.exists(MISUSE_CASES):
+    if not MISUSE_CASES.exists():
         print(
             f"Erro: Arquivo de casos de uso indevido não encontrado em '{MISUSE_CASES}'.")
         print("Execute o script s2_detect_misuse.py primeiro.")
@@ -44,7 +43,7 @@ def main():
         f"Encontrados {len(misuse_ids)} casos de uso indevido para classificar.")
 
     # 2. Carregar todos os posts pré-processados
-    if not os.path.exists(PREPROCESSED_POSTS):
+    if not PREPROCESSED_POSTS.exists():
         print(
             f"Erro: Arquivo de posts pré-processados não encontrado em '{PREPROCESSED_POSTS}'.")
         return
