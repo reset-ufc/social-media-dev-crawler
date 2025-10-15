@@ -27,7 +27,7 @@ def filter_popular_posts(input_path, output_path, percentile=0.90):
 
     # 1. Carregar os posts relacionados
     df = pd.read_csv(input_path, dtype=str)
-    df_questions = df[df['type'] == 'post'].copy()
+    df_questions = df[df['type'] == 'question'].copy()
     print(
         f"Carregados {len(df)} registros, resultando em {len(df_questions)} perguntas.")
 
