@@ -27,6 +27,7 @@ RELEATED_POSTS = DATA / "releated_posts.csv"
 FILTRED_POSTS = DATA / "filtred_posts.csv"
 
 CONNECTED_POSTS = DATA / "connected_posts.csv"
+CONNECTED_COMMENTS = DATA / "connected_posts_comments.csv"
 PREPROCESSED_POSTS = DATA / "preprocessed_full_posts.csv"
 
 LLM_INFERENCE = DATA / "llm_inference"
