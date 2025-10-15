@@ -1,4 +1,4 @@
-from s0_prompts import classify_misuse_and_categories
+from s0_prompts import classify_misuse_and_categories, anderson
 from s1_make_llm_input import create_llm_input_string
 from paths import *
 from tqdm import tqdm
@@ -38,7 +38,7 @@ def test_on_sample():
     llm = ChatOllama(model="llama3.2:3b", temperature=0, format="json")
     parser = JsonOutputParser()
     prompt_template = ChatPromptTemplate.from_template(
-        classify_misuse_and_categories()
+        anderson()
     ).partial(format_instructions=parser.get_format_instructions())
 
     chain = prompt_template | llm | parser

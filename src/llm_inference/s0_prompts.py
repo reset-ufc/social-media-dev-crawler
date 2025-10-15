@@ -4,8 +4,28 @@ You are a **security expert** specializing in software encryption.
  Given a **complete Stack Overflow post** (title, body, answers, and comments), 
  your task is to identify whether the post contains **cryptographic misuse** and, 
  if so, to **classify and detail** the types of misuse found, adhering strictly to the provided JSON output format.
+"""
 
-### Definition of Cryptographic Misuse:
+
+def anderson():
+    return """
+You are a senior cryptography auditor. Analyze ONLY the Stack Overflow discussion below and identify ALL cryptographic misuses present.
+
+<<<STACK_OVERFLOW_DISCUSSION>>>
+{post}
+<<<END_DISCUSSION>>>
+
+Analyze strictly the content within these markers.
+
+----------------------------
+TASK
+----------------------------
+Detect and classify cryptographic misuses using the taxonomy and definition below. A single thread may contain multiple independent misuses — report ALL of them.
+Each misuse MUST include: group (category), subtype (specific misuse), confidence (0–1), evidence (source_type + exact quote), and a short rationale explaining why it is insecure.
+
+----------------------------
+Definition of Cryptographic Misuse
+----------------------------
 A cryptographic misuse occurs when a developer applies cryptography incorrectly, 
 introducing or implying a **real security weakness** in implementation or design.
 
@@ -17,112 +37,62 @@ This includes, but is not limited to:
 * Insecure padding or truncation in code.
 * Omitting authentication or verification steps.
 
-### Classification Rules
+----------------------------
+MISUSE TYPES TAXONOMY
+----------------------------
+Code-level Misuses
+- WC (Weak Cryptography): risky/broken encryption; proprietary crypto; deterministic symmetric encryption; risky/broken hash or MAC; custom implementation; wrong PBE configs.
+- CIB (Coding & Implementation Bugs): common coding errors; buggy IV generation; missing cryptography; key leakage.
+- BRH (Bad Randomness Handling): statistical PRNGs; predictable/low-entropy seeds; static/fixed seeds; reused seeds.
 
-1. **Multiple Misuses:**  
-   If multiple distinct misuses are found, include one object per misuse inside the `misuses` array.
+Design Flaws
+- PDF (Program Design Flaws): insecure by default; insecure key handling; insecure use of stream ciphers; insecure enc–auth combos; insecure enc–hash combos; side-channel vulnerabilities.
+- ICV (Improper Certificate Validation): absent cert validation; insecure SSL/TLS channel; incomplete validation; missing host/user validation; wildcard/self-signed certificates.
+- PKC (Public-Key Cryptography): deterministic RSA encryption; insecure RSA padding (enc/sign); weak RSA configs; weak RSA/ECDSA signatures; insecure DH/ECDH; insecure elliptic curves.
 
-2. **Group and Category Fields:**  
-   - `group` → one of: `"Code-level Misuses"`, `"Design Flaws"`, `"Insecure Architectures"`.  
-   - `category` → one acronym from this exact list: `WC`, `CIB`, `BRH`, `PDF`, `ICV`, `PKC`, `IVM`, `PKM`, `CAI`.
+Insecure Architectures
+- IVM (IV & Nonce Management): CBC with non-random IV; CTR with static counter; hardcoded/constant IV.
+- PKM (Poor Key Management): short/improper key sizes; hardcoded/constant keys; hardcoded PBE passwords; key reuse in stream ciphers; reuse of expired keys; issues in key distribution.
+- CAI (Crypto Architecture & Infrastructure): crypto agility issues; API misunderstandings; multiple access points; randomness reuse; PKI/CA misconfigurations.
 
-3. **Evidence Source:**  
-   The `source_type` must be exactly one of: `"title"`, `"body"`, `"answer#<number>"`, `"comment#<number>"`.
+----------------------------
+DECISION RULES
+----------------------------
+1) has_misuse
+- Set "has_misuse": true if any code, configuration, or recommendation demonstrates or promotes an insecure cryptographic practice.
+- Set "has_misuse": false ONLY if the accepted answer fully fixes all issues AND no insecure approach remains endorsed.
 
-4. **Field Values:**  
-   - `confidence` must be a float between 0.0 and 1.0 (e.g., `0.85`).  
-   - All strings must use **double quotes** only.  
-   - Do **not** include comments, explanations, or ellipses (`...`) inside the JSON.
+2) Label assignment
+- Assign one label per independent misuse (follow the taxonomy).
+- Merge duplicates when multiple findings share the same root cause.
 
-Do not classify as misuse:
+3) Evidence requirements
+- Provide one short quote (≤120 chars) and precise source_type: "title", "body", "answer#", or "comment#" (e.g., "answer1", "comment3").
+- Use explicit code/config lines or clear recommendations as evidence.
+- Misuses in comments count if proposed or endorsed as fixes.
+
+4) Confidence calibration (0-1)
+- 0.95-1.00: explicit insecure API/mode/parameter AND endorsed in accepted or top-voted answer.
+- 0.80-0.94: clear misuse in code/text; guidance consistent.
+- 0.60-0.79: probable misuse but limited context/unclear endorsement.
+- <0.60: insufficient evidence → do not report.
+
+5) Do not classify as misuse:
 - Theoretical, conceptual, or documentation-level questions
 
+----------------------------
+OUTPUT (STRICT JSON)
+----------------------------
+Rules:
+- If "has_misuse" == true → "misuses" MUST be non-empty and "meta.num_misuses" MUST equal its length.
+- If "has_misuse" == false → "misuses" MUST be an empty list and "summary" MUST state no misuse found.
 
-5. **Output Validation:**  
-   The output must be **strictly valid JSON**, fully parseable without manual fixes.  
-   The model must check before outputting that:
-   - all brackets/braces are properly closed,  
-   - all commas are correctly placed,  
-   - and no trailing commas appear.
-
-### Classification Structure (Group, Category, Subtype)
-
-### Code-level Misuses**
-- **Weak Cryptography (WC)**
-    - Risky or broken encryption
-    - Proprietary cryptography
-    - Deterministic symmetric encryption
-    - Risky or broken hash/MAC
-    - Custom implementation
-    - Wrong configs for PBE
-- **Coding and Implementation Bugs (CIB)**
-    - Common coding errors
-    - Buggy IV generation
-    - No cryptography
-    - Leakage of keys
-- **Bad Randomness Handling (BRH)**
-    - Use of statistical PRNGs
-    - Predictable, low entropy seeds
-    - Static, fixed seeds
-    - Reused seeds
-
-### Design flaws**
-- **Program Design Flaws (PDF)**
-    - Insecure behavior by default
-    - Insecure key handling
-    - Insecure use streamciphers
-    - Insecure combo enc. w/ auth.
-    - Insecure combo enc. w/ hash
-    - Side-channel attacks
-- **Improper Certificate Validation (ICV)**
-    - Absent validation of certs
-    - Insecure SSL/TLS channel
-    - Incomplete cert. validation
-    - Absent host/user validation
-    - Wildcards, self-signed certs
-- **Public-Key Cryptography (PKC)**
-    - Deterministic encrypt. RSA
-    - Insecure padding RSA enc.
-    - Weak configs for RSA enc.
-    - Insecure padding RSA sign.
-    - Weak signatures w/ RSA
-    - Weak signatures w/ ECDSA
-    - Insecure DH or ECDH
-    - Insecure elliptic curves
-
-### Insecure architectures**
-- **IV and Nonce Management (IVM)**
-    - CBC with non-random IV
-    - CTR with static counter
-    - Hard-coded or constant IV
-- **Poor Key Management (PKM)**
-    - Short key, improper key size
-    - Hard-coded or constant keys
-    - Hard-coded PBE passwords
-    - Key reuse in streamciphers
-    - Reuse of expired keys
-    - Issues in key distribution
-- **Crypto Architecture and Infrastructure (CAI)**
-    - Crypto Agility Issues
-    - API Misunderstandings
-    - Multiple Access Points
-    - Randomness Reuse Issues
-    - PKI and CA Issues
-
-The complete Stack Overflow post:
-{post}
-
-**Output:** **MUST** be valid JSON and nothing else. All required fields must be populated. 
-The `misuses` array must be empty if `has_misuse` is `false`.
-
-```json
 {{
   "has_misuse": <true|false>,
   "summary": "Short overall summary of the detected cryptographic misuses found in the discussion.",
 
   "misuses": [
     {{
-      "group": "<Group Name>",
       "category": "<WC|PKC|ICV|PKM|PDF|CIB|BRH|IVM|CAI>",
       "subtype": "<Subtype Name>",
       "confidence": 0.xx,
