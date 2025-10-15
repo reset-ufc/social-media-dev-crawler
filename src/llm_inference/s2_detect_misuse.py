@@ -50,9 +50,17 @@ def test_on_sample():
         try:
             post_content = create_llm_input_string(str(row['id']))
             response = chain.invoke({"post": post_content})
-            # Adiciona o ID e o nome do site à resposta antes de salvá-la
-            response['id'] = str(row['id'])
-            # Assumindo que a coluna 'site' existe no DataFrame
+
+            # Garante que o ID e o site do post estejam presentes e consistentes.
+            # O ID do DataFrame é a fonte da verdade.
+            post_id = str(row['id'])
+            # Para compatibilidade com scripts subsequentes
+            response['id'] = post_id
+            if 'meta' not in response:
+                response['meta'] = {}
+            # Para alinhar com o formato do prompt
+            response['meta']['post_id'] = post_id
+            # Adiciona o site para contexto
             response['site'] = str(row['site'])
             results.append(response)
         except Exception as e:
@@ -106,7 +114,16 @@ def main():
 
             response = chain.invoke({"post": post_content})
 
-            response['id'] = str(row['id'])
+            # Garante que o ID e o site do post estejam presentes e consistentes.
+            # O ID do DataFrame é a fonte da verdade.
+            post_id = str(row['id'])
+            # Para compatibilidade com scripts subsequentes
+            response['id'] = post_id
+            if 'meta' not in response:
+                response['meta'] = {}
+            # Para alinhar com o formato do prompt
+            response['meta']['post_id'] = post_id
+            # Adiciona o site para contexto
             response['site'] = str(row['site'])
             results.append(response)
 
