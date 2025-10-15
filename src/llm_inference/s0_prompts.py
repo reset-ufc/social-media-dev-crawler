@@ -1,9 +1,13 @@
 def classify_misuse_and_categories():
     return """
-You are a **security expert** specializing in software encryption. Given a **complete Stack Overflow post** (title, body, answers, and comments), your task is to identify whether the post contains **cryptographic misuse** and, if so, to **classify and detail** the types of misuse found, adhering strictly to the provided JSON output format.
+You are a **security expert** specializing in software encryption.
+ Given a **complete Stack Overflow post** (title, body, answers, and comments), 
+ your task is to identify whether the post contains **cryptographic misuse** and, 
+ if so, to **classify and detail** the types of misuse found, adhering strictly to the provided JSON output format.
 
 ### Definition of Cryptographic Misuse:
-A cryptographic misuse occurs when a developer applies cryptography incorrectly, introducing or implying a **real security weakness** in implementation or design.
+A cryptographic misuse occurs when a developer applies cryptography incorrectly, 
+introducing or implying a **real security weakness** in implementation or design.
 
 This includes, but is not limited to:
 * Using weak or deprecated algorithms.
@@ -13,38 +17,103 @@ This includes, but is not limited to:
 * Insecure padding or truncation in code.
 * Omitting authentication or verification steps.
 
-**DO NOT** classify as misuse:
-* Posts that only discuss **protocol specifications** (e.g., TLS, RFCs) without showing incorrect implementation.
-* Posts that quote RFCs, explain correct behavior, or discuss **alignment, encoding, version negotiation**, or other non-security-logic details.
-* Theoretical, conceptual, or documentation-level questions.
-* Questions without code, configuration, or clear implementation context.
-
 ### Classification Rules
-1.  **Multiple Misuses:** If several distinct and significant misuses are present or discussed, you must list them as separate objects in the `misuses` array.
-2.  **Group Acronyms:** Use only the listed acronyms for the `group` field (`WC`, `PKC`, `ICV`, `PKM`, `PDF`, `CIB`, `BRH`, `IVM`, `CAI`).
-3.  **Evidence Source:** For `source_type`, use only: `title`, `body`, `answer#` (e.g., `answer1`), or `comment#` (e.g., `comment3`).
 
-### Classification Structure (Group, Subtype)
+1. **Multiple Misuses:**  
+   If multiple distinct misuses are found, include one object per misuse inside the `misuses` array.
 
-**Code-level Misuses**
-- **Weak Cryptography (WC)**: *Risky or broken encryption, Proprietary cryptography, Deterministic symmetric encryption, Risky or broken hash/MAC, Custom implementation, Wrong configs for PBE.*
-- **Coding and Implementation Bugs (CIB)**: *Common coding errors, Buggy IV generation, No cryptography, Leakage of keys.*
-- **Bad Randomness Handling (BRH)**: *Use of statistical PRNGs, Predictable, low entropy seeds, Static, fixed seeds, Reused seeds.*
+2. **Group and Category Fields:**  
+   - `group` → one of: `"Code-level Misuses"`, `"Design Flaws"`, `"Insecure Architectures"`.  
+   - `category` → one acronym from this exact list: `WC`, `CIB`, `BRH`, `PDF`, `ICV`, `PKC`, `IVM`, `PKM`, `CAI`.
 
-**Design flaws**
-- **Program Design Flaws (PDF)**: *Insecure behavior by default, Insecure key handling, Insecure use streamciphers, Insecure combo enc. w/ auth., Insecure combo enc. w/ hash, Side-channel attacks.*
-- **Improper Certificate Validation (ICV)**: *Absent validation of certs, Insecure SSL/TLS channel, Incomplete cert. validation, Absent host/user validation, Wildcards, self-signed certs.*
-- **Public-Key Cryptography (PKC)**: *Deterministic encrypt. RSA, Insecure padding RSA enc., Weak configs for RSA enc., Insecure padding RSA sign., Weak signatures w/ RSA, Weak signatures w/ ECDSA, Insecure DH or ECDH, Insecure elliptic curves.*
+3. **Evidence Source:**  
+   The `source_type` must be exactly one of: `"title"`, `"body"`, `"answer#<number>"`, `"comment#<number>"`.
 
-**Insecure architectures**
-- **IV and Nonce Management (IVM)**: *CBC with non-random IV, CTR with static counter, Hard-coded or constant IV.*
-- **Poor Key Management (PKM)**: *Short key, improper key size, Hard-coded or constant keys, Hard-coded PBE passwords, Key reuse in streamciphers, Reuse of expired keys, Issues in key distribution.*
-- **Crypto Architecture and Infrastructure (CAI)**: *Crypto Agility Issues, API Misunderstandings, Multiple Access Points, Randomness Reuse Issues, PKI and CA Issues.*
+4. **Field Values:**  
+   - `confidence` must be a float between 0.0 and 1.0 (e.g., `0.85`).  
+   - All strings must use **double quotes** only.  
+   - Do **not** include comments, explanations, or ellipses (`...`) inside the JSON.
+
+Do not classify as misuse:
+- Theoretical, conceptual, or documentation-level questions
+
+
+5. **Output Validation:**  
+   The output must be **strictly valid JSON**, fully parseable without manual fixes.  
+   The model must check before outputting that:
+   - all brackets/braces are properly closed,  
+   - all commas are correctly placed,  
+   - and no trailing commas appear.
+
+### Classification Structure (Group, Category, Subtype)
+
+### Code-level Misuses**
+- **Weak Cryptography (WC)**
+    - Risky or broken encryption
+    - Proprietary cryptography
+    - Deterministic symmetric encryption
+    - Risky or broken hash/MAC
+    - Custom implementation
+    - Wrong configs for PBE
+- **Coding and Implementation Bugs (CIB)**
+    - Common coding errors
+    - Buggy IV generation
+    - No cryptography
+    - Leakage of keys
+- **Bad Randomness Handling (BRH)**
+    - Use of statistical PRNGs
+    - Predictable, low entropy seeds
+    - Static, fixed seeds
+    - Reused seeds
+
+### Design flaws**
+- **Program Design Flaws (PDF)**
+    - Insecure behavior by default
+    - Insecure key handling
+    - Insecure use streamciphers
+    - Insecure combo enc. w/ auth.
+    - Insecure combo enc. w/ hash
+    - Side-channel attacks
+- **Improper Certificate Validation (ICV)**
+    - Absent validation of certs
+    - Insecure SSL/TLS channel
+    - Incomplete cert. validation
+    - Absent host/user validation
+    - Wildcards, self-signed certs
+- **Public-Key Cryptography (PKC)**
+    - Deterministic encrypt. RSA
+    - Insecure padding RSA enc.
+    - Weak configs for RSA enc.
+    - Insecure padding RSA sign.
+    - Weak signatures w/ RSA
+    - Weak signatures w/ ECDSA
+    - Insecure DH or ECDH
+    - Insecure elliptic curves
+
+### Insecure architectures**
+- **IV and Nonce Management (IVM)**
+    - CBC with non-random IV
+    - CTR with static counter
+    - Hard-coded or constant IV
+- **Poor Key Management (PKM)**
+    - Short key, improper key size
+    - Hard-coded or constant keys
+    - Hard-coded PBE passwords
+    - Key reuse in streamciphers
+    - Reuse of expired keys
+    - Issues in key distribution
+- **Crypto Architecture and Infrastructure (CAI)**
+    - Crypto Agility Issues
+    - API Misunderstandings
+    - Multiple Access Points
+    - Randomness Reuse Issues
+    - PKI and CA Issues
 
 The complete Stack Overflow post:
 {post}
 
-**Output:** **MUST** be valid JSON and nothing else. All required fields must be populated. The `misuses` array must be empty if `has_misuse` is `false`.
+**Output:** **MUST** be valid JSON and nothing else. All required fields must be populated. 
+The `misuses` array must be empty if `has_misuse` is `false`.
 
 ```json
 {{
@@ -53,7 +122,8 @@ The complete Stack Overflow post:
 
   "misuses": [
     {{
-      "group": "<WC|PKC|ICV|PKM|PDF|CIB|BRH|IVM|CAI>",
+      "group": "<Group Name>",
+      "category": "<WC|PKC|ICV|PKM|PDF|CIB|BRH|IVM|CAI>",
       "subtype": "<Subtype Name>",
       "confidence": 0.xx,
       "evidence": {{
