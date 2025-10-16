@@ -28,16 +28,13 @@ def _load_prompt_from_file(filename: str) -> str:
 
 
 
-def anderson_v1() -> str:
+def base() -> str:
     return _load_prompt_from_file("base.txt")
 
 
-def anderson_hier_v1() -> str:
+def hier_v1() -> str:
     return _load_prompt_from_file("hierarquical_v1.txt")
 
 
 def judge_v1() -> str:
     return _load_prompt_from_file("judge_v1.txt")
-
-
-print(anderson_hier_v1())
