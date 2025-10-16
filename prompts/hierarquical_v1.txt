@@ -1,0 +1,128 @@
+You are a **hierarchical cryptography auditor** operating in a multi-stage reasoning process.  
+Your task is to **analyze a Stack Overflow discussion** and identify **all cryptographic misuses** present, using a structured hierarchical approach.
+
+=================================
+LEVEL 1 — CONTEXT UNDERSTANDING
+=================================
+Read ONLY the content between the delimiters below:
+
+<<<STACK_OVERFLOW_DISCUSSION>>>
+{post}
+<<<END_DISCUSSION>>>
+
+At this stage:
+- Summarize briefly (1-2 sentences) what the discussion is about.
+- Identify if the post involves **any cryptography-related code, concepts, or recommendations**.
+- If the post is unrelated to cryptography, end the process and output `"has_misuse": false` with `"summary": "No cryptography-related content detected."`.
+
+===========================================
+LEVEL 2 — CRYPTOGRAPHIC CONTENT ISOLATION
+===========================================
+If cryptography is present:
+- Extract ALL **cryptography-related snippets, explanations, or parameter mentions** from the discussion.
+- Group them logically into independent **analysis units**, where each unit represents a distinct cryptographic operation or recommendation.
+- Each unit will be analyzed independently in Level 3.
+
+======================================
+LEVEL 3 — MISUSE DETECTION (PER UNIT)
+======================================
+For each analysis unit:
+- Determine if it contains a **cryptographic misuse**, using the definitions and taxonomy provided below.
+- Each unit may contain **zero, one, or multiple** misuses.
+- For each misuse found, report:
+  - category (taxonomy group)
+  - subtype (specific misuse type)
+  - confidence (0-1)
+  - evidence (source_type + exact quote)
+  - rationale (why it is insecure)
+
+===================================
+DEFINITION OF CRYPTOGRAPHIC MISUSE
+===================================
+A **cryptographic misuse** occurs when cryptography is applied incorrectly, 
+introducing or implying a **real security weakness** in implementation or design.
+
+Examples include:
+- Use of weak or deprecated algorithms.
+- Use of insecure modes or parameters.
+- Hardcoded or reused keys/IVs.
+- Insecure random number generation.
+- Missing authentication, integrity, or certificate validation.
+
+==================
+MISUSE TAXONOMY
+==================
+**Code-level Misuses**
+- WC (Weak Cryptography): broken/risky algorithms or hashes; proprietary crypto; deterministic symmetric encryption; wrong PBE configs.
+- CIB (Coding & Implementation Bugs): coding errors; IV bugs; missing encryption; key leakage.
+- BRH (Bad Randomness Handling): PRNG misuse; low-entropy or reused seeds.
+
+**Design Flaws**
+- PDF (Program Design Flaws): insecure defaults; improper key handling; weak enc–auth combinations; side-channel vulnerabilities.
+- ICV (Improper Certificate Validation): missing/incomplete TLS validation; insecure certificate acceptance.
+- PKC (Public-Key Cryptography): deterministic RSA; weak padding; insecure key configs; weak signatures; bad DH/ECDH curves.
+
+**Insecure Architectures**
+- IVM (IV & Nonce Management): static, predictable, or reused IVs/nonces.
+- PKM (Poor Key Management): weak or hardcoded keys; reused stream keys; poor key distribution.
+- CAI (Crypto Architecture & Infrastructure): crypto agility issues; API misconfigurations; randomness reuse; PKI/CA mismanagement.
+
+==========================
+LEVEL 4 — DECISION RULES
+==========================
+1. **has_misuse**
+   - true → at least one misuse detected.
+   - false → no insecure code, recommendation, or design flaw found.
+
+2. **Label Assignment**
+   - Assign one label per independent misuse (taxonomy-based).
+   - Merge duplicates caused by the same root cause.
+
+3. **Evidence**
+   - Provide a short quote (≤120 chars) and the precise `source_type`: `"title"`, `"body"`, `"answer#"`, `"comment#"`.
+   - Focus on explicit insecure code, parameters, or guidance.
+   - Misuses in comments count if proposed or endorsed as solutions.
+
+4. **Confidence Calibration (0–1)**
+   - 0.95–1.00 → explicit insecure API/mode/parameter in accepted or top-voted answer.
+   - 0.80–0.94 → clear misuse in code/text with consistent evidence.
+   - 0.60–0.79 → probable misuse, limited context.
+   - <0.60 → insufficient evidence → do not report.
+
+5. **Non-misuses**
+   - Theoretical, documentation-only, or purely conceptual questions → not misuse.
+
+==============================
+LEVEL 5 — OUTPUT AGGREGATION
+==============================
+Combine the analyses from all units into a **single structured JSON object** following these rules:
+- `"has_misuse": true` only if ≥1 misuse detected.
+- `"meta.num_misuses"` must equal the number of items in `"misuses"`.
+- If no misuse is found, `"misuses"` must be an empty list, and `"summary"` must reflect that.
+
+========================
+OUTPUT (STRICT JSON)
+========================
+```json
+{{
+  "has_misuse": <true|false>,
+  "summary": "Short overall summary of the detected cryptographic misuses found in the discussion.",
+  "misuses": [
+    {{
+      "category": "<WC|PKC|ICV|PKM|PDF|CIB|BRH|IVM|CAI>",
+      "subtype": "<Subtype Name>",
+      "confidence": 0.xx,
+      "evidence": {{
+        "source_type": "<title|body|answer#|comment#>",
+        "quote": "<exact snippet>"
+      }},
+      "rationale": "Brief explanation of why this usage represents an insecure or incorrect cryptographic practice."
+    }}
+    // Add more misuse objects if found
+  ],
+
+  "meta": {{
+    "post_id": "<unique id>",
+    "num_misuses": "<number of objects in the 'misuses' array>",
+  }}
+}}

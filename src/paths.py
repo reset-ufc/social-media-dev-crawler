@@ -1,20 +1,23 @@
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).parent.parent
 
-BASE_DIR = Path("./Extraidos dump")
-DATA = Path('./data')
+PROMPTS_DIR = PROJECT_ROOT / "prompts"
+
+BASE_DIR = PROJECT_ROOT / "Extraidos dump"
+DATA = PROJECT_ROOT / 'data'
 QUESTION_TAG = "encryption"
 
 SITES = {
     "stackoverflow": "stackapps.com.7z",
     "crypto": "crypto.stackexchange.com.7z",
-    "security": "security.stackexchange.com.7z"
+    "security": "security.stackexchange.com.7z",
 }
 
 QUESTION_TAGS = {
     "stackoverflow": [QUESTION_TAG],
     "crypto": [QUESTION_TAG],
-    "security": [QUESTION_TAG]
+    "security": [QUESTION_TAG],
 }
 
 DUMP_POST_PATH = BASE_DIR / "Posts.xml"
@@ -33,7 +36,7 @@ PREPROCESSED_POSTS = DATA / "preprocessed_full_posts.csv"
 LLM_INFERENCE = DATA / "llm_inference"
 
 MISUSE_CASES = LLM_INFERENCE / "misuse_cases.json"
-JUDGEMENT = LLM_INFERENCE / 'judgement.json'
+JUDGEMENT = LLM_INFERENCE / "judgement.json"
 
 THRE1 = 0.1
 THRE2 = 0.01
