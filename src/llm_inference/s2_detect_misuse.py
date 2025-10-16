@@ -101,7 +101,7 @@ def main():
 
     parser = JsonOutputParser()
     prompt_template = ChatPromptTemplate.from_template(
-        classify_misuse_and_categories()
+        base()
     ).partial(format_instructions=parser.get_format_instructions())
 
     chain = prompt_template | llm | parser
