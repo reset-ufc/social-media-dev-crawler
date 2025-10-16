@@ -30,7 +30,7 @@ def run_full_pipeline():
     print("\n--- ETAPA 4: Coletando posts completos com base nas tags filtradas ---")
     run_4_get_posts()
 
-    print("\n--- ETAPA 6: Conectando perguntas com suas respectivas respostas ---")
+    print("\n--- ETAPA 5: Conectando perguntas com suas respectivas respostas ---")
     run_5_get_connected_posts()
 
     print("\n--- ETAPA 6: Conectando perguntas com suas respectivas respostas ---")
