@@ -2,21 +2,24 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils import *
-from paths import *
-
-import csv
-import xml.etree.ElementTree as ET
-import py7zr
-import tempfile
 import shutil
+import tempfile
+import py7zr
+import xml.etree.ElementTree as ET
+import csv
+from paths import *
+from utils import *
+
+
+
+logger = get_logger(__name__)
 
 
 # Estrutura completa de atributos conforme o StackExchange Data Dump atual
 QUESTION_FEATURES = [
     'site', 'tags', 'question_id', 'accepted_answer_id', 'answer_count',
-    'comment_count', 'favorite_count', 'creation_date', 'last_activity_date', 
-    'last_edit_date', 'owner_id', 'score', 'view_count', 
+    'comment_count', 'favorite_count', 'creation_date', 'last_activity_date',
+    'last_edit_date', 'owner_id', 'score', 'view_count',
     'title', 'body'
 ]
 
@@ -35,10 +38,11 @@ def parse_posts_from_7z(site_alias):
     archive_path = os.path.join(BASE_DIR, site_file)
 
     if not os.path.exists(archive_path):
-        print(f"[{site_alias}] Arquivo não encontrado: {archive_path}")
+        logger.warning(
+            f"[{site_alias}] Arquivo não encontrado: {archive_path}")
         return
 
-    print(f"[{site_alias}] Lendo arquivo compactado: {archive_path}")
+    logger.info(f"[{site_alias}] Lendo arquivo compactado: {archive_path}")
 
     try:
         with py7zr.SevenZipFile(archive_path, mode='r') as archive:
@@ -51,7 +55,7 @@ def parse_posts_from_7z(site_alias):
             archive.extract(path=temp_dir, targets=posts_files)
             posts_path = os.path.join(temp_dir, posts_files[0])
 
-            print(f"[{site_alias}] Processando {posts_path} ...")
+            logger.info(f"[{site_alias}] Processando {posts_path} ...")
 
             context = ET.iterparse(posts_path, events=("start",))
             for _, elem in context:
@@ -99,17 +103,18 @@ def parse_posts_from_7z(site_alias):
             shutil.rmtree(temp_dir)
 
     except Exception as e:
-        print(f"[{site_alias}] Erro ao processar {archive_path}: {e}")
+        logger.error(
+            f"[{site_alias}] Erro ao processar {archive_path}: {e}", exc_info=True)
 
 
 def main():
-    print("Inicializando coleta de perguntas...")
+    logger.info("Inicializando coleta de perguntas...")
     initiate_csv()
 
     for site_alias in SITES.keys():
         parse_posts_from_7z(site_alias)
 
-    print("Processamento concluído com sucesso!")
+    logger.info("Processamento concluído com sucesso!")
 
 
 if __name__ == "__main__":

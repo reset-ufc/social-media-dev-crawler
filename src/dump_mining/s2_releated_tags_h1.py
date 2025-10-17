@@ -1,34 +1,34 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import pandas as pd
-import xml.etree.ElementTree as ET
-import os
-import py7zr
-import tempfile
-import shutil
-from collections import Counter
-
-from utils import *
 from paths import *
+from utils import *
+from collections import Counter
+import shutil
+import tempfile
+import py7zr
+import xml.etree.ElementTree as ET
+import pandas as pd
 
+
+
+logger = get_logger(__name__)
 
 
 def make_releated_tags():
     """
     Cria o CSV inicial com as tags relacionadas e a coluna 'a'.
     """
-    print("-> make_releated_tags: começando...")
+    logger.info("-> make_releated_tags: começando...")
     if not os.path.exists(COARSE_QUESTIONS):
-        print(f"ERRO: arquivo {COARSE_QUESTIONS} não encontrado.")
+        logger.error(f"Arquivo {COARSE_QUESTIONS} não encontrado.")
         return
 
     df = pd.read_csv(COARSE_QUESTIONS, dtype=str)
-    print(f"  Linhas totais: {len(df)}")
+    logger.info(f"  Linhas totais: {len(df)}")
 
     if 'tags' not in df.columns:
-        print("ERRO: coluna 'tags' não encontrada.")
+        logger.error("Coluna 'tags' não encontrada.")
         return
 
     df['tags'] = df['tags'].fillna('')
@@ -36,7 +36,7 @@ def make_releated_tags():
 
     num_with_question_tag = df['tag_list'].apply(
         lambda L: QUESTION_TAG in L).sum()
-    print(f"  Posts com '{QUESTION_TAG}': {num_with_question_tag}")
+    logger.info(f"  Posts com '{QUESTION_TAG}': {num_with_question_tag}")
 
     df_filtered = df[df['tag_list'].apply(lambda L: QUESTION_TAG in L)]
     all_tags = df_filtered['tag_list'].explode().dropna()
@@ -51,7 +51,7 @@ def make_releated_tags():
 
     ensure_parent_dir(RELEATED_TAGS)
     releated_tags_df.to_csv(RELEATED_TAGS, index=False, encoding='utf-8')
-    print(
+    logger.info(
         f"  Arquivo salvo em: {RELEATED_TAGS} (linhas: {len(releated_tags_df)})")
 
 # --- calculate_b atualizado para ler de .7z ------------------------
@@ -61,9 +61,9 @@ def calculate_b():
     """
     Conta 'b' diretamente dos arquivos .7z (Posts.xml dentro do dump compactado).
     """
-    print("-> calculate_b (com .7z): começando...")
+    logger.info("-> calculate_b (com .7z): começando...")
     if not os.path.exists(RELEATED_TAGS):
-        print("ERRO: arquivo de tags relacionadas não encontrado.")
+        logger.error("Arquivo de tags relacionadas não encontrado.")
         return
 
     releated_tags_df = pd.read_csv(RELEATED_TAGS, dtype={'tag': str})
@@ -73,17 +73,18 @@ def calculate_b():
     for site_alias, site_file in SITES.items():
         archive_path = os.path.join(BASE_DIR, site_file)
         if not os.path.exists(archive_path):
-            print(
-                f"  AVISO: .7z não encontrado para {site_alias}: {archive_path}")
+            logger.warning(
+                f".7z não encontrado para {site_alias}: {archive_path}")
             continue
 
-        print(f"  Lendo dump compactado: {archive_path}")
+        logger.info(f"  Lendo dump compactado: {archive_path}")
         try:
             with py7zr.SevenZipFile(archive_path, mode='r') as archive:
                 posts_files = [
                     f for f in archive.getnames() if "Posts.xml" in f]
                 if not posts_files:
-                    print(f"  Nenhum Posts.xml dentro de {archive_path}")
+                    logger.warning(
+                        f"  Nenhum Posts.xml dentro de {archive_path}")
                     continue
 
                 temp_dir = tempfile.mkdtemp()
@@ -104,44 +105,45 @@ def calculate_b():
                 shutil.rmtree(temp_dir)
 
         except Exception as e:
-            print(f"  Erro ao processar {archive_path}: {e}")
+            logger.error(
+                f"Erro ao processar {archive_path}: {e}", exc_info=True)
 
     releated_tags_df['b'] = releated_tags_df['tag'].map(
         tag_counter).fillna(0).astype(int)
     releated_tags_df.to_csv(RELEATED_TAGS, index=False, encoding='utf-8')
-    print(f"  Coluna 'b' adicionada e arquivo salvo em: {RELEATED_TAGS}")
+    logger.info(f"  Coluna 'b' adicionada e arquivo salvo em: {RELEATED_TAGS}")
 
 # --- Restante igual -----------------------------------------------
 
 
 def calculate_h1():
-    print("-> calculate_h1: começando...")
+    logger.info("-> calculate_h1: começando...")
     if not os.path.exists(RELEATED_TAGS):
-        print(f"ERRO: {RELEATED_TAGS} não encontrado.")
+        logger.error(f"{RELEATED_TAGS} não encontrado.")
         return
     df = pd.read_csv(RELEATED_TAGS, dtype={'a': float, 'b': float})
     if 'a' not in df.columns or 'b' not in df.columns:
-        print("ERRO: colunas 'a' e 'b' não existem.")
+        logger.error("Colunas 'a' e 'b' não existem.")
         return
     df['h1'] = (df['a'] / df['b']
                 ).replace([float('inf'), -float('inf')], 0).fillna(0)
     df.to_csv(RELEATED_TAGS, index=False, encoding='utf-8')
-    print(f"  Coluna 'h1' calculada e salva em {RELEATED_TAGS}.")
+    logger.info(f"  Coluna 'h1' calculada e salva em {RELEATED_TAGS}.")
 
 
 def filter_by_h1_threshold():
-    print("-> filter_by_h1_threshold: começando...")
+    logger.info("-> filter_by_h1_threshold: começando...")
     if not os.path.exists(RELEATED_TAGS):
-        print(f"ERRO: {RELEATED_TAGS} não encontrado.")
+        logger.error(f"{RELEATED_TAGS} não encontrado.")
         return
     df = pd.read_csv(RELEATED_TAGS)
     if 'h1' not in df.columns:
-        print("ERRO: coluna 'h1' não encontrada.")
+        logger.error("Coluna 'h1' não encontrada.")
         return
     original = len(df)
     df = df[df['h1'] >= THRE1]
     df.to_csv(RELEATED_TAGS, index=False, encoding='utf-8')
-    print(
+    logger.info(
         f"  Filtragem por THRE1={THRE1} aplicada. Removidas {original - len(df)} linhas.")
 
 
@@ -151,4 +153,4 @@ def main():
     calculate_b()
     calculate_h1()
     filter_by_h1_threshold()
-    print("Processo finalizado.")
+    logger.info("Processo finalizado.")

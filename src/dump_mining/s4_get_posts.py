@@ -2,18 +2,19 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils import *
-from paths import *
-import os
-import csv
-import pandas as pd
-import xml.etree.ElementTree as ET
-import re
-import py7zr
-import tempfile
 import shutil
+import tempfile
+import py7zr
+import re
+import xml.etree.ElementTree as ET
+import pandas as pd
+import csv
+from paths import *
+from utils import *
 
 
+
+logger = get_logger(__name__)
 
 POST_FEATURES = [
     'site_alias', 'tags', 'question_id', 'accepted_answer_id', 'answer_count',
@@ -29,8 +30,8 @@ def get_related_tags():
         df = pd.read_csv(RELEATED_TAGS)
         return set(df['tag'])
     except FileNotFoundError:
-        print(
-            f"ERRO: Arquivo de tags relacionadas não encontrado: {RELEATED_TAGS}")
+        logger.error(
+            f"Arquivo de tags relacionadas não encontrado: {RELEATED_TAGS}")
         return set()
 
 
@@ -82,7 +83,7 @@ def preload_commented_and_answered_posts(site_archive_path):
                     elem.clear()
                 del context  # Garante que o arquivo XML seja liberado
     except Exception as e:
-        print(f"  AVISO: Erro ao pré-carregar comentários/respostas: {e}")
+        logger.warning(f"Erro ao pré-carregar comentários/respostas: {e}")
     finally:
         shutil.rmtree(temp_dir)
     return commented_post_ids, answered_post_ids
@@ -91,7 +92,7 @@ def preload_commented_and_answered_posts(site_archive_path):
 def find_and_save_related_posts(related_tags):
     """Procura e salva posts que tenham as tags relacionadas e pelo menos uma resposta/comentário."""
     if not related_tags:
-        print("Nenhuma tag relacionada para processar.")
+        logger.warning("Nenhuma tag relacionada para processar.")
         return
 
     processed_posts = set()
@@ -105,14 +106,15 @@ def find_and_save_related_posts(related_tags):
         site_count = 0
 
         if not os.path.exists(site_archive):
-            print(
-                f"AVISO: Arquivo compactado não encontrado para '{site_alias}' em: {site_archive}")
+            logger.warning(
+                f"Arquivo compactado não encontrado para '{site_alias}' em: {site_archive}")
             continue
 
-        print(f" Processando: {site_archive}")
+        logger.info(f"Processando: {site_archive}")
 
         # Pré-carrega os IDs de posts com atividade para otimização
-        print("  Pré-carregando IDs de posts com comentários e respostas...")
+        logger.info(
+            "  Pré-carregando IDs de posts com comentários e respostas...")
         commented_ids, answered_ids = preload_commented_and_answered_posts(
             site_archive)
         active_post_ids = commented_ids.union(answered_ids)
@@ -121,7 +123,7 @@ def find_and_save_related_posts(related_tags):
             # Assumimos que há apenas um Posts.xml por site
             posts_xml_path = "Posts.xml"
             if posts_xml_path not in archive.getnames():
-                print(f"  AVISO: Posts.xml não encontrado em {site_archive}")
+                logger.warning(f"  Posts.xml não encontrado em {site_archive}")
                 continue
 
             file_count = 0
@@ -188,19 +190,19 @@ def find_and_save_related_posts(related_tags):
             # registra quantos posts foram extraídos deste arquivo
             file_post_counts.append(
                 (f"{site_alias}/{posts_xml_path}", file_count))
-            print(f"  → Arquivo: {posts_xml_path} -> {file_count} posts")
+            logger.info(f"  → Arquivo: {posts_xml_path} -> {file_count} posts")
 
         site_post_counts[site_alias] = site_count
-        print(f"→ {site_alias}: {site_count} posts encontrados ")
+        logger.info(f"→ {site_alias}: {site_count} posts encontrados ")
 
-    print("\nResumo final:")
+    logger.info("\nResumo final:")
     for site, count in site_post_counts.items():
-        print(f"  - {site}: {count} posts válidos")
+        logger.info(f"  - {site}: {count} posts válidos")
 
 
 def main():
-    print("Inicializando coleta dentro dos arquivos compactados...")
+    logger.info("Inicializando coleta dentro dos arquivos compactados...")
     tags_to_find = get_related_tags()
-    print("Buscando posts relacionados com respostas/comentários...")
+    logger.info("Buscando posts relacionados com respostas/comentários...")
     find_and_save_related_posts(tags_to_find)
-    print("Processamento concluído!")
+    logger.info("Processamento concluído!")

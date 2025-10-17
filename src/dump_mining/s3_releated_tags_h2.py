@@ -2,14 +2,17 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils import *
-from paths import *
-import pandas as pd
-import os
-import xml.etree.ElementTree as ET
-import py7zr
-import tempfile
 import shutil
+import tempfile
+import py7zr
+import xml.etree.ElementTree as ET
+import pandas as pd
+from paths import *
+from utils import *
+
+
+
+logger = get_logger(__name__)
 
 
 # --- Calcula C ---
@@ -18,29 +21,31 @@ def calculate_c():
     Calcula c = número total de perguntas (PostTypeId=1)
     que contêm QUESTION_TAG nos dumps compactados (.7z).
     """
-    print("Calculando a constante 'c' ...")
+    logger.info("Calculando a constante 'c' ...")
     c = 0
 
     for site_alias, site_file in SITES.items():
         archive_path = os.path.join(BASE_DIR, site_file)
         if not os.path.exists(archive_path):
-            print(f"[{site_alias}] Arquivo .7z não encontrado em: {archive_path}")
+            logger.warning(
+                f"[{site_alias}] Arquivo .7z não encontrado em: {archive_path}")
             continue
 
-        print(f"[{site_alias}] Lendo compactado: {archive_path}")
+        logger.info(f"[{site_alias}] Lendo compactado: {archive_path}")
         try:
             with py7zr.SevenZipFile(archive_path, mode='r') as archive:
                 posts_files = [
                     f for f in archive.getnames() if "Posts.xml" in f]
                 if not posts_files:
-                    print(f"[{site_alias}] Nenhum Posts.xml dentro do .7z.")
+                    logger.warning(
+                        f"[{site_alias}] Nenhum Posts.xml dentro do .7z.")
                     continue
 
                 temp_dir = tempfile.mkdtemp()
                 archive.extract(path=temp_dir, targets=posts_files)
                 posts_path = os.path.join(temp_dir, posts_files[0])
 
-                print(f"[{site_alias}] Processando {posts_path} ...")
+                logger.info(f"[{site_alias}] Processando {posts_path} ...")
 
                 context = ET.iterparse(posts_path, events=("start",))
                 for _, elem in context:
@@ -55,51 +60,55 @@ def calculate_c():
                 shutil.rmtree(temp_dir)
 
         except Exception as e:
-            print(f"[{site_alias}] Erro ao processar: {e}")
+            logger.error(
+                f"[{site_alias}] Erro ao processar: {e}", exc_info=True)
 
-    print(f"Constante c = {c}")
+    logger.info(f"Constante c = {c}")
     return c
 
 
 # --- Calcula H2 ---
 def calculate_h2():
     """Calcula h2 = a / c e grava no arquivo de tags relacionadas."""
-    print("Calculando h2 ...")
+    logger.info("Calculando h2 ...")
 
     if not os.path.exists(RELEATED_TAGS):
-        print(f"ERRO: {RELEATED_TAGS} não encontrado. Rode H1 primeiro.")
+        logger.error(f"{RELEATED_TAGS} não encontrado. Rode H1 primeiro.")
         return
 
     df = pd.read_csv(RELEATED_TAGS)
     if 'a' not in df.columns:
-        print("ERRO: coluna 'a' não encontrada. Rode make_releated_tags() primeiro.")
+        logger.error(
+            "Coluna 'a' não encontrada. Rode make_releated_tags() primeiro.")
         return
 
     df['a'] = pd.to_numeric(df['a'], errors='coerce').fillna(0).astype(int)
 
     c = calculate_c()
     if c <= 0:
-        print("ERRO: valor de c = 0. Não é possível calcular h2.")
+        logger.error("Valor de c = 0. Não é possível calcular h2.")
         return
 
     df['h2'] = (df['a'] / c).fillna(0)
     df.to_csv(RELEATED_TAGS, index=False, encoding='utf-8')
 
-    print(f"Coluna 'h2' adicionada e arquivo atualizado: {RELEATED_TAGS}")
+    logger.info(
+        f"Coluna 'h2' adicionada e arquivo atualizado: {RELEATED_TAGS}")
 
 
 # --- Filtra H2 ---
 def filter_by_h2_threshold():
     """Remove linhas com h2 < THRE2."""
-    print(f"Filtrando tags com h2 < {THRE2} ...")
+    logger.info(f"Filtrando tags com h2 < {THRE2} ...")
 
     if not os.path.exists(RELEATED_TAGS):
-        print(f"ERRO: {RELEATED_TAGS} não encontrado.")
+        logger.error(f"{RELEATED_TAGS} não encontrado.")
         return
 
     df = pd.read_csv(RELEATED_TAGS)
     if 'h2' not in df.columns:
-        print("ERRO: coluna 'h2' não encontrada. Rode calculate_h2() primeiro.")
+        logger.error(
+            "Coluna 'h2' não encontrada. Rode calculate_h2() primeiro.")
         return
 
     original = len(df)
@@ -107,7 +116,7 @@ def filter_by_h2_threshold():
     removed = original - len(df)
 
     df.to_csv(RELEATED_TAGS, index=False, encoding='utf-8')
-    print(
+    logger.info(
         f"Filtro aplicado. {removed} tags removidas. Salvo em: {RELEATED_TAGS}")
 
 
@@ -115,4 +124,4 @@ def filter_by_h2_threshold():
 def main():
     calculate_h2()
     filter_by_h2_threshold()
-    print("Processo da Heurística 2 finalizado com sucesso!")
+    logger.info("Processo da Heurística 2 finalizado com sucesso!")

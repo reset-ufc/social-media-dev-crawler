@@ -2,14 +2,17 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import pandas as pd
-from bs4 import BeautifulSoup
-import os
-from tqdm import tqdm
-import html
-import re
 
+from utils import get_logger
 from paths import *
+import re
+import html
+from tqdm import tqdm
+from bs4 import BeautifulSoup
+import pandas as pd
+
+
+logger = get_logger(__name__)
 
 
 def clean_text(text: str) -> str:
@@ -29,11 +32,13 @@ def clean_text(text: str) -> str:
 
     # Preserva conteúdo dentro de <code>...</code>
     code_blocks = []
+
     def _preserve_code(match):
         code_blocks.append(match.group(0))  # mantém a tag <code> original
         return f"[[CODE_BLOCK_{len(code_blocks)-1}]]"  # marcador temporário
 
-    text = re.sub(r'<code>.*?</code>', _preserve_code, text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'<code>.*?</code>', _preserve_code,
+                  text, flags=re.DOTALL | re.IGNORECASE)
 
     # Remove todas as outras tags HTML restantes
     text = re.sub(r'<[^>]+>', '', text)
@@ -53,17 +58,17 @@ def main():
     """
     Função principal para carregar, processar e salvar os dados.
     """
-    print(f"Carregando posts de: {FILTRED_POSTS}")
+    logger.info(f"Carregando posts de: {FILTRED_POSTS}")
     df = pd.read_csv(FILTRED_POSTS)
 
-    print("Pré-processando a coluna 'body'...")
+    logger.info("Pré-processando a coluna 'body'...")
     df['body'] = df['body'].astype(str)
     df['body'] = [clean_text(
         body) for body in tqdm(df['body'], desc="Limpando HTML")]
 
     output_path = PREPROCESSED_POSTS
     df.to_csv(output_path, index=False)
-    print(f"Processamento concluído. Arquivo salvo em: {output_path}")
+    logger.info(f"Processamento concluído. Arquivo salvo em: {output_path}")
 
 
 if __name__ == "__main__":

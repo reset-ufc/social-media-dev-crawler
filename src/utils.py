@@ -3,6 +3,9 @@ import re
 import pandas as pd
 from datetime import datetime
 
+import logging
+from paths import DUMP_MINING_LOG_FILE
+
 
 def ensure_parent_dir(path):
     parent = os.path.dirname(path)
@@ -34,3 +37,29 @@ def safe_date(ts):
         return dt.strftime('%Y/%m/%d, %H:%M:%S')
     except Exception:
         return ts
+
+
+def get_logger(name: str, level=logging.INFO) -> logging.Logger:
+    """
+    Configura e retorna um logger que escreve para o console e para um arquivo.
+    """
+    logger = logging.getLogger(name)
+    if logger.hasHandlers():
+        return logger  # Evita adicionar handlers duplicados
+
+    logger.setLevel(level)
+    formatter = logging.Formatter(
+        '%(levelname)s - %(message)s')
+
+    # Handler para o console
+    ch = logging.StreamHandler()
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+    # Handler para o arquivo
+    ensure_parent_dir(DUMP_MINING_LOG_FILE)
+    fh = logging.FileHandler(DUMP_MINING_LOG_FILE, encoding='utf-8')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+
+    return logger

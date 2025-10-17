@@ -2,15 +2,19 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils import safe_date
-from paths import BASE_DIR, CONNECTED_POSTS, RELEATED_POSTS, SITES
-import csv
-import pandas as pd
-import xml.etree.ElementTree as ET
-import tempfile
-import py7zr
+from utils import get_logger
 import shutil
+import py7zr
+import tempfile
+import xml.etree.ElementTree as ET
+import pandas as pd
+import csv
+from paths import BASE_DIR, CONNECTED_POSTS, RELEATED_POSTS, SITES, DUMP_MINING_LOG_FILE
+from utils import safe_date
 
+
+
+logger = get_logger(__name__)
 # Ordem padronizada de colunas (compatível com scripts 6 e 7)
 POST_FEATURES = [
     "site_alias", "tags", "question_id", "accepted_answer_id", "answer_count",
@@ -41,17 +45,19 @@ def get_relevant_questions():
             df.rename(columns={"id": "local_id"}, inplace=True)
         return df
     except Exception as e:
-        print(f"ERRO: Não foi possível carregar {RELEATED_POSTS}: {e}")
+        logger.error(
+            f"Não foi possível carregar {RELEATED_POSTS}: {e}", exc_info=True)
         return pd.DataFrame()
 
 
 def extract_posts_and_comments():
     """Extrai perguntas, respostas e comentários para o arquivo CONNECTED_POSTS."""
-    print("=== Etapa 5: Criando connected_posts.csv com comentários incluídos ===")
+    logger.info(
+        "=== Etapa 5: Criando connected_posts.csv com comentários incluídos ===")
 
     questions_df = get_relevant_questions()
     if questions_df.empty:
-        print("Nenhuma pergunta relevante encontrada.")
+        logger.warning("Nenhuma pergunta relevante encontrada.")
         return
 
     write_csv_header()
@@ -88,16 +94,19 @@ def extract_posts_and_comments():
     for site_alias, site_file in SITES.items():
         archive_path = os.path.join(BASE_DIR, site_file)
         if not os.path.exists(archive_path):
-            print(f"[{site_alias}] Arquivo não encontrado: {archive_path}")
+            logger.warning(
+                f"[{site_alias}] Arquivo não encontrado: {archive_path}")
             continue
 
-        print(f"[{site_alias}] Processando: {archive_path}")
+        logger.info(f"[{site_alias}] Processando: {archive_path}")
         temp_dir = tempfile.mkdtemp()
 
         try:
             with py7zr.SevenZipFile(archive_path, mode="r") as archive:
-                posts_files = [f for f in archive.getnames() if "Posts.xml" in f]
-                comments_files = [f for f in archive.getnames() if "Comments.xml" in f]
+                posts_files = [
+                    f for f in archive.getnames() if "Posts.xml" in f]
+                comments_files = [
+                    f for f in archive.getnames() if "Comments.xml" in f]
 
                 # Extrai Posts.xml e Comments.xml
                 targets = posts_files + comments_files
@@ -174,13 +183,14 @@ def extract_posts_and_comments():
                         elem.clear()
 
         except Exception as e:
-            print(f"ERRO ao processar {site_alias}: {e}")
+            logger.error(f"ERRO ao processar {site_alias}: {e}", exc_info=True)
         finally:
             shutil.rmtree(temp_dir)
 
     # --- Atualizar o comment_count das perguntas e respostas ---
     try:
-        print("\nAtualizando contagem de comentários em perguntas e respostas...")
+        logger.info(
+            "\nAtualizando contagem de comentários em perguntas e respostas...")
         df = pd.read_csv(CONNECTED_POSTS, dtype=str)
 
         comment_counts = (
@@ -194,21 +204,24 @@ def extract_posts_and_comments():
             post_id = row["question_id"]
             num_comments = row["num_comments"]
             df.loc[
-                (df["id"] == post_id) & (df["type"].isin(["question", "answer"])),
+                (df["id"] == post_id) & (
+                    df["type"].isin(["question", "answer"])),
                 "comment_count"
             ] = num_comments
 
         df.to_csv(CONNECTED_POSTS, index=False)
-        print(f"✅ Contagem de comentários atualizada com sucesso ({len(comment_counts)} posts afetados).")
+        logger.info(
+            f"✅ Contagem de comentários atualizada com sucesso ({len(comment_counts)} posts afetados).")
     except Exception as e:
-        print(f"⚠️ Erro ao atualizar comment_count: {e}")
+        logger.warning(f"Erro ao atualizar comment_count: {e}", exc_info=True)
 
-    print("\nResumo final:")
-    print(f"  Perguntas adicionadas: {total_questions}")
-    print(f"  Respostas adicionadas: {total_answers}")
-    print(f"  Comentários adicionados: {total_comments}")
-    print(f"Arquivo final consolidado salvo em: {CONNECTED_POSTS}")
-    print("=== Etapa 5 Concluída ===")
+    logger.info("\nResumo final:")
+    logger.info(f"  Perguntas adicionadas: {total_questions}")
+    logger.info(f"  Respostas adicionadas: {total_answers}")
+    logger.info(f"  Comentários adicionados: {total_comments}")
+    logger.info(f"Arquivo final consolidado salvo em: {CONNECTED_POSTS}")
+    logger.info("=== Etapa 5 Concluída ===")
+
 
 def main():
     extract_posts_and_comments()

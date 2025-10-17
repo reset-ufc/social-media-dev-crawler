@@ -6,6 +6,10 @@ PROMPTS_DIR = PROJECT_ROOT / "prompts"
 
 BASE_DIR = PROJECT_ROOT / "Extraidos dump"
 DATA = PROJECT_ROOT / 'data'
+
+LOGS_DIR = DATA / "logs"
+DUMP_MINING_LOG_FILE = LOGS_DIR / "data_mining.log"
+
 QUESTION_TAG = "encryption"
 
 SITES = {
