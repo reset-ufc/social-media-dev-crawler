@@ -2,16 +2,15 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import shutil
-import tempfile
-import py7zr
-import re
-import xml.etree.ElementTree as ET
-import pandas as pd
-import csv
-from paths import *
 from utils import *
-
+from paths import *
+import csv
+import pandas as pd
+import xml.etree.ElementTree as ET
+import re
+import py7zr
+import tempfile
+import shutil
 
 
 logger = get_logger(__name__)
@@ -24,14 +23,15 @@ POST_FEATURES = [
 ]
 
 
-def get_related_tags():
-    """Lê as tags relacionadas do arquivo CSV gerado nas heurísticas."""
+def get_related_tags_for_site(site_alias: str):
+    """Lê as tags relacionadas para um site específico."""
+    tags_path = get_releated_tags_path(site_alias)
     try:
-        df = pd.read_csv(RELEATED_TAGS)
+        df = pd.read_csv(tags_path)
         return set(df['tag'])
     except FileNotFoundError:
         logger.error(
-            f"Arquivo de tags relacionadas não encontrado: {RELEATED_TAGS}")
+            f"Arquivo de tags relacionadas não encontrado para o site '{site_alias}': {tags_path}")
         return set()
 
 
@@ -89,11 +89,8 @@ def preload_commented_and_answered_posts(site_archive_path):
     return commented_post_ids, answered_post_ids
 
 
-def find_and_save_related_posts(related_tags):
+def find_and_save_related_posts():
     """Procura e salva posts que tenham as tags relacionadas e pelo menos uma resposta/comentário."""
-    if not related_tags:
-        logger.warning("Nenhuma tag relacionada para processar.")
-        return
 
     processed_posts = set()
     site_post_counts = {}
@@ -102,6 +99,13 @@ def find_and_save_related_posts(related_tags):
     initialize_csv(RELEATED_POSTS)
 
     for site_alias, site_name in SITES.items():
+        logger.info(f"\n--- Processando site: {site_alias} ---")
+        related_tags = get_related_tags_for_site(site_alias)
+        if not related_tags:
+            logger.warning(
+                f"Nenhuma tag relacionada encontrada para '{site_alias}'. Pulando...")
+            continue
+
         site_archive = os.path.join(BASE_DIR, f"{site_name}")
         site_count = 0
 
@@ -202,7 +206,8 @@ def find_and_save_related_posts(related_tags):
 
 def main():
     logger.info("Inicializando coleta dentro dos arquivos compactados...")
-    tags_to_find = get_related_tags()
     logger.info("Buscando posts relacionados com respostas/comentários...")
-    find_and_save_related_posts(tags_to_find)
+    find_and_save_related_posts()
     logger.info("Processamento concluído!")
+
+main()
