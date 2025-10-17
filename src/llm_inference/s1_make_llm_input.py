@@ -23,42 +23,67 @@ def create_llm_input_string(post_id: str, posts_filepath: str = PREPROCESSED_POS
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", pd.errors.DtypeWarning)
-            df = pd.read_csv(posts_filepath, dtype={
-                             'id': str, 'question_id': str})
+            df = pd.read_csv(posts_filepath, dtype={'id': str, 'question_id': str})
     except FileNotFoundError:
-        print(
-            f"ERRO: Arquivo de posts pré-processados não encontrado em: {posts_filepath}")
+        print(f"ERRO: Arquivo de posts pré-processados não encontrado em: {posts_filepath}")
         return ""
 
     df['creation_date'] = pd.to_datetime(df['creation_date'], errors='coerce')
 
-    question_series = df[(df['id'] == post_id) & (df['type'] == 'post')]
+    # Localiza a pergunta
+    question_series = df[(df['id'] == post_id) & (df['type'] == 'question')]
     if question_series.empty:
+        print(f"Nenhuma pergunta encontrada com ID {post_id}.")
         return ""
 
     question = question_series.iloc[0]
 
-    related_answers = df[(df['question_id'] == post_id)
-                         & (df['type'] == 'answer')]
-    sorted_answers = related_answers.sort_values(by='creation_date')
-    post_str = f"""Id: {question['id']}
-Site: {question['site']}
-Title: {question['title']}
+    # Respostas e comentários relacionados
+    related_answers = df[(df['question_id'] == post_id) & (df['type'] == 'answer')]
+    related_comments = df[(df['type'] == 'comment')]
 
-Question body:
+    post_str = f"""<<<STACK_OVERFLOW_DISCUSSION>>>
 
+[THREAD_ID]: {question['id']}
+
+[TITLE]:
+{question.get('title', '')}
+
+[BODY]:
 {str(question.get('body', ''))}
 
-End of body
-"""
-    for _, answer in sorted_answers.iterrows():
-        post_str += f"""
-Answer:
+[TAGS]:
+{question.get('tags', '')}
 
-{str(answer.get('body', ''))}
-
-End of Answer
+[COMMENTS on QUESTION]:
 """
+
+    # Comentários diretos na pergunta
+    question_comments = related_comments[related_comments["question_id"] == post_id]
+    if not question_comments.empty:
+        for i, comment in enumerate(question_comments.itertuples(), 1):
+            post_str += f"Comment#{i}: {comment.body.strip()}\n"
+    else:
+        post_str += "(No comments)\n"
+
+    post_str += "\n[ANSWERS]\n"
+
+    # Ordena respostas por data
+    sorted_answers = related_answers.sort_values(by='creation_date', ascending=True)
+
+    for idx, answer in enumerate(sorted_answers.itertuples(), 1):
+        post_str += f"\n[ANSWER #{idx}]:\n{answer.body.strip()}\n"
+
+        # Comentários associados a esta resposta
+        answer_comments = related_comments[related_comments["question_id"] == answer.id]
+        post_str += f"\n[COMMENTS on ANSWER #{idx}]:\n"
+        if not answer_comments.empty:
+            for j, comment in enumerate(answer_comments.itertuples(), 1):
+                post_str += f"Comment#{j}: {comment.body.strip()}\n"
+        else:
+            post_str += "(No comments)\n"
+
+    post_str += "\n<<<END_DISCUSSION>>>\n"
     return post_str.strip()
 
 
@@ -66,7 +91,7 @@ def main():
     """
     Função principal que demonstra como usar create_llm_input_string.
     """
-    print(create_llm_input_string('853'))
+    print(create_llm_input_string("853"))
 
 
 if __name__ == "__main__":
