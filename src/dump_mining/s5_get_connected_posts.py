@@ -52,8 +52,6 @@ def get_relevant_questions():
 
 def extract_posts_and_comments():
     """Extrai perguntas, respostas e comentários para o arquivo CONNECTED_POSTS."""
-    logger.info(
-        "=== Etapa 5: Criando connected_posts.csv com comentários incluídos ===")
 
     questions_df = get_relevant_questions()
     if questions_df.empty:
@@ -66,7 +64,6 @@ def extract_posts_and_comments():
     total_answers = 0
     total_comments = 0
 
-    # 1️⃣ Adiciona as perguntas originais
     for _, q in questions_df.iterrows():
         row = [
             q.get("site", ""),
@@ -90,7 +87,6 @@ def extract_posts_and_comments():
         append_to_csv(row)
         total_questions += 1
 
-    # 2️⃣ Percorre os sites para encontrar respostas e comentários
     for site_alias, site_file in SITES.items():
         archive_path = os.path.join(BASE_DIR, site_file)
         if not os.path.exists(archive_path):
@@ -112,7 +108,6 @@ def extract_posts_and_comments():
                 targets = posts_files + comments_files
                 archive.extract(path=temp_dir, targets=targets)
 
-                # 2.1️⃣ Respostas
                 if posts_files:
                     posts_path = os.path.join(temp_dir, posts_files[0])
                     context = ET.iterparse(posts_path, events=("start",))
@@ -147,7 +142,6 @@ def extract_posts_and_comments():
                         total_answers += 1
                         elem.clear()
 
-                # 2.2️⃣ Comentários
                 if comments_files:
                     comments_path = os.path.join(temp_dir, comments_files[0])
                     context = ET.iterparse(comments_path, events=("start",))
@@ -211,7 +205,7 @@ def extract_posts_and_comments():
 
         df.to_csv(CONNECTED_POSTS, index=False)
         logger.info(
-            f"✅ Contagem de comentários atualizada com sucesso ({len(comment_counts)} posts afetados).")
+            f"Contagem de comentários atualizada com sucesso ({len(comment_counts)} posts afetados).")
     except Exception as e:
         logger.warning(f"Erro ao atualizar comment_count: {e}", exc_info=True)
 

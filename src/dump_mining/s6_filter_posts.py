@@ -2,17 +2,16 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import csv
-from utils import get_logger
-from paths import CONNECTED_POSTS, FILTRED_POSTS
 import pandas as pd
-
+from paths import CONNECTED_POSTS, FILTRED_POSTS
+from utils import get_logger
+import csv
 
 
 logger = get_logger(__name__)
 
 
-def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, percentile=0.90):
+def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, percentile=0.75):
     """
     Filtra posts populares (perguntas, respostas e comentários) com base nos percentis
     das métricas answer_count, view_count, score e comment_count.
@@ -36,16 +35,50 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
         else:
             df[col] = 0
 
-    # Seleciona apenas perguntas
+    # --- Início: Lógica para remover perguntas com apenas uma auto-resposta ---
+    logger.info("Verificando perguntas com apenas uma auto-resposta...")
+
+    # Garante que owner_id seja string para a comparação
+    df['owner_id'] = df['owner_id'].astype(str)
+
+    # 1. Isola perguntas com exatamente uma resposta
+    questions_one_answer = df[(df['type'] == 'question') & (df['answer_count'] == 1)].copy()
+
+    if not questions_one_answer.empty:
+        # 2. Isola todas as respostas
+        answers = df[df['type'] == 'answer'].copy()
+
+        # 3. Junta as perguntas de uma resposta com suas respectivas respostas
+        merged = pd.merge(
+            questions_one_answer[['id', 'owner_id']],
+            answers[['question_id', 'owner_id']],
+            left_on='id',
+            right_on='question_id',
+            suffixes=('_q', '_a')
+        )
+
+        # 4. Identifica os IDs das perguntas onde o autor é o mesmo
+        self_answered_ids = set(merged[merged['owner_id_q'] == merged['owner_id_a']]['id'])
+
+        if self_answered_ids:
+            logger.info(f"Encontradas e removidas {len(self_answered_ids)} perguntas que continham apenas uma auto-resposta.")
+            # 5. Remove todos os posts (perguntas, respostas, comentários) relacionados a esses IDs
+            df = df[~df['question_id'].isin(self_answered_ids)]
+    # --- Fim da lógica de remoção ---
+
     df_questions = df[df['type'] == 'question'].copy()
+    logger.info(f"Encontradas {len(df_questions)} perguntas no total.")
+
+    # 2. Filtra perguntas que contêm a tag <code> no corpo
+    df_questions = df_questions[df_questions['body'].str.contains(
+        '<code>', na=False)]
+    logger.info(
+        f"Destas, {len(df_questions)} perguntas contêm a tag <code> e serão consideradas para análise de popularidade.")
 
     # Garante que todas as colunas numéricas existem
     for col in ['answer_count', 'view_count', 'score', 'comment_count']:
         if col not in df_questions.columns:
             df_questions[col] = 0
-
-    logger.info(
-        f"Carregados {len(df)} registros, resultando em {len(df_questions)} perguntas.")
 
     if df_questions.empty:
         logger.warning("Nenhuma pergunta encontrada.")
@@ -54,7 +87,7 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
     # Calcula o percentil 90 para cada métrica
     questions_q = df_questions[[
         'answer_count', 'view_count', 'score', 'comment_count']].quantile(percentile)
-    logger.info("Limiares de popularidade (percentil 90.0%):")
+    logger.info(f"Limiares de popularidade (percentil {percentile*100}%):")
     logger.info(f"\n{questions_q.to_string()}")
 
     # Filtra perguntas populares
@@ -92,11 +125,19 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
     logger.info(
         f"  - Comentários: {(popular_related['type'] == 'comment').sum()}")
 
+    # Log da contagem de perguntas por site
+    questions_saved = popular_related[popular_related['type'] == 'question']
+    site_counts = questions_saved['site_alias'].value_counts()
+
+    logger.info("\nContagem de perguntas salvas por site:")
+    for site, count in site_counts.items():
+        logger.info(f"  - {site}: {count} perguntas")
+
 
 def main():
     """Função principal usada pelo pipeline"""
     logger.info("--- ETAPA 6: Filtrando posts populares ---")
-    filter_popular_posts(CONNECTED_POSTS, FILTRED_POSTS, percentile=0.90)
+    filter_popular_posts(CONNECTED_POSTS, FILTRED_POSTS, percentile=0.75)
     logger.info("=== Etapa 6 concluída com sucesso ===")
 
 
