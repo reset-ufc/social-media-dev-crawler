@@ -7,6 +7,7 @@ LEVEL 1 — CONTEXT UNDERSTANDING
 Read ONLY the content between the delimiters below:
 
 <<<STACK_OVERFLOW_DISCUSSION>>>
+{post_metadata}
 {post}
 <<<END_DISCUSSION>>>
 
