@@ -1,18 +1,18 @@
-from s0_prompts import judge, classify_misuse_and_categories
-from s1_make_llm_input import create_llm_input_string
-from paths import *
-from tqdm import tqdm
-import json
-import pandas as pd
-from langchain_core.exceptions import OutputParserException
-from langchain_core.output_parsers import JsonOutputParser
-from langchain.prompts import ChatPromptTemplate
-from langchain_ollama import ChatOllama
-
 import sys
 import os
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from langchain_ollama import ChatOllama
+from langchain.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.exceptions import OutputParserException
+import pandas as pd
+import json
+from tqdm import tqdm
+from paths import *
+from s1_make_llm_input import post_analyze_string
+from s0_prompts import judge, classify_misuse_and_categories
+
 
 
 def main():
@@ -57,7 +57,7 @@ def main():
                 continue
 
             response = chain.invoke({
-                "post": create_llm_input_string(post_id),
+                "post": post_analyze_string(post_id),
                 "response": json.dumps(prev_result, indent=2)
             })
 
