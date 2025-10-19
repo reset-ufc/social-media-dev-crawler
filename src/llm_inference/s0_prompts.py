@@ -38,3 +38,7 @@ def hier_v1() -> str:
 
 def judge_v1() -> str:
     return _load_prompt_from_file("judge_v1.txt")
+
+
+def hierarquical_in_code_v1() -> str:
+    return _load_prompt_from_file("hierarquical_in_code_v1.txt")
