@@ -1,21 +1,19 @@
+from s0_prompts import judge_v1
+from s1_make_llm_input import post_analyze_string, get_post_metadata
+from paths import *
+from tqdm import tqdm
+import json
+import pandas as pd
+from langchain_core.exceptions import OutputParserException
+from langchain_core.output_parsers import JsonOutputParser
+from langchain.prompts import ChatPromptTemplate
+from langchain_ollama import ChatOllama
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from langchain_ollama import ChatOllama
-from langchain.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.exceptions import OutputParserException
-import pandas as pd
-import json
-from tqdm import tqdm
-from paths import *
-from s1_make_llm_input import post_analyze_string
-from s0_prompts import judge, classify_misuse_and_categories
 
-
-
-def main():
+def judge_misuse_post():
     """
     Função principal para usar um LLM como 'juiz' para avaliar a qualidade
     das classificações de uso indevido geradas pelo script anterior (s2).
@@ -42,13 +40,12 @@ def main():
     llm = ChatOllama(model="llama3.2:3b", temperature=0, format="json")
     parser = JsonOutputParser()
     prompt_template = ChatPromptTemplate.from_template(
-        judge()
+        judge_v1()
     ).partial(format_instructions=parser.get_format_instructions())
 
     chain = prompt_template | llm | parser
 
     results = []
-    print(f"Julgando {len(previous_results)} classificações com o LLM...")
 
     for prev_result in tqdm(previous_results, desc="Julgando Classificações"):
         try:
@@ -56,8 +53,13 @@ def main():
             if not post_id:
                 continue
 
+            metadata_content = get_post_metadata(post_id)
+            post_content = post_analyze_string(post_id)
+
             response = chain.invoke({
-                "post": post_analyze_string(post_id),
+                # O prompt de julgamento espera 'metadata' e 'post'
+                "metadata": metadata_content,
+                "post": post_content,
                 "response": json.dumps(prev_result, indent=2)
             })
 
@@ -81,4 +83,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    judge_misuse_post()

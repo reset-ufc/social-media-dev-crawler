@@ -1,16 +1,16 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from langchain_ollama import ChatOllama
-from langchain.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.exceptions import OutputParserException
-import pandas as pd
-import json
-from tqdm import tqdm
-from paths import *
-from s1_make_llm_input import post_analyze_string
 from s0_prompts import *
+from s1_make_llm_input import post_analyze_string, get_post_metadata
+from paths import *
+from tqdm import tqdm
+import json
+import pandas as pd
+from langchain_core.exceptions import OutputParserException
+from langchain_core.output_parsers import JsonOutputParser
+from langchain.prompts import ChatPromptTemplate
+from langchain_ollama import ChatOllama
 
 
 def test_on_sample(prompt_str: str, output_filename: str):
@@ -52,12 +52,15 @@ def test_on_sample(prompt_str: str, output_filename: str):
 
     for _, row in tqdm(sample_df.iterrows(), total=sample_df.shape[0], desc="Analisando Posts de Teste"):
         try:
-            post_content = post_analyze_string(str(row['id']))
-            response = chain.invoke({"post": post_content})
+            post_id = str(row['id'])
+            post_content = post_analyze_string(post_id)
+            metadata_content = get_post_metadata(post_id)
+            response = chain.invoke({
+                "metadata": metadata_content,
+                "post": post_content
+            })
 
             # Garante que o ID e o site do post estejam presentes e consistentes.
-            # O ID do DataFrame é a fonte da verdade.
-            post_id = str(row['id'])
             # Para compatibilidade com scripts subsequentes
             response['id'] = post_id
             if 'meta' not in response:
@@ -82,7 +85,7 @@ def test_on_sample(prompt_str: str, output_filename: str):
     print("\n--- FIM DO MODO DE TESTE ---")
 
 
-def main():
+def detect_misuse_post():
     """
     Função principal para processar posts, detectar usos indevidos de criptografia
     e salvar os resultados.
@@ -112,15 +115,15 @@ def main():
 
     for _, row in tqdm(df.iterrows(), total=df.shape[0], desc="Analisando Posts"):
         try:
-            # Usa a função de s1 para buscar a pergunta e todas as suas respostas,
-            # criando uma string de contexto completa para o LLM.
-            post_content = post_analyze_string(str(row['id']))
-
-            response = chain.invoke({"post": post_content})
+            post_id = str(row['id'])
+            post_content = post_analyze_string(post_id)
+            metadata_content = get_post_metadata(post_id)
+            response = chain.invoke({
+                "metadata": metadata_content,
+                "post": post_content
+            })
 
             # Garante que o ID e o site do post estejam presentes e consistentes.
-            # O ID do DataFrame é a fonte da verdade.
-            post_id = str(row['id'])
             # Para compatibilidade com scripts subsequentes
             response['id'] = post_id
             if 'meta' not in response:
@@ -152,10 +155,6 @@ def main():
 
 
 if __name__ == "__main__":
-    test_on_sample(
-        prompt_str=base(),
-        output_filename="base_results.json"
-    )
     test_on_sample(
         prompt_str=hier_v1(),
         output_filename="hier_v1_results.json"
