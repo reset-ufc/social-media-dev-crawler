@@ -1,7 +1,6 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from utils import get_logger
 import shutil
 import py7zr
@@ -11,7 +10,6 @@ import pandas as pd
 import csv
 from paths import BASE_DIR, CONNECTED_POSTS, RELEATED_POSTS, SITES, DUMP_MINING_LOG_FILE
 from utils import safe_date
-
 
 
 logger = get_logger(__name__)
@@ -94,6 +92,13 @@ def extract_posts_and_comments():
                 f"[{site_alias}] Arquivo não encontrado: {archive_path}")
             continue
 
+        # Otimização: Filtra as perguntas relevantes apenas para o site atual
+        # e converte os IDs para um set para busca O(1) (muito mais rápida).
+        site_questions_df = questions_df[questions_df["site_alias"] == site_alias]
+        if site_questions_df.empty:
+            continue  
+        relevant_question_ids = set(site_questions_df["local_id"].values)
+
         logger.info(f"[{site_alias}] Processando: {archive_path}")
         temp_dir = tempfile.mkdtemp()
 
@@ -115,7 +120,7 @@ def extract_posts_and_comments():
                         if elem.tag != "row" or elem.attrib.get("PostTypeId") != "2":
                             continue
                         parent_id = elem.attrib.get("ParentId")
-                        if parent_id not in questions_df["local_id"].values:
+                        if parent_id not in relevant_question_ids:
                             elem.clear()
                             continue
 
@@ -149,7 +154,7 @@ def extract_posts_and_comments():
                         if elem.tag != "row":
                             continue
                         post_id = elem.attrib.get("PostId")
-                        if post_id not in questions_df["local_id"].values:
+                        if post_id not in relevant_question_ids:
                             elem.clear()
                             continue
 
@@ -194,14 +199,20 @@ def extract_posts_and_comments():
             .reset_index(name="num_comments")
         )
 
-        for _, row in comment_counts.iterrows():
-            post_id = row["question_id"]
-            num_comments = row["num_comments"]
-            df.loc[
-                (df["id"] == post_id) & (
-                    df["type"].isin(["question", "answer"])),
-                "comment_count"
-            ] = num_comments
+        # Otimização: Usar merge em vez de um loop para atualizar as contagens.
+        # Isso é significativamente mais rápido em dataframes grandes.
+        df_merged = pd.merge(
+            df,
+            comment_counts,
+            left_on="id",
+            right_on="question_id",
+            how="left"
+        )
+
+        # Atualiza a coluna 'comment_count' apenas para perguntas e respostas
+        mask = df['type'].isin(['question', 'answer'])
+        df.loc[mask, 'comment_count'] = df_merged.loc[mask,
+                                                      'num_comments'].fillna(0).astype(int)
 
         df.to_csv(CONNECTED_POSTS, index=False)
         logger.info(
