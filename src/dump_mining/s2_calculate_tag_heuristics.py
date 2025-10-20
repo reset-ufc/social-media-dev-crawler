@@ -1,3 +1,6 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from paths import *
 from utils import *
 from collections import Counter
@@ -5,9 +8,7 @@ import tempfile
 import py7zr
 import xml.etree.ElementTree as ET
 import pandas as pd
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 
 logger = get_logger(__name__)
@@ -20,7 +21,7 @@ def calculate_tag_counts(site_alias, site_file):
     logger.info(f"-> Calculando 'b' para o site: {site_alias}...")
     tag_occurrence_counter = Counter()  # Para a métrica 'b'
 
-    archive_path = os.path.join(BASE_DIR, site_file)
+    archive_path = os.path.join(DUMP, site_file)
     if not os.path.exists(archive_path):
         logger.warning(
             f"  .7z não encontrado para {site_alias}: {archive_path}")

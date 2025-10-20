@@ -1,13 +1,15 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from typing import Tuple
 import pandas as pd
 from tqdm import tqdm
 import html
 import re
+import csv
 from paths import *
-from utils import get_logger
+from utils import get_logger, ensure_parent_dir
 
 logger = get_logger(__name__)
 
@@ -122,34 +124,65 @@ def clean_text_and_extract_code(text: str) -> Tuple[str, str]:
 
 
 def main():
-    logger.info(f"Carregando posts de: {FILTRED_POSTS}")
-    df = pd.read_csv(FILTRED_POSTS)
-
     """
     Função principal para carregar, processar e salvar os dados.
     """
+    logger.info(f"Carregando posts de: {FILTRED_POSTS}")
+    try:
+        df = pd.read_csv(FILTRED_POSTS, dtype=str)
+    except FileNotFoundError:
+        logger.error(f"Arquivo de entrada não encontrado: {FILTRED_POSTS}")
+        return
 
     logger.info(
         "Pré-processando a coluna 'body' para separar texto e código válidos")
-    df['body'] = df['body'].astype(str)
+
+    # 1. Identificar perguntas com código inválido
+    questions = df[df['type'] == 'question'].copy()
+    invalid_question_ids = set()
+
+    # Garante que o arquivo de códigos inválidos exista com cabeçalho
+    ensure_parent_dir(INVALID_CODES)
+    if not os.path.exists(INVALID_CODES):
+        with open(INVALID_CODES, 'w', newline='', encoding='utf-8') as f:
+            csv.writer(f).writerow(df.columns)
+
+    for index, question in tqdm(questions.iterrows(), total=questions.shape[0], desc="Validando código nas perguntas"):
+        body = str(question.get('body', ''))
+        _, extracted_code = clean_text_and_extract_code(body)
+        if not extracted_code:
+            question_id = question['id']
+            invalid_question_ids.add(question_id)
+            # Salva a pergunta inválida no CSV
+            with open(INVALID_CODES, 'a', newline='', encoding='utf-8') as f:
+                csv.writer(f).writerow(question.values)
+
+    if invalid_question_ids:
+        logger.info(
+            f"{len(invalid_question_ids)} perguntas com código inválido foram encontradas e movidas para {os.path.basename(str(INVALID_CODES))}.")
+        # 2. Remover todos os posts (perguntas, respostas, comentários) relacionados às perguntas inválidas
+        df = df[~df['question_id'].isin(invalid_question_ids)]
+        logger.info(
+            f"Posts relacionados às perguntas inválidas foram removidos. Restam {len(df)} registros para processar.")
 
     cleaned_bodies = []
     extracted_codes = []
 
-    for body in tqdm(df['body'], desc="Limpando HTML e validando código"):
+    for body in tqdm(df['body'].astype(str), desc="Limpando HTML dos posts válidos"):
         cleaned_body, extracted_code = clean_text_and_extract_code(body)
         cleaned_bodies.append(cleaned_body)
         extracted_codes.append(extracted_code)
 
     df['body'] = cleaned_bodies
     df['code'] = extracted_codes
-
     output_path = PREPROCESSED_POSTS
     df.to_csv(output_path, index=False)
 
     logger.info(f" Processamento concluído. Arquivo salvo em: {output_path}")
+    valid_questions_count = df[df['type'] ==
+                               'question']['code'].astype(bool).sum()
     logger.info(
-        f" {sum(bool(c) for c in extracted_codes)} posts possuem código válido extraído.")
+        f" {valid_questions_count} perguntas com código válido foram extraídas e salvas.")
 
 
 if __name__ == "__main__":

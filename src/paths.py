@@ -1,16 +1,30 @@
 from pathlib import Path
 
+
+def get_releated_tags_path(site_alias: str) -> Path:
+    """Retorna o caminho para o arquivo de tags relacionadas de um site específico."""
+    return RELEATED_TAGS_DIR / f"{site_alias}_releated_tags.csv"
+
+
+QUESTION_TAG = "encryption"
+THRE1 = 0.1
+THRE2 = 0.01
+
+
 PROJECT_ROOT = Path(__file__).parent.parent
 
-PROMPTS_DIR = PROJECT_ROOT / "prompts"
-
-BASE_DIR = PROJECT_ROOT / "Extraidos dump"
+DUMP = PROJECT_ROOT / "Extraidos dump"
 DATA = PROJECT_ROOT / 'data'
 
 LOGS_DIR = DATA / "logs"
 DUMP_MINING_LOG_FILE = LOGS_DIR / "data_mining.log"
 
-QUESTION_TAG = "encryption"
+PROMPTS_DIR = PROJECT_ROOT / "prompts"
+
+DATA_MINING = DATA / "data_mining"
+DATA_MINING_S1 = DATA_MINING / "s1"
+DATA_MINING_S2 = DATA_MINING / "s2"
+
 
 SITES = {
     "stackoverflow": "stackapps.com.7z",
@@ -24,32 +38,25 @@ QUESTION_TAGS = {
     "security": [QUESTION_TAG],
 }
 
-DUMP_POST_PATH = BASE_DIR / "Posts.xml"
+DUMP_POST_PATH = DUMP / "Posts.xml"
 
-COARSE_QUESTIONS = DATA / "questions_dump.csv"
+COARSE_QUESTIONS = DATA_MINING_S1 / "questions_dump.csv"
 
-RELEATED_TAGS_DIR = DATA / "releated_tags"
+RELEATED_TAGS_DIR = DATA_MINING_S1 / "releated_tags"
 RELEATED_TAGS = RELEATED_TAGS_DIR / \
     "all_releated_tags.csv"  # Consolidado (opcional)
 
 
-def get_releated_tags_path(site_alias: str) -> Path:
-    """Retorna o caminho para o arquivo de tags relacionadas de um site específico."""
-    return RELEATED_TAGS_DIR / f"{site_alias}_releated_tags.csv"
+RELEATED_POSTS = DATA_MINING_S1 / "releated_posts.csv"
 
+FILTRED_POSTS = DATA_MINING_S2 / "filtred_posts.csv"
 
-RELEATED_POSTS = DATA / "releated_posts.csv"
-
-FILTRED_POSTS = DATA / "filtred_posts.csv"
-
-CONNECTED_POSTS = DATA / "connected_posts.csv"
-CONNECTED_COMMENTS = DATA / "connected_posts_comments.csv"
-PREPROCESSED_POSTS = DATA / "preprocessed_full_posts.csv"
+CONNECTED_POSTS = DATA_MINING_S2 / "connected_posts.csv"
+CONNECTED_COMMENTS = DATA_MINING_S2 / "connected_posts_comments.csv"
+PREPROCESSED_POSTS = DATA_MINING_S2 / "preprocessed_full_posts.csv"
+INVALID_CODES = DATA_MINING_S2 / "invalid_codes.csv"
 
 LLM_INFERENCE = DATA / "llm_inference"
 
 MISUSE_CASES = LLM_INFERENCE / "misuse_cases.json"
 JUDGEMENT = LLM_INFERENCE / "judgement.json"
-
-THRE1 = 0.1
-THRE2 = 0.01

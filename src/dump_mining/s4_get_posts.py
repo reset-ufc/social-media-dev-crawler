@@ -2,15 +2,15 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils import *
-from paths import *
-import csv
-import pandas as pd
-import xml.etree.ElementTree as ET
-import re
-import py7zr
-import tempfile
 import shutil
+import tempfile
+import py7zr
+import re
+import xml.etree.ElementTree as ET
+import pandas as pd
+import csv
+from paths import *
+from utils import *
 
 
 logger = get_logger(__name__)
@@ -106,7 +106,7 @@ def find_and_save_related_posts():
                 f"Nenhuma tag relacionada encontrada para '{site_alias}'. Pulando...")
             continue
 
-        site_archive = os.path.join(BASE_DIR, f"{site_name}")
+        site_archive = os.path.join(DUMP, f"{site_name}")
         site_count = 0
 
         if not os.path.exists(site_archive):
@@ -209,5 +209,6 @@ def main():
     logger.info("Buscando posts relacionados com respostas/comentários...")
     find_and_save_related_posts()
     logger.info("Processamento concluído!")
+
 
 main()

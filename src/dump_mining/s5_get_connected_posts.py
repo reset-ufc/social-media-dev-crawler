@@ -1,15 +1,16 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils import get_logger
-import shutil
-import py7zr
-import tempfile
-import xml.etree.ElementTree as ET
-import pandas as pd
-import csv
-from paths import BASE_DIR, CONNECTED_POSTS, RELEATED_POSTS, SITES, DUMP_MINING_LOG_FILE
 from utils import safe_date
+from paths import DUMP, CONNECTED_POSTS, RELEATED_POSTS, SITES, DUMP_MINING_LOG_FILE
+import csv
+import pandas as pd
+import xml.etree.ElementTree as ET
+import tempfile
+import py7zr
+import shutil
+from utils import get_logger
+
 
 
 logger = get_logger(__name__)
@@ -86,7 +87,7 @@ def extract_posts_and_comments():
         total_questions += 1
 
     for site_alias, site_file in SITES.items():
-        archive_path = os.path.join(BASE_DIR, site_file)
+        archive_path = os.path.join(DUMP, site_file)
         if not os.path.exists(archive_path):
             logger.warning(
                 f"[{site_alias}] Arquivo não encontrado: {archive_path}")
@@ -96,7 +97,7 @@ def extract_posts_and_comments():
         # e converte os IDs para um set para busca O(1) (muito mais rápida).
         site_questions_df = questions_df[questions_df["site_alias"] == site_alias]
         if site_questions_df.empty:
-            continue  
+            continue
         relevant_question_ids = set(site_questions_df["local_id"].values)
 
         logger.info(f"[{site_alias}] Processando: {archive_path}")
