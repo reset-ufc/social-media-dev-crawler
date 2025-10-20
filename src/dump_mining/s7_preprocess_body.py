@@ -1,15 +1,16 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from typing import Tuple
-import pandas as pd
-from tqdm import tqdm
-import html
-import re
-import csv
-from paths import *
 from utils import get_logger, ensure_parent_dir
+from paths import *
+import csv
+import re
+import html
+from tqdm import tqdm
+import pandas as pd
+from typing import Tuple
+
+
 
 logger = get_logger(__name__)
 
@@ -140,6 +141,7 @@ def main():
     # 1. Identificar perguntas com código inválido
     questions = df[df['type'] == 'question'].copy()
     invalid_question_ids = set()
+    invalid_questions_by_site = {}
 
     # Garante que o arquivo de códigos inválidos exista com cabeçalho
     ensure_parent_dir(INVALID_CODES)
@@ -152,7 +154,10 @@ def main():
         _, extracted_code = clean_text_and_extract_code(body)
         if not extracted_code:
             question_id = question['id']
+            site_alias = question['site_alias']
             invalid_question_ids.add(question_id)
+            invalid_questions_by_site[site_alias] = invalid_questions_by_site.get(
+                site_alias, 0) + 1
             # Salva a pergunta inválida no CSV
             with open(INVALID_CODES, 'a', newline='', encoding='utf-8') as f:
                 csv.writer(f).writerow(question.values)
@@ -160,6 +165,10 @@ def main():
     if invalid_question_ids:
         logger.info(
             f"{len(invalid_question_ids)} perguntas com código inválido foram encontradas e movidas para {os.path.basename(str(INVALID_CODES))}.")
+        logger.info("Contagem de perguntas com código inválido por site:")
+        for site, count in invalid_questions_by_site.items():
+            logger.info(f"  - {site}: {count} perguntas")
+
         # 2. Remover todos os posts (perguntas, respostas, comentários) relacionados às perguntas inválidas
         df = df[~df['question_id'].isin(invalid_question_ids)]
         logger.info(
@@ -179,10 +188,16 @@ def main():
     df.to_csv(output_path, index=False)
 
     logger.info(f" Processamento concluído. Arquivo salvo em: {output_path}")
-    valid_questions_count = df[df['type'] ==
-                               'question']['code'].astype(bool).sum()
+
+    # Log da contagem de perguntas válidas por site
+    valid_questions_df = df[(df['type'] == 'question') & (
+        df['code'].astype(bool))].copy()
+    site_counts = valid_questions_df['site_alias'].value_counts()
     logger.info(
-        f" {valid_questions_count} perguntas com código válido foram extraídas e salvas.")
+        f"\nTotal de {len(valid_questions_df)} perguntas com código válido foram extraídas e salvas.")
+    logger.info("Contagem por site:")
+    for site, count in site_counts.items():
+        logger.info(f"  - {site}: {count} perguntas")
 
 
 if __name__ == "__main__":
