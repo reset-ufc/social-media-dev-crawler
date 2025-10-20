@@ -124,6 +124,7 @@ OUTPUT (STRICT JSON)
 
   "meta": {{
     "post_id": "<unique id>",
+    "site": post site,
     "num_misuses": "<number of objects in the 'misuses' array>",
   }}
 }}

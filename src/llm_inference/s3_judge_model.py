@@ -1,16 +1,32 @@
-from s0_prompts import judge_v1
-from s1_make_llm_input import post_analyze_string, get_post_metadata
-from paths import *
-from tqdm import tqdm
-import json
-import pandas as pd
-from langchain_core.exceptions import OutputParserException
-from langchain_core.output_parsers import JsonOutputParser
-from langchain.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
+from langchain.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.exceptions import OutputParserException
+import pandas as pd
+import json
+from tqdm import tqdm
+from paths import *
+from s1_make_llm_input import post_analyze_string, get_post_metadata
+from s0_prompts import judge_v1
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def get_processed_ids(filepath: Path) -> set:
+    """Lê um arquivo JSON e retorna um conjunto de IDs já processados."""
+    if not filepath.exists():
+        return set()
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            # Lê o arquivo, tratando o caso de JSON incompleto (sem ']')
+            content = f.read()
+            if not content.strip().endswith(']'):
+                content = content.rsplit(',', 1)[0] + '\n]'
+            data = json.loads(content)
+        return {item['id'] for item in data if 'id' in item}
+    except (json.JSONDecodeError, IndexError):
+        return set()
 
 
 def judge_misuse_post():
@@ -34,6 +50,14 @@ def judge_misuse_post():
         print("Nenhum resultado anterior encontrado para julgar.")
         return
 
+    output_path = JUDGEMENT
+    processed_ids = get_processed_ids(output_path)
+    if processed_ids:
+        print(
+            f"Retomando. {len(processed_ids)} julgamentos já processados foram encontrados.")
+        previous_results = [res for res in previous_results if res.get(
+            'id') not in processed_ids]
+
     print(
         f"Encontrados {len(previous_results)} resultados para serem julgados.")
 
@@ -45,41 +69,48 @@ def judge_misuse_post():
 
     chain = prompt_template | llm | parser
 
-    results = []
+    processed_count = 0
+    print(f"Os julgamentos serão salvos em tempo real em: {output_path}")
 
-    for prev_result in tqdm(previous_results, desc="Julgando Classificações"):
-        try:
-            post_id = prev_result.get('id')
-            if not post_id:
-                continue
+    if not processed_ids:
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write('[\n')
 
-            metadata_content = get_post_metadata(post_id)
-            post_content = post_analyze_string(post_id)
+    with open(output_path, 'r+', encoding='utf-8') as f:
+        if processed_ids:
+            f.seek(0, os.SEEK_END)
+            f.seek(f.tell() - 2, os.SEEK_SET)
+            f.truncate()
 
-            response = chain.invoke({
-                # O prompt de julgamento espera 'metadata' e 'post'
-                "metadata": metadata_content,
-                "post": post_content,
-                "response": json.dumps(prev_result, indent=2)
-            })
+        for prev_result in tqdm(previous_results, desc="Julgando Classificações"):
+            try:
+                post_id = prev_result.get('id')
+                if not post_id:
+                    continue
 
-            response['id'] = post_id
-            results.append(response)
+                metadata_content = get_post_metadata(post_id)
+                post_content = post_analyze_string(post_id)
 
-        except OutputParserException as e:
-            print(
-                f"Erro de parsing na resposta do LLM para o post ID {post_id}: {e}")
-        except Exception as e:
-            print(f"Erro inesperado ao processar o post ID {post_id}: {e}")
+                response = chain.invoke({
+                    "metadata": metadata_content,
+                    "post": post_content,
+                    "response": json.dumps(prev_result, indent=2)
+                })
 
-    output_path = JUDGEMENT
+                response['id'] = post_id
+                if f.tell() > 2:
+                    f.write(',\n')
+                json.dump(response, f, indent=4, ensure_ascii=False)
+                f.flush()
+                processed_count += 1
+
+            except Exception as e:
+                print(f"Erro inesperado ao processar o post ID {post_id}: {e}")
+
+        f.write('\n]\n')
+
     print(
-        f"\nProcessamento concluído. {len(results)} julgamentos foram gerados.")
-    print(f"Salvando resultados em: {output_path}")
-
-    with open(output_path, 'w', encoding='utf-8') as f:
-        json.dump(results, f, indent=4, ensure_ascii=False)
-    print("Arquivo de julgamentos salvo com sucesso!")
+        f"\nProcessamento concluído. {processed_count} julgamentos foram gerados e salvos.")
 
 
 if __name__ == "__main__":

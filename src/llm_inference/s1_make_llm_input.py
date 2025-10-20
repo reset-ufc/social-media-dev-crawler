@@ -1,9 +1,9 @@
+import pandas as pd
+from paths import PREPROCESSED_POSTS
+import warnings
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import warnings
-from paths import PREPROCESSED_POSTS
-import pandas as pd
 
 
 def get_post_metadata(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) -> str:
@@ -18,10 +18,8 @@ def get_post_metadata(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) ->
         Uma string formatada com site, ID e tags do post, ou vazia se não encontrado.
     """
     try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", pd.errors.DtypeWarning)
-            df = pd.read_csv(posts_filepath, dtype={
-                             'id': str, 'question_id': str})
+        # dtype=str garante que todos os IDs sejam lidos como texto, evitando erros de tipo.
+        df = pd.read_csv(posts_filepath, dtype=str)
     except FileNotFoundError:
         print(f"ERRO: Arquivo de posts não encontrado em: {posts_filepath}")
         return ""
@@ -51,10 +49,8 @@ def post_analyze_string(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) 
         Retorna uma string vazia se a pergunta não for encontrada ou ocorrer um erro.
     """
     try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", pd.errors.DtypeWarning)
-            df = pd.read_csv(posts_filepath, dtype={
-                             'id': str, 'question_id': str})
+        # dtype=str garante que todos os IDs sejam lidos como texto.
+        df = pd.read_csv(posts_filepath, dtype=str)
     except FileNotFoundError:
         print(
             f"ERRO: Arquivo de posts pré-processados não encontrado em: {posts_filepath}")
@@ -119,8 +115,8 @@ def main():
     """
     Função principal que demonstra como usar create_llm_input_string.
     """
-    print(get_post_metadata("12795"))
-    print(post_analyze_string("12795"))
+    print(get_post_metadata("853"))
+    print(post_analyze_string("853"))
 
 
 if __name__ == "__main__":

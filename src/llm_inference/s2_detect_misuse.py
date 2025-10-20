@@ -1,6 +1,3 @@
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from s0_prompts import *
 from s1_make_llm_input import post_analyze_string, get_post_metadata
 from paths import *
@@ -11,6 +8,25 @@ from langchain_core.exceptions import OutputParserException
 from langchain_core.output_parsers import JsonOutputParser
 from langchain.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def get_processed_ids(filepath: Path) -> set:
+    """Lê um arquivo JSON e retorna um conjunto de IDs já processados."""
+    if not filepath.exists():
+        return set()
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            # Lê o arquivo, tratando o caso de JSON incompleto (sem ']')
+            content = f.read()
+            if not content.strip().endswith(']'):
+                content = content.rsplit(',', 1)[0] + '\n]'
+            data = json.loads(content)
+        return {item['id'] for item in data if 'id' in item}
+    except (json.JSONDecodeError, IndexError):
+        return set()
 
 
 def test_on_sample(prompt_str: str, output_filename: str):
@@ -32,7 +48,7 @@ def test_on_sample(prompt_str: str, output_filename: str):
 
     output_path = LLM_INFERENCE / output_filename
 
-    df = pd.read_csv(input_path)
+    df = pd.read_csv(input_path, dtype={'id': str, 'question_id': str})
     if df.empty:
         print("Arquivo de entrada está vazio.")
         return
@@ -47,41 +63,60 @@ def test_on_sample(prompt_str: str, output_filename: str):
 
     chain = prompt_template | llm | parser
 
-    results = []
+    processed_ids = get_processed_ids(output_path)
+    if processed_ids:
+        print(
+            f"Retomando. {len(processed_ids)} posts já processados foram encontrados.")
+        sample_df = sample_df[~sample_df['id'].astype(str).isin(processed_ids)]
+
     print(f"Processando {len(sample_df)} posts para o teste...")
 
-    for _, row in tqdm(sample_df.iterrows(), total=sample_df.shape[0], desc="Analisando Posts de Teste"):
-        try:
-            post_id = str(row['id'])
-            post_content = post_analyze_string(post_id)
-            metadata_content = get_post_metadata(post_id)
-            response = chain.invoke({
-                "metadata": metadata_content,
-                "post": post_content
-            })
+    processed_count = 0
+    # Se não há IDs processados, abre em modo de escrita para criar o arquivo.
+    if not processed_ids:
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write('[\n')
 
-            # Garante que o ID e o site do post estejam presentes e consistentes.
-            # Para compatibilidade com scripts subsequentes
-            response['id'] = post_id
-            if 'meta' not in response:
-                response['meta'] = {}
-            # Para alinhar com o formato do prompt
-            response['meta']['post_id'] = post_id
-            # Adiciona o site para contexto
-            response['site'] = str(row['site'])
-            results.append(response)
-        except Exception as e:
-            print(f"Erro ao processar o post de teste ID {row['id']}: {e}")
+    # Abre em modo 'r+' para ler e escrever, permitindo anexar ao JSON existente.
+    with open(output_path, 'r+', encoding='utf-8') as f:
+        # Se o arquivo já tinha conteúdo, move o cursor para antes do ']' final
+        if processed_ids:
+            f.seek(0, os.SEEK_END)  # Vai para o final
+            f.seek(f.tell() - 2, os.SEEK_SET)  # Recua 2 caracteres ('\n]')
+            f.truncate()
+
+        for _, row in tqdm(sample_df.iterrows(), total=len(sample_df), desc="Analisando Posts de Teste"):
+            try:
+                post_id = str(row['id'])
+                post_content = post_analyze_string(post_id)
+                metadata_content = get_post_metadata(post_id)
+                response = chain.invoke({
+                    "metadata": metadata_content,
+                    "post": post_content
+                })
+
+                response['id'] = post_id
+                if 'meta' not in response:
+                    response['meta'] = {}
+                response['meta']['post_id'] = post_id
+                response['site'] = str(row['site'])
+
+                # Adiciona uma vírgula se não for o primeiro item do arquivo
+                if f.tell() > 2:  # > '[\n'
+                    f.write(',\n')
+
+                json.dump(response, f, indent=4, ensure_ascii=False)
+                f.flush()
+                processed_count += 1
+
+            except Exception as e:
+                print(f"Erro ao processar o post de teste ID {row['id']}: {e}")
+
+        f.write('\n]\n')
 
     print(
-        f"\nProcessamento de teste concluído. {len(results)} resultados foram gerados.")
+        f"\nProcessamento de teste concluído. {processed_count} resultados foram gerados.")
     print(f"Salvando resultados em: {output_path}")
-    try:
-        with open(output_path, 'w', encoding='utf-8') as f:
-            json.dump(results, f, indent=4, ensure_ascii=False)
-        print("Arquivo salvo com sucesso!")
-    except Exception as e:
-        print(f"Erro ao salvar o arquivo JSON: {e}")
     print("\n--- FIM DO MODO DE TESTE ---")
 
 
@@ -98,64 +133,78 @@ def detect_misuse_post():
         return
 
     print(f"Carregando posts de: {input_path}")
-    df = pd.read_csv(input_path)
+    df = pd.read_csv(input_path, dtype={'id': str, 'question_id': str})
 
     llm = ChatOllama(model="llama3.2:3b", temperature=0, format="json")
 
     parser = JsonOutputParser()
     prompt_template = ChatPromptTemplate.from_template(
-        base()
+        hier_v1()
     ).partial(format_instructions=parser.get_format_instructions())
 
     chain = prompt_template | llm | parser
 
-    results = []
-    print(
-        f"Processando {len(df)} posts com o LLM. Isso pode levar um tempo...")
-
-    for _, row in tqdm(df.iterrows(), total=df.shape[0], desc="Analisando Posts"):
-        try:
-            post_id = str(row['id'])
-            post_content = post_analyze_string(post_id)
-            metadata_content = get_post_metadata(post_id)
-            response = chain.invoke({
-                "metadata": metadata_content,
-                "post": post_content
-            })
-
-            # Garante que o ID e o site do post estejam presentes e consistentes.
-            # Para compatibilidade com scripts subsequentes
-            response['id'] = post_id
-            if 'meta' not in response:
-                response['meta'] = {}
-            # Para alinhar com o formato do prompt
-            response['meta']['post_id'] = post_id
-            # Adiciona o site para contexto
-            response['site'] = str(row['site'])
-            results.append(response)
-
-        except OutputParserException as e:
-            print(
-                f"Erro de parsing na resposta do LLM para o post ID {row['id']}: {e}")
-        except Exception as e:
-            print(
-                f"Erro inesperado ao processar o post ID {row['id']}: {e}")
-
     output_path = MISUSE_CASES
-    print(
-        f"\nProcessamento concluído. {len(results)} resultados foram gerados.")
-    print(f"Salvando resultados em: {output_path}")
+    questions_df = df[df['type'] == 'question'].copy()
 
-    try:
+    processed_ids = get_processed_ids(output_path)
+    if processed_ids:
+        print(
+            f"Retomando. {len(processed_ids)} posts já processados foram encontrados.")
+        questions_df = questions_df[~questions_df['id'].astype(
+            str).isin(processed_ids)]
+
+    total = len(questions_df)
+    print(
+        f"Processando {total} posts com o LLM. Isso pode levar um tempo...")
+    print(f"Os resultados serão salvos em tempo real em: {output_path}")
+
+    processed_count = 0
+    if not processed_ids:
         with open(output_path, 'w', encoding='utf-8') as f:
-            json.dump(results, f, indent=4, ensure_ascii=False)
-        print("Arquivo salvo com sucesso!")
-    except Exception as e:
-        print(f"Erro ao salvar o arquivo JSON: {e}")
+            f.write('[\n')
+
+    with open(output_path, 'r+', encoding='utf-8') as f:
+        if processed_ids:
+            f.seek(0, os.SEEK_END)
+            f.seek(f.tell() - 2, os.SEEK_SET)
+            f.truncate()
+
+        for _, row in tqdm(questions_df.iterrows(), total=total, desc="Analisando Posts"):
+            try:
+                post_id = str(row['id'])
+                post_content = post_analyze_string(post_id)
+                metadata_content = get_post_metadata(post_id)
+                response = chain.invoke({
+                    "metadata": metadata_content,
+                    "post": post_content
+                })
+
+                response['id'] = post_id
+                if 'meta' not in response:
+                    response['meta'] = {}
+                response['meta']['post_id'] = post_id
+                response['site'] = str(row['site'])
+
+                if f.tell() > 2:
+                    f.write(',\n')
+
+                json.dump(response, f, indent=4, ensure_ascii=False)
+                f.flush()
+                processed_count += 1
+
+            except OutputParserException as e:
+                print(
+                    f"Erro de parsing na resposta do LLM para o post ID {row['id']}: {e}")
+            except Exception as e:
+                print(
+                    f"Erro inesperado ao processar o post ID {row['id']}: {e}")
+
+        f.write('\n]\n')
+
+    print(
+        f"\nProcessamento concluído. {processed_count} resultados foram gerados e salvos.")
 
 
 if __name__ == "__main__":
-    test_on_sample(
-        prompt_str=hier_v1(),
-        output_filename="hier_v1_results.json"
-    )
+    detect_misuse_post()
