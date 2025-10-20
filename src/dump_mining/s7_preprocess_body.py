@@ -1,19 +1,16 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils import get_logger
-from paths import *
-import re
-import html
-from tqdm import tqdm
-import pandas as pd
 from typing import Tuple
+import pandas as pd
+from tqdm import tqdm
+import html
+import re
+from paths import *
+from utils import get_logger
 
 logger = get_logger(__name__)
 
-# ===============================================================
-# === Função de validação de código de programação real ===
-# ===============================================================
 
 def is_valid_code(block: str) -> bool:
     """
@@ -29,7 +26,7 @@ def is_valid_code(block: str) -> bool:
         return False
 
     # Rejeita fórmulas matemáticas e símbolos de texto técnico
-    if re.search(r"[⊕=<>±Σ∑√∫≈≤≥∞≠→←⇔×÷∂∇µλφπΩωβ]", block):
+    if re.search(r"[⊕±Σ∑√∫≈≤≥∞≠→←⇔×÷∂∇µλφπΩωβ]", block):
         return False
 
     # Aceita padrões típicos de código
@@ -41,14 +38,10 @@ def is_valid_code(block: str) -> bool:
     return any(re.search(p, block) for p in patterns)
 
 
-# ===============================================================
-# === Limpeza de HTML preservando código ===
-# ===============================================================
-
 def clean_text(text: str) -> str:
     if not isinstance(text, str):
         return ""  # Retorna string vazia se a entrada não for string
-    
+
     # Desescapa entidades HTML (&lt;, &gt;, &amp;, etc.)
     text = html.unescape(text)
 
@@ -66,12 +59,10 @@ def clean_text(text: str) -> str:
     def _preserve_code(match):
         original_block = match.group(0)
 
-
         # Adiciona uma quebra de linha logo após a tag de abertura `<code>`
         # Usamos re.sub com count=1 para substituir apenas a primeira ocorrência.
         modified_block = re.sub(r'(<code\b.*?>)', r'\1\n',
                                 original_block, count=1, flags=re.IGNORECASE)
-        
 
         # Adiciona uma quebra de linha antes da tag de fechamento `</code>`
         # Isso garante que o conteúdo não fique colado ao final da tag.
@@ -79,13 +70,12 @@ def clean_text(text: str) -> str:
             r'(\S)(</code\s*>)', r'\1\n\2', modified_block,
 
             flags=re.DOTALL | re.IGNORECASE
-        
         )
         code_blocks.append(modified_block)
 
-        # Retorna um marcador temporário com quebras de linha para garantir a separação do bloco.        
+        # Retorna um marcador temporário com quebras de linha para garantir a separação do bloco.
         return f"\n[[CODE_BLOCK_{len(code_blocks)-1}]]\n"
-    
+
     # Remove todas as tags HTML restantes
     text = re.sub(r'<code>.*?</code>', _preserve_code,
                   text, flags=re.DOTALL | re.IGNORECASE)
@@ -101,9 +91,6 @@ def clean_text(text: str) -> str:
 
     return text
 
-# ===============================================================
-# === Extração de código + limpeza ===
-# ===============================================================
 
 def clean_text_and_extract_code(text: str) -> Tuple[str, str]:
     """
@@ -120,8 +107,10 @@ def clean_text_and_extract_code(text: str) -> Tuple[str, str]:
         return "", ""
 
     # extrai os blocos de código
-    code_blocks = re.findall(r'<code>(.*?)</code>', text, re.DOTALL | re.IGNORECASE)
-    valid_blocks = [block.strip() for block in code_blocks if is_valid_code(block)]
+    code_blocks = re.findall(r'<code>(.*?)</code>',
+                             text, re.DOTALL | re.IGNORECASE)
+    valid_blocks = [block.strip()
+                    for block in code_blocks if is_valid_code(block)]
 
     # junta os válidos
     extracted_code = "\n\n".join(valid_blocks).strip()
@@ -132,10 +121,6 @@ def clean_text_and_extract_code(text: str) -> Tuple[str, str]:
     return cleaned_body, extracted_code
 
 
-# ===============================================================
-# === Função principal ===
-# ===============================================================
-
 def main():
     logger.info(f"Carregando posts de: {FILTRED_POSTS}")
     df = pd.read_csv(FILTRED_POSTS)
@@ -144,10 +129,9 @@ def main():
     Função principal para carregar, processar e salvar os dados.
     """
 
-    logger.info("Pré-processando a coluna 'body' para separar texto e código válidos")
+    logger.info(
+        "Pré-processando a coluna 'body' para separar texto e código válidos")
     df['body'] = df['body'].astype(str)
-
-    # Aplica a função e descompacta os resultados em duas novas listas
 
     cleaned_bodies = []
     extracted_codes = []
@@ -164,7 +148,8 @@ def main():
     df.to_csv(output_path, index=False)
 
     logger.info(f" Processamento concluído. Arquivo salvo em: {output_path}")
-    logger.info(f" {sum(bool(c) for c in extracted_codes)} posts possuem código válido extraído.")
+    logger.info(
+        f" {sum(bool(c) for c in extracted_codes)} posts possuem código válido extraído.")
 
 
 if __name__ == "__main__":
