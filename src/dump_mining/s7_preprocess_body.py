@@ -9,14 +9,46 @@ from tqdm import tqdm
 import pandas as pd
 from typing import Tuple
 
-
 logger = get_logger(__name__)
 
+# ===============================================================
+# === Função de validação de código de programação real ===
+# ===============================================================
+
+def is_valid_code(block: str) -> bool:
+    """
+    Retorna True se o conteúdo parecer um código de programação real.
+    Evita blocos matemáticos como 'C1⊕C2' e mantém código válido.
+    """
+    block = block.strip()
+    if not block:
+        return False
+
+    # Muito curto e sem símbolos típicos de código
+    if len(block) < 5 and not re.search(r"[;{}()\[\]=#.:]", block):
+        return False
+
+    # Rejeita fórmulas matemáticas e símbolos de texto técnico
+    if re.search(r"[⊕=<>±Σ∑√∫≈≤≥∞≠→←⇔×÷∂∇µλφπΩωβ]", block):
+        return False
+
+    # Aceita padrões típicos de código
+    patterns = [
+        r"\b(def|class|import|for|if|return|try|catch|new|public|void|const|var|function|while|static|int|char|String|print|AES|RSA|Key)\b",
+        r"[;{}()\[\]=]",  # símbolos estruturais
+        r"[#<>/]"  # possíveis trechos HTML/script
+    ]
+    return any(re.search(p, block) for p in patterns)
+
+
+# ===============================================================
+# === Limpeza de HTML preservando código ===
+# ===============================================================
 
 def clean_text(text: str) -> str:
     if not isinstance(text, str):
         return ""  # Retorna string vazia se a entrada não for string
-
+    
     # Desescapa entidades HTML (&lt;, &gt;, &amp;, etc.)
     text = html.unescape(text)
 
@@ -34,25 +66,29 @@ def clean_text(text: str) -> str:
     def _preserve_code(match):
         original_block = match.group(0)
 
+
         # Adiciona uma quebra de linha logo após a tag de abertura `<code>`
         # Usamos re.sub com count=1 para substituir apenas a primeira ocorrência.
         modified_block = re.sub(r'(<code\b.*?>)', r'\1\n',
                                 original_block, count=1, flags=re.IGNORECASE)
+        
 
         # Adiciona uma quebra de linha antes da tag de fechamento `</code>`
         # Isso garante que o conteúdo não fique colado ao final da tag.
         modified_block = re.sub(
-            r'(\S)(</code\s*>)', r'\1\n\2', modified_block, flags=re.DOTALL | re.IGNORECASE)
+            r'(\S)(</code\s*>)', r'\1\n\2', modified_block,
 
+            flags=re.DOTALL | re.IGNORECASE
+        
+        )
         code_blocks.append(modified_block)
 
-        # Retorna um marcador temporário com quebras de linha para garantir a separação do bloco.
+        # Retorna um marcador temporário com quebras de linha para garantir a separação do bloco.        
         return f"\n[[CODE_BLOCK_{len(code_blocks)-1}]]\n"
-
+    
+    # Remove todas as tags HTML restantes
     text = re.sub(r'<code>.*?</code>', _preserve_code,
                   text, flags=re.DOTALL | re.IGNORECASE)
-
-    # Remove todas as tags HTML restantes
     text = re.sub(r'<[^>]+>', '', text)
 
     # Restaura os blocos de código que foram preservados
@@ -65,6 +101,9 @@ def clean_text(text: str) -> str:
 
     return text
 
+# ===============================================================
+# === Extração de código + limpeza ===
+# ===============================================================
 
 def clean_text_and_extract_code(text: str) -> Tuple[str, str]:
     """
@@ -80,34 +119,40 @@ def clean_text_and_extract_code(text: str) -> Tuple[str, str]:
     if not isinstance(text, str):
         return "", ""
 
-    # 1. Extrai todos os blocos de código para a coluna 'code'
-    code_blocks = re.findall(r'<code>.*?</code>', text,
-                             re.DOTALL | re.IGNORECASE)
-    # Concatena todos os blocos de código encontrados sem separadores,
-    # conforme solicitado (ex: <code>...</code><code>...</code>).
-    extracted_code = "".join(code_blocks)
+    # extrai os blocos de código
+    code_blocks = re.findall(r'<code>(.*?)</code>', text, re.DOTALL | re.IGNORECASE)
+    valid_blocks = [block.strip() for block in code_blocks if is_valid_code(block)]
 
-    # 2. Limpa o texto do corpo, mas preservando os blocos de código dentro dele
-    # A função clean_text agora é responsável por essa preservação.
+    # junta os válidos
+    extracted_code = "\n\n".join(valid_blocks).strip()
+
+    # limpa corpo mantendo o código formatado
     cleaned_body = clean_text(text)
 
     return cleaned_body, extracted_code
 
 
+# ===============================================================
+# === Função principal ===
+# ===============================================================
+
 def main():
-    """
-    Função principal para carregar, processar e salvar os dados.
-    """
     logger.info(f"Carregando posts de: {FILTRED_POSTS}")
     df = pd.read_csv(FILTRED_POSTS)
 
-    logger.info("Pré-processando a coluna 'body' para separar texto e código...")
+    """
+    Função principal para carregar, processar e salvar os dados.
+    """
+
+    logger.info("Pré-processando a coluna 'body' para separar texto e código válidos")
     df['body'] = df['body'].astype(str)
 
     # Aplica a função e descompacta os resultados em duas novas listas
+
     cleaned_bodies = []
     extracted_codes = []
-    for body in tqdm(df['body'], desc="Limpando HTML e extraindo código"):
+
+    for body in tqdm(df['body'], desc="Limpando HTML e validando código"):
         cleaned_body, extracted_code = clean_text_and_extract_code(body)
         cleaned_bodies.append(cleaned_body)
         extracted_codes.append(extracted_code)
@@ -117,7 +162,9 @@ def main():
 
     output_path = PREPROCESSED_POSTS
     df.to_csv(output_path, index=False)
-    logger.info(f"Processamento concluído. Arquivo salvo em: {output_path}")
+
+    logger.info(f" Processamento concluído. Arquivo salvo em: {output_path}")
+    logger.info(f" {sum(bool(c) for c in extracted_codes)} posts possuem código válido extraído.")
 
 
 if __name__ == "__main__":
