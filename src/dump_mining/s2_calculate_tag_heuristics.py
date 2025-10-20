@@ -1,14 +1,13 @@
+import pandas as pd
+import xml.etree.ElementTree as ET
+import py7zr
+import tempfile
+from collections import Counter
+from utils import *
+from paths import *
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from paths import *
-from utils import *
-from collections import Counter
-import tempfile
-import py7zr
-import xml.etree.ElementTree as ET
-import pandas as pd
-
 
 
 logger = get_logger(__name__)
@@ -72,7 +71,7 @@ def calculate_a_and_c(site_alias):
     df = pd.read_csv(COARSE_QUESTIONS, dtype=str)
 
     # Filtra o dataframe de perguntas para o site atual
-    df_site = df[df['site'] == site_alias]
+    df_site = df[df['site'] == site_alias].copy()
     logger.info(
         f"  Posts do site '{site_alias}' em {os.path.basename(str(COARSE_QUESTIONS))}: {len(df_site)}")
 
