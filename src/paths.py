@@ -7,7 +7,7 @@ def get_releated_tags_path(site_alias: str) -> Path:
 
 
 QUESTION_TAG = "encryption"
-THRE1 = 0.1
+THRE1 = 0.2
 THRE2 = 0.01
 
 
@@ -58,5 +58,7 @@ INVALID_CODES = DATA_MINING_S2 / "invalid_codes.csv"
 
 LLM_INFERENCE = DATA / "llm_inference"
 
-MISUSE_CASES = LLM_INFERENCE / "misuse_cases.json"
+MISUSE_CASES_POSTS = LLM_INFERENCE / "misuse_cases_posts.json"
+MISUSE_CASES_CODES = LLM_INFERENCE / "misuse_cases_codes.json"
+
 JUDGEMENT = LLM_INFERENCE / "judgement.json"

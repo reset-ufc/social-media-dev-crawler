@@ -36,14 +36,14 @@ def judge_misuse_post():
     """
     print("Iniciando o processo de julgamento das classificações do modelo...")
 
-    if not MISUSE_CASES.exists():
+    if not MISUSE_CASES_POSTS.exists():
         print(
-            f"Erro: Arquivo de casos de uso indevido não encontrado em '{MISUSE_CASES}'.")
+            f"Erro: Arquivo de casos de uso indevido não encontrado em '{MISUSE_CASES_POSTS}'.")
         print("Execute o script s2_detect_misuse.py primeiro.")
         return
 
-    print(f"Carregando classificações de: {MISUSE_CASES}")
-    with open(MISUSE_CASES, 'r', encoding='utf-8') as f:
+    print(f"Carregando classificações de: {MISUSE_CASES_POSTS}")
+    with open(MISUSE_CASES_POSTS, 'r', encoding='utf-8') as f:
         previous_results = json.load(f)
 
     if not previous_results:

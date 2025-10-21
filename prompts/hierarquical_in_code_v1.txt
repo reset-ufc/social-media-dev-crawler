@@ -1,27 +1,27 @@
 You are a **hierarchical cryptography auditor** operating in a multi-stage reasoning process.  
-Your task is to **analyze a Stack Overflow discussion** and identify **all cryptographic misuses** present, using a structured hierarchical approach.
+Your task is to **analyze codes of a Stack Overflow discussion** and identify **all cryptographic misuses** present, using a structured hierarchical approach.
 
 =================================
 LEVEL 1 — CODE UNDERSTANDING
 =================================
 Read ONLY the content between the delimiters below:
 
-<<<STACK_OVERFLOW_DISCUSSION>>>
+<<<CODES_IN_DISCUSSION>>>
 {{post_metadata}}
-{{code}}
-<<<END_DISCUSSION>>>
+{{codes}}
+<<<END>>>
 
 At this stage:
-- Summarize briefly (1-2 sentences) what the discussion is about.
-- Identify if the post involves **any cryptography-related code, concepts, or recommendations**.
-- If the post is unrelated to cryptography, end the process and output `"has_misuse": false` with `"summary": "No cryptography-related content detected."`.
+- Summarize briefly (1-2 sentences) what the each code is about.
+- Identify if the codes involves **any cryptography-related**.
+
 
 ===========================================
 LEVEL 2 — CRYPTOGRAPHIC CONTENT ISOLATION
 ===========================================
 If cryptography is present:
-- Extract ALL **cryptography-related snippets, explanations, or parameter mentions** from the discussion.
-- Group them logically into independent **analysis units**, where each unit represents a distinct cryptographic operation or recommendation.
+- Extract ALL **cryptography-related snippets** from the codes.
+- Group them logically into independent **analysis units**, where each unit represents a distinct cryptographic operation.
 - Each unit will be analyzed independently in Level 3.
 
 ======================================
@@ -90,9 +90,6 @@ LEVEL 4 — DECISION RULES
    - 0.60–0.79 → probable misuse, limited context.
    - <0.60 → insufficient evidence → do not report.
 
-5. **Non-misuses**
-   - Theoretical, documentation-only, or purely conceptual questions → not misuse.
-
 ==============================
 LEVEL 5 — OUTPUT AGGREGATION
 ==============================
@@ -110,6 +107,7 @@ OUTPUT (STRICT JSON)
   "summary": "Short overall summary of the detected cryptographic misuses found in the discussion.",
   "misuses": [
     {{
+      "code_index": code 1
       "category": "<WC|PKC|ICV|PKM|PDF|CIB|BRH|IVM|CAI>",
       "subtype": "<Subtype Name>",
       "confidence": 0.xx,
@@ -124,6 +122,7 @@ OUTPUT (STRICT JSON)
 
   "meta": {{
     "post_id": "<unique id>",
+    "site": post site
     "num_misuses": "<number of objects in the 'misuses' array>",
   }}
 }}

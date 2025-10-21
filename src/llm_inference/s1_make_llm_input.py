@@ -1,9 +1,9 @@
-import pandas as pd
-from paths import PREPROCESSED_POSTS
-import warnings
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import pandas as pd
+from paths import PREPROCESSED_POSTS
+import warnings
 
 
 def get_post_metadata(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) -> str:
@@ -107,16 +107,59 @@ def post_analyze_string(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) 
     return post_str.strip()
 
 
-def code_analyze_string():
-    ...
+def code_analyze_string(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) -> str:
+    """
+    Lê um arquivo de posts pré-processados, encontra um post pelo ID,
+    e retorna os trechos de código contidos nele, formatados e numerados.
+
+    Args:
+        post_id: O ID do post a ser analisado.
+        posts_filepath: O caminho para o arquivo CSV com os posts.
+
+    Returns:
+        Uma string formatada com os trechos de código numerados (ex: "code 1:\n...").
+        Retorna uma string vazia se o post não for encontrado ou não contiver
+        código.
+    """
+    try:
+        # dtype=str garante que todos os IDs sejam lidos como texto.
+        # .fillna('') previne erros com valores NaN na coluna 'code'
+        df = pd.read_csv(posts_filepath, dtype=str).fillna('')
+    except FileNotFoundError:
+        print(
+            f"ERRO: Arquivo de posts pré-processados não encontrado em: {posts_filepath}")
+        return ""
+
+    # Localiza o post pelo ID
+    post_series = df[df['id'] == post_id]
+    if post_series.empty:
+        print(f"Nenhum post encontrado com ID {post_id}.")
+        return ""
+
+    post = post_series.iloc[0]
+
+    code_content = post.get('code', '')
+
+    if not code_content:
+        return ""
+
+    # Divide os blocos de código que estão separados por duas quebras de linha
+    code_blocks = [block for block in code_content.strip().split('\n\n') if block.strip()]
+
+    if not code_blocks:
+        return ""
+
+    # Formata cada bloco com um cabeçalho numerado
+    formatted_blocks = [f"code {i+1}:\n{block}" for i, block in enumerate(code_blocks)]
+
+    return "\n\n".join(formatted_blocks)
 
 
 def main():
     """
     Função principal que demonstra como usar create_llm_input_string.
     """
-    print(get_post_metadata("853"))
-    print(post_analyze_string("853"))
+    print(code_analyze_string('12795'))
 
 
 if __name__ == "__main__":
