@@ -34,8 +34,10 @@ def get_processed_ids(filepath: Path) -> set:
         try:
             data = json.loads(content)
             for item in data:
-                if isinstance(item, dict) and 'id' in item:
-                    processed.add(str(item['id']))
+                # Tenta obter o ID do novo local 'meta.post_id' ou do antigo 'id' para retrocompatibilidade.
+                item_id = item.get('meta', {}).get('post_id') or item.get('id')
+                if isinstance(item, dict) and item_id:
+                    processed.add(str(item_id))
             return processed
         except json.JSONDecodeError:
             # Fallback: extrair objetos JSON individuais usando um scanner
@@ -60,8 +62,9 @@ def get_processed_ids(filepath: Path) -> set:
                             obj_str = s[start:i+1]
                             try:
                                 obj = json.loads(obj_str)
-                                if isinstance(obj, dict) and 'id' in obj:
-                                    processed.add(str(obj['id']))
+                                item_id = obj.get('meta', {}).get('post_id') or obj.get('id')
+                                if isinstance(obj, dict) and item_id:
+                                    processed.add(str(item_id))
                             except Exception:
                                 pass
                             idx = i + 1
@@ -184,7 +187,7 @@ def detect_misuse_post(llm, limit=0):
         questions_df = questions_df.head(limit)
         print(
             f"Aplicando limite: os próximos {limit} posts serão processados.")
-
+    
     total = len(questions_df)
     print(
         f"Processando {total} posts com o LLM. Isso pode levar um tempo...")
@@ -233,11 +236,11 @@ def detect_misuse_post(llm, limit=0):
                     "post": post_content
                 })
 
+                # Adiciona metadados ao resultado
                 response['id'] = post_id
-                if 'meta' not in response:
-                    response['meta'] = {}
+                response.setdefault('meta', {})
                 response['meta']['post_id'] = post_id
-                response['site'] = str(row['site'])
+                response['meta']['site'] = str(row['site'])
 
                 serialized = json.dumps(response, ensure_ascii=False, indent=4)
 
@@ -374,11 +377,11 @@ def detect_misuse_code(llm, limit=0):
                     "post_metadata": metadata_content,
                     "codes": codes
                 })
+                # Adiciona metadados ao resultado
                 response['id'] = post_id
-                if 'meta' not in response:
-                    response['meta'] = {}
+                response.setdefault('meta', {})
                 response['meta']['post_id'] = post_id
-                response['site'] = str(row['site'])
+                response['meta']['site'] = str(row['site'])
 
                 serialized = json.dumps(response, ensure_ascii=False, indent=4)
 
