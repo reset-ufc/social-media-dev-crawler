@@ -5,9 +5,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pandas as pd
 import json
 from langchain_ollama import ChatOllama
+from tqdm import tqdm
 
 from paths import PREPROCESSED_POSTS, MISUSE_CASES_CODES
-from llm_inference.s0_prompts import hierarquical_in_code_v1
+from llm_inference.s0_prompts import hierarquical_code_anylisis
 from llm_inference.s1_make_llm_input import code_analyze_string, get_post_metadata
 
 
@@ -41,7 +42,7 @@ def load_preprocessed():
         print(f"An error occurred while reading the CSV file: {e}")
 
 
-def run_code_pipeline(template):
+def run_judge_code_pipeline(template, limit=0):
     """
     Executes a pipeline to analyze code snippets from posts for potential misuse.
     """
@@ -50,8 +51,12 @@ def run_code_pipeline(template):
 
     # Filter out already processed posts
     posts_to_process = [pid for pid in post_ids if pid not in processed_post_ids]
+    if limit:
+        posts_to_process = posts_to_process[0:limit]
 
-    for post_id in posts_to_process[0:5]:
+    total = len(posts_to_process)
+
+    for post_id in tqdm(posts_to_process, total=total, desc="Analysing codes"):
         model = ChatOllama(model="gemma3:1b", temperature=0, format='json')
 
         code_input = code_analyze_string(str(post_id))
@@ -62,7 +67,6 @@ def run_code_pipeline(template):
             continue
         
         try:
-            # Manually format the prompt
             formatted_prompt = template.replace("{{codes}}", code_input).replace("{{post_metadata}}", metadata_input)
             raw_response = model.invoke(formatted_prompt)
             response = json.loads(raw_response.content)
@@ -74,10 +78,10 @@ def run_code_pipeline(template):
                 df_response.to_json(f, orient='records', lines=True)
 
         except Exception as e:
-            print(f"An error occurred while invoking the chain for post_id {post_id}: {e}")
-
+            # print(f"An error occurred while invoking the chain for post_id {post_id}: {e}")
+            continue
 
 if __name__ == "__main__":
     run_code_pipeline(
-        hierarquical_in_code_v1()
+        hierarquical_code_anylisis(), 3
     )
