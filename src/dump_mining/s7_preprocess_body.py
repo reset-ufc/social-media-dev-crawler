@@ -24,6 +24,11 @@ def is_valid_code(block: str) -> bool:
     if not block:
         return False
 
+    # Rejeita comandos de terminal
+    terminal_command_pattern = r"^\s*[$>]?\s*\b(git|npm|docker|sudo|ls|cd|pip|python|java|mvn|gradle|gcc|make|curl|wget|ssh|apt-get|yum|brew|GET|openssl)\b"
+    if re.search(terminal_command_pattern, block):
+        return False
+
     # Muito curto e sem símbolos típicos de código
     if len(block) < 5 and not re.search(r"[;{}()\[\]=#.:]", block):
         return False
