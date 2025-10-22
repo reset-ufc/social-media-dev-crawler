@@ -34,7 +34,7 @@ For each analysis unit:
   - category (taxonomy group)
   - subtype (specific misuse type)
   - confidence (0-1)
-  - evidence (source_type + exact quote)
+  - evidence (exact quote)
   - rationale (why it is insecure)
 
 ===================================
@@ -54,19 +54,48 @@ Examples include:
 MISUSE TAXONOMY
 ==================
 **Code-level Misuses**
-- WC (Weak Cryptography): broken/risky algorithms or hashes; proprietary crypto; deterministic symmetric encryption; wrong PBE configs.
-- CIB (Coding & Implementation Bugs): coding errors; IV bugs; missing encryption; key leakage.
-- BRH (Bad Randomness Handling): PRNG misuse; low-entropy or reused seeds.
+- WC (Weak Cryptography): 
+  -  broken/risky algorithms or hashes; 
+  -  proprietary crypto; 
+  -  deterministic symmetric encryption; 
+  -  wrong PBE configs.
+- CIB (Coding & Implementation Bugs): 
+  - coding errors; 
+  - IV bugs;
+  - missing encryption; 
+  - key leakage.
+- BRH (Bad Randomness Handling): 
+  - PRNG misuse; 
+  - low-entropy or reused seeds.
 
 **Design Flaws**
-- PDF (Program Design Flaws): insecure defaults; improper key handling; weak enc–auth combinations; side-channel vulnerabilities.
-- ICV (Improper Certificate Validation): missing/incomplete TLS validation; insecure certificate acceptance.
-- PKC (Public-Key Cryptography): deterministic RSA; weak padding; insecure key configs; weak signatures; bad DH/ECDH curves.
+- PDF (Program Design Flaws): 
+  - insecure defaults; 
+  - improper key handling; 
+  - weak enc–auth combinations; 
+  - side-channel vulnerabilities.
+- ICV (Improper Certificate Validation): 
+  - missing/incomplete TLS validation; 
+  - insecure certificate acceptance.
+- PKC (Public-Key Cryptography): 
+  - deterministic RSA; 
+  - weak padding; insecure key configs; 
+  - weak signatures; 
+  - bad DH/ECDH curves.
 
 **Insecure Architectures**
-- IVM (IV & Nonce Management): static, predictable, or reused IVs/nonces.
-- PKM (Poor Key Management): weak or hardcoded keys; reused stream keys; poor key distribution.
-- CAI (Crypto Architecture & Infrastructure): crypto agility issues; API misconfigurations; randomness reuse; PKI/CA mismanagement.
+- IVM (IV & Nonce Management): 
+    - static; 
+    - predictable, or reused IVs/nonces.
+- PKM (Poor Key Management): 
+  - weak or hardcoded keys; 
+  - reused stream keys; 
+  - poor key distribution.
+- CAI (Crypto Architecture & Infrastructure): 
+  - crypto agility issues; 
+  - API misconfigurations; 
+  - randomness reuse; 
+  - PKI/CA mismanagement.
 
 ==========================
 LEVEL 4 — DECISION RULES
@@ -77,17 +106,17 @@ LEVEL 4 — DECISION RULES
 
 2. **Label Assignment**
    - Assign one label per independent misuse (taxonomy-based).
+   - Only use the categories and subtypes in the taxonomy.
    - Merge duplicates caused by the same root cause.
 
 3. **Evidence**
-   - Provide a short quote (≤120 chars) and the precise `source_type`: `"title"`, `"body"`, `"answer#"`, `"comment#"`.
+   - Provide a short quote (≤90 chars), the exact part where you find misuse.
    - Focus on explicit insecure code, parameters, or guidance.
-   - Misuses in comments count if proposed or endorsed as solutions.
-
-4. **Confidence Calibration (0–1)**
-   - 0.95–1.00 → explicit insecure API/mode/parameter in accepted or top-voted answer.
-   - 0.80–0.94 → clear misuse in code/text with consistent evidence.
-   - 0.60–0.79 → probable misuse, limited context.
+   
+4. **Confidence Calibration (0-1)**
+   - 0.95-1.00 → explicit insecure API/mode/parameter in accepted or top-voted answer.
+   - 0.80-0.94 → clear misuse in code/text with consistent evidence.
+   - 0.60-0.79 → probable misuse, limited context.
    - <0.60 → insufficient evidence → do not report.
 
 ==============================
@@ -95,7 +124,6 @@ LEVEL 5 — OUTPUT AGGREGATION
 ==============================
 Combine the analyses from all units into a **single structured JSON object** following these rules:
 - `"has_misuse": true` only if ≥1 misuse detected.
-- `"meta.num_misuses"` must equal the number of items in `"misuses"`.
 - If no misuse is found, `"misuses"` must be an empty list, and `"summary"` must reflect that.
 
 ========================
@@ -107,22 +135,15 @@ OUTPUT (STRICT JSON)
   "summary": "Short overall summary of the detected cryptographic misuses found in the discussion.",
   "misuses": [
     {{
-      "code_index": code 1
+      "code_index": "1"
       "category": "<WC|PKC|ICV|PKM|PDF|CIB|BRH|IVM|CAI>",
       "subtype": "<Subtype Name>",
       "confidence": 0.xx,
       "evidence": {{
-        "source_type": "<title|body|answer#|comment#>",
         "quote": "<exact snippet>"
       }},
       "rationale": "Brief explanation of why this usage represents an insecure or incorrect cryptographic practice."
     }}
     // Add more misuse objects if found
   ],
-
-  "meta": {{
-    "post_id": "<unique id>",
-    "site": post site
-    "num_misuses": "<number of objects in the 'misuses' array>",
-  }}
 }}
