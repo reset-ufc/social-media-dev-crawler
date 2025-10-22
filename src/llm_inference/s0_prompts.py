@@ -28,7 +28,7 @@ def _load_prompt_from_file(filename: str) -> str:
 
 
 def judge_code_analysis() -> str:
-    return _load_prompt_from_file("judge_code.txt")
+    return _load_prompt_from_file("judge_code_v1.txt")
 
 
 def hierarquical_code_anylisis() -> str:

@@ -25,7 +25,6 @@ def get_processed_post_ids():
                 if 'post_id' in data:
                     processed_ids.add(data['post_id'])
             except json.JSONDecodeError:
-                # Ignore lines that are not valid JSON
                 continue
     return processed_ids
 
@@ -42,10 +41,7 @@ def load_preprocessed():
         print(f"An error occurred while reading the CSV file: {e}")
 
 
-def run_judge_code_pipeline(template, limit=0):
-    """
-    Executes a pipeline to analyze code snippets from posts for potential misuse.
-    """
+def run_code_pipeline(template, limit=0):
     post_ids = load_preprocessed()
     processed_post_ids = get_processed_post_ids()
 
@@ -78,7 +74,6 @@ def run_judge_code_pipeline(template, limit=0):
                 df_response.to_json(f, orient='records', lines=True)
 
         except Exception as e:
-            # print(f"An error occurred while invoking the chain for post_id {post_id}: {e}")
             continue
 
 if __name__ == "__main__":

@@ -61,4 +61,4 @@ LLM_INFERENCE = DATA / "llm_inference"
 MISUSE_CASES_POSTS = LLM_INFERENCE / "misuse_cases_posts.json"
 MISUSE_CASES_CODES = LLM_INFERENCE / "misuse_cases_codes.json"
 
-JUDGEMENT = LLM_INFERENCE / "judgement.json"
+JUDGEMENT_CODES = LLM_INFERENCE / "judgement_codes.json"
