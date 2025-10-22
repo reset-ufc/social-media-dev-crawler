@@ -27,18 +27,9 @@ def _load_prompt_from_file(filename: str) -> str:
         raise
 
 
-
-def base() -> str:
-    return _load_prompt_from_file("base.txt")
-
-
-def hier_v1() -> str:
-    return _load_prompt_from_file("hierarquical_v1.txt")
+def judge_code_analysis() -> str:
+    return _load_prompt_from_file("judge_code.txt")
 
 
-def judge_v1() -> str:
-    return _load_prompt_from_file("judge_v1.txt")
-
-
-def hierarquical_in_code_v1() -> str:
+def hierarquical_code_anylisis() -> str:
     return _load_prompt_from_file("hierarquical_in_code_v1.txt")

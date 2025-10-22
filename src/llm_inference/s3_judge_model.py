@@ -1,117 +1,87 @@
-from langchain_ollama import ChatOllama
-from langchain.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.exceptions import OutputParserException
-import pandas as pd
-import json
-from tqdm import tqdm
-from paths import *
-from s1_make_llm_input import post_analyze_string, get_post_metadata
-from s0_prompts import judge_v1
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import pandas as pd
+import json
+from langchain_ollama import ChatOllama
+from tqdm import tqdm
 
-def get_processed_ids(filepath: Path) -> set:
-    """Lê um arquivo JSON e retorna um conjunto de IDs já processados."""
-    if not filepath.exists():
+from paths import PREPROCESSED_POSTS, MISUSE_CASES_CODES
+from llm_inference.s0_prompts import hierarquical_code_anylisis
+from llm_inference.s1_make_llm_input import code_analyze_string, get_post_metadata
+
+
+def get_processed_post_ids():
+    """Reads the output file and returns a set of already processed post IDs."""
+    if not os.path.exists(MISUSE_CASES_CODES):
         return set()
-    try:
-        with open(filepath, 'r', encoding='utf-8') as f:
-            # Lê o arquivo, tratando o caso de JSON incompleto (sem ']')
-            content = f.read()
-            if not content.strip().endswith(']'):
-                content = content.rsplit(',', 1)[0] + '\n]'
-            data = json.loads(content)
-        return {item['id'] for item in data if 'id' in item}
-    except (json.JSONDecodeError, IndexError):
-        return set()
-
-
-def judge_misuse_post():
-    """
-    Função principal para usar um LLM como 'juiz' para avaliar a qualidade
-    das classificações de uso indevido geradas pelo script anterior (s2).
-    """
-    print("Iniciando o processo de julgamento das classificações do modelo...")
-
-    if not MISUSE_CASES_POSTS.exists():
-        print(
-            f"Erro: Arquivo de casos de uso indevido não encontrado em '{MISUSE_CASES_POSTS}'.")
-        print("Execute o script s2_detect_misuse.py primeiro.")
-        return
-
-    print(f"Carregando classificações de: {MISUSE_CASES_POSTS}")
-    with open(MISUSE_CASES_POSTS, 'r', encoding='utf-8') as f:
-        previous_results = json.load(f)
-
-    if not previous_results:
-        print("Nenhum resultado anterior encontrado para julgar.")
-        return
-
-    output_path = JUDGEMENT
-    processed_ids = get_processed_ids(output_path)
-    if processed_ids:
-        print(
-            f"Retomando. {len(processed_ids)} julgamentos já processados foram encontrados.")
-        previous_results = [res for res in previous_results if res.get(
-            'id') not in processed_ids]
-
-    print(
-        f"Encontrados {len(previous_results)} resultados para serem julgados.")
-
-    llm = ChatOllama(model="llama3.2:3b", temperature=0, format="json")
-    parser = JsonOutputParser()
-    prompt_template = ChatPromptTemplate.from_template(
-        judge_v1()
-    ).partial(format_instructions=parser.get_format_instructions())
-
-    chain = prompt_template | llm | parser
-
-    processed_count = 0
-    print(f"Os julgamentos serão salvos em tempo real em: {output_path}")
-
-    if not processed_ids:
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write('[\n')
-
-    with open(output_path, 'r+', encoding='utf-8') as f:
-        if processed_ids:
-            f.seek(0, os.SEEK_END)
-            f.seek(f.tell() - 2, os.SEEK_SET)
-            f.truncate()
-
-        for prev_result in tqdm(previous_results, desc="Julgando Classificações"):
+    
+    processed_ids = set()
+    with open(MISUSE_CASES_CODES, 'r') as f:
+        for line in f:
             try:
-                post_id = prev_result.get('id')
-                if not post_id:
-                    continue
+                data = json.loads(line)
+                if 'post_id' in data:
+                    processed_ids.add(data['post_id'])
+            except json.JSONDecodeError:
+                # Ignore lines that are not valid JSON
+                continue
+    return processed_ids
 
-                metadata_content = get_post_metadata(post_id)
-                post_content = post_analyze_string(post_id)
 
-                response = chain.invoke({
-                    "metadata": metadata_content,
-                    "post": post_content,
-                    "response": json.dumps(prev_result, indent=2)
-                })
+def load_preprocessed():
+    try:
+        df = pd.read_csv(PREPROCESSED_POSTS)
+        df = df[df['type'] == 'question']
+        post_ids = df['question_id'].tolist()
+        return post_ids
+    except FileNotFoundError:
+        print(f"Error: The file {PREPROCESSED_POSTS} was not found.")
+    except Exception as e:
+        print(f"An error occurred while reading the CSV file: {e}")
 
-                response['id'] = post_id
-                if f.tell() > 2:
-                    f.write(',\n')
-                json.dump(response, f, indent=4, ensure_ascii=False)
-                f.flush()
-                processed_count += 1
 
-            except Exception as e:
-                print(f"Erro inesperado ao processar o post ID {post_id}: {e}")
+def run_code_pipeline(template, limit=0):
+    """
+    Executes a pipeline to analyze code snippets from posts for potential misuse.
+    """
+    post_ids = load_preprocessed()
+    processed_post_ids = get_processed_post_ids()
 
-        f.write('\n]\n')
+    # Filter out already processed posts
+    posts_to_process = [pid for pid in post_ids if pid not in processed_post_ids]
+    if limit:
+        posts_to_process = posts_to_process[0:limit]
 
-    print(
-        f"\nProcessamento concluído. {processed_count} julgamentos foram gerados e salvos.")
+    total = len(posts_to_process)
 
+    for post_id in tqdm(posts_to_process, total=total, desc="Analysing codes"):
+        model = ChatOllama(model="gemma3:1b", temperature=0, format='json')
+
+        code_input = code_analyze_string(str(post_id))
+        metadata_input = get_post_metadata(str(post_id))
+
+        if not code_input:
+            print(f"No code found for post_id: {post_id}")
+            continue
+        
+        try:
+            formatted_prompt = template.replace("{{codes}}", code_input).replace("{{post_metadata}}", metadata_input)
+            raw_response = model.invoke(formatted_prompt)
+            response = json.loads(raw_response.content)
+
+            response['post_id'] = post_id
+            
+            df_response = pd.DataFrame([response])
+            with open(MISUSE_CASES_CODES, 'a') as f:
+                df_response.to_json(f, orient='records', lines=True)
+
+        except Exception as e:
+            # print(f"An error occurred while invoking the chain for post_id {post_id}: {e}")
+            continue
 
 if __name__ == "__main__":
-    judge_misuse_post()
+    run_code_pipeline(
+        hierarquical_code_anylisis(), 3
+    )
