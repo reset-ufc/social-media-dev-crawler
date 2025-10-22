@@ -3,6 +3,8 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
+from dotenv import load_dotenv
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.exceptions import OutputParserException
@@ -13,6 +15,9 @@ from paths import *
 from s1_make_llm_input import *
 from s0_prompts import *
 import re
+
+
+load_dotenv()
 
 
 def get_processed_ids(filepath: Path) -> set:
@@ -366,6 +371,7 @@ def detect_misuse_code(llm, limit=0):
                 post_id = str(row['id'])
                 codes = code_analyze_string(post_id)
                 metadata_content = get_post_metadata(post_id)
+                print(codes)
                 response = chain.invoke({
                     "post_metadata": metadata_content,
                     "codes": codes
@@ -409,8 +415,13 @@ def detect_misuse_code(llm, limit=0):
         f"\nProcessamento concluído. {processed_count} resultados foram gerados e salvos.")
 
 
+
+# ChatOllama(model="llama3.1:8b", temperature=0, format="json"),
 if __name__ == "__main__":
     detect_misuse_code(
-        ChatOllama(model="llama3.1:8b", temperature=0, format="json"),
-        10
+        ChatOpenAI(
+            model='gpt-4.1-mini',
+            temperature=0,
+            model_kwargs={"response_format": {"type": "json_object"}}),
+        2
     )
