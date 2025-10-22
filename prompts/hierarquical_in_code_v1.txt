@@ -106,7 +106,7 @@ LEVEL 4 — DECISION RULES
 
 2. **Label Assignment**
    - Assign one label per independent misuse (taxonomy-based).
-   - Only use the categories and subtypes in the taxonomy.
+   - Use only the categories and subtypes from the taxonomy, do not create new subtypes in any way
    - Merge duplicates caused by the same root cause.
 
 3. **Evidence**

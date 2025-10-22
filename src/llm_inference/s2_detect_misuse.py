@@ -16,7 +16,6 @@ from s1_make_llm_input import *
 from s0_prompts import *
 import re
 
-
 load_dotenv()
 
 
@@ -371,7 +370,6 @@ def detect_misuse_code(llm, limit=0):
                 post_id = str(row['id'])
                 codes = code_analyze_string(post_id)
                 metadata_content = get_post_metadata(post_id)
-                print(codes)
                 response = chain.invoke({
                     "post_metadata": metadata_content,
                     "codes": codes
@@ -415,13 +413,19 @@ def detect_misuse_code(llm, limit=0):
         f"\nProcessamento concluído. {processed_count} resultados foram gerados e salvos.")
 
 
-
-# ChatOllama(model="llama3.1:8b", temperature=0, format="json"),
-if __name__ == "__main__":
+def ol(n):
     detect_misuse_code(
-        ChatOpenAI(
-            model='gpt-4.1-mini',
+        ChatOllama(model="llama3.1:8b", temperature=0, format="json"),
+        n
+    )
+
+def gp(n):    
+    detect_misuse_code(
+        ChatOpenAI(model='gpt-4.1-mini',
             temperature=0,
             model_kwargs={"response_format": {"type": "json_object"}}),
-        2
+        n
     )
+
+if __name__ == "__main__":
+    ol(3)
