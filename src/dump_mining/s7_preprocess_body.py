@@ -15,7 +15,7 @@ from collections import Counter
 logger = get_logger(__name__)
 
 # ==========================================================
-# === FUNÇÃO DE VALIDAÇÃO DE CÓDIGO APRIMORADA =============
+# === FUNÇÃO DE VALIDAÇÃO DE CÓDIGO APRIMORADA ===========
 # ==========================================================
 
 def get_code_validity_reason(block: str) -> str:
@@ -77,7 +77,7 @@ def get_code_validity_reason(block: str) -> str:
         return "aceito_por_indentacao"
 
     # === 7. Funções ou atribuições ===
-    if re.search(r"\w+\s*\([^)]*\)\s*{?", block) or re.search(r"\b(var|let|const)\s+\w+\s*=", block):
+    if re.search(r"\w+\s*\([^)]*\)\s*{?" , block) or re.search(r"\b(var|let|const)\s+\w+\s*=", block):
         return "aceito_por_funcao_ou_atribuicao"
 
     return "rejeitado_por_padrao"
@@ -199,12 +199,22 @@ def main():
 
     df['body'] = cleaned_bodies
     df['code'] = extracted_codes
+
+    # --- ETAPA FINAL: REMOVER AMOSTRAS SEM CÓDIGO ---
+    initial_count = len(df)
+    df = df[df['code'].notna() & (df['code'] != '')].copy()
+    removed_count = initial_count - len(df)
+    final_sample_count = len(df)
+
+    if removed_count > 0:
+        logger.info(f"FILTRO FINAL: Removidas {removed_count} amostras por não conterem blocos de código válidos.")
+
     df.to_csv(PREPROCESSED_POSTS, index=False)
 
     # --- LOGGING DE ESTATÍSTICAS ---
     stats = Counter(all_reasons)
     total_blocks = len(all_reasons)
-    total_valid = sum(count for reason, count in stats.items() if reason.startswith('aceito'))
+    total_valid_blocks = sum(count for reason, count in stats.items() if reason.startswith('aceito'))
 
     logger.info("--- Relatório de Filtros de Bloco de Código ---")
     logger.info(f"Total de blocos de código processados: {total_blocks}")
@@ -225,11 +235,10 @@ def main():
         percentage = (count / total_blocks) * 100 if total_blocks > 0 else 0
         logger.info(f"{reason.replace('aceito_por_', '').replace('_', ' ').capitalize():<30}: {count:<7} ({percentage:.2f}%)")
 
-    logger.info("\n--- Resumo ---")
-    valid_percentage = (total_valid / total_blocks) * 100 if total_blocks > 0 else 0
-    logger.info(f"Total de blocos que passaram nos filtros: {total_valid} ({valid_percentage:.2f}%)")
-    logger.info(f"Arquivo final salvo em: {PREPROCESSED_POSTS}")
-
+    logger.info("\n--- Resumo Final ---")
+    logger.info(f"Total de BLOCOS de código válidos encontrados: {total_valid_blocks}")
+    logger.info(f"Total de AMOSTRAS (posts) com código válido: {final_sample_count}")
+    logger.info(f"Arquivo final com {final_sample_count} amostras salvo em: {PREPROCESSED_POSTS}")
 
 if __name__ == "__main__":
     main()
