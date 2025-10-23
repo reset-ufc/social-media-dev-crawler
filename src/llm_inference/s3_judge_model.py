@@ -30,19 +30,25 @@ def get_judged_post_ids():
 
 
 def load_misuse_cases():
-    """Loads the misuse cases from the JSON Lines file."""
+    """Loads the misuse cases from the JSON file, supporting both standard and JSONL formats."""
     if not os.path.exists(MISUSE_CASES_CODES):
         print(f"Error: The file {MISUSE_CASES_CODES} was not found.")
         return []
     
-    cases = []
-    with open(MISUSE_CASES_CODES, 'r') as f:
-        for line in f:
-            try:
-                cases.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
-    return cases
+    try:
+        with open(MISUSE_CASES_CODES, 'r', encoding='utf-8') as f:
+            # Try to load the whole file as a single JSON object/array
+            return json.load(f)
+    except json.JSONDecodeError:
+        # If that fails, assume it's a JSON Lines file and read line by line
+        cases = []
+        with open(MISUSE_CASES_CODES, 'r', encoding='utf-8') as f:
+            for line in f:
+                try:
+                    cases.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+        return cases
 
 
 def run_judge_pipeline(template, limit=0):
@@ -84,5 +90,5 @@ def run_judge_pipeline(template, limit=0):
 
 if __name__ == "__main__":
     run_judge_pipeline(
-        judge_code_analysis(), 3
+        judge_code_analysis(), 10
     )

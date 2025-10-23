@@ -55,47 +55,47 @@ MISUSE TAXONOMY
 ==================
 **Code-level Misuses**
 - WC (Weak Cryptography): 
-  -  broken/risky algorithms or hashes; 
-  -  proprietary crypto; 
-  -  deterministic symmetric encryption; 
-  -  wrong PBE configs.
+  -  broken/risky algorithms or hashes
+  -  proprietary crypto
+  -  deterministic symmetric encryption
+  -  wrong PBE configs
 - CIB (Coding & Implementation Bugs): 
-  - coding errors; 
-  - IV bugs;
-  - missing encryption; 
-  - key leakage.
+  - coding errors
+  - IV bug
+  - missing encryption
+  - key leakage
 - BRH (Bad Randomness Handling): 
-  - PRNG misuse; 
-  - low-entropy or reused seeds.
+  - PRNG misuse
+  - low-entropy or reused seeds
 
 **Design Flaws**
 - PDF (Program Design Flaws): 
-  - insecure defaults; 
-  - improper key handling; 
-  - weak enc–auth combinations; 
-  - side-channel vulnerabilities.
+  - insecure defaults
+  - improper key handling
+  - weak enc-auth combinations
+  - side-channel vulnerabilities
 - ICV (Improper Certificate Validation): 
-  - missing/incomplete TLS validation; 
-  - insecure certificate acceptance.
+  - missing/incomplete TLS validation
+  - insecure certificate acceptance
 - PKC (Public-Key Cryptography): 
-  - deterministic RSA; 
-  - weak padding; insecure key configs; 
-  - weak signatures; 
-  - bad DH/ECDH curves.
+  - deterministic RSA
+  - weak padding; insecure key configs
+  - weak signatures
+  - bad DH/ECDH curves
 
 **Insecure Architectures**
 - IVM (IV & Nonce Management): 
-    - static; 
-    - predictable, or reused IVs/nonces.
+    - static
+    - predictable, or reused IVs/nonces
 - PKM (Poor Key Management): 
-  - weak or hardcoded keys; 
-  - reused stream keys; 
-  - poor key distribution.
+  - weak or hardcoded keys
+  - reused stream keys
+  - poor key distribution
 - CAI (Crypto Architecture & Infrastructure): 
-  - crypto agility issues; 
-  - API misconfigurations; 
-  - randomness reuse; 
-  - PKI/CA mismanagement.
+  - crypto agility issues
+  - API misconfigurations
+  - randomness reuse
+  - PKI/CA mismanagement
 
 ==========================
 LEVEL 4 — DECISION RULES

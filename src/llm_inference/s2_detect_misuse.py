@@ -12,22 +12,28 @@ from llm_inference.s0_prompts import hierarquical_code_anylisis
 from llm_inference.s1_make_llm_input import code_analyze_string, get_post_metadata
 
 
-def get_processed_post_ids():
-    """Reads the output file and returns a set of already processed post IDs."""
-    if not os.path.exists(MISUSE_CASES_CODES):
-        return set()
+def load_existing_cases(file_path):
+    """Loads existing cases from a JSON or JSONL file."""
+    if not os.path.exists(file_path):
+        return []
     
-    processed_ids = set()
-    with open(MISUSE_CASES_CODES, 'r') as f:
-        for line in f:
-            try:
-                data = json.loads(line)
-                if 'post_id' in data:
-                    processed_ids.add(data['post_id'])
-            except json.JSONDecodeError:
-                continue
-    return processed_ids
-
+    with open(file_path, 'r', encoding='utf-8') as f:
+        try:
+            # Try to load as a single JSON array
+            data = json.load(f)
+            return data if isinstance(data, list) else []
+        except json.JSONDecodeError:
+            # If it fails, assume it's JSONL
+            f.seek(0)
+            cases = []
+            for line in f:
+                if line.strip():
+                    try:
+                        cases.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        print(f"Warning: Could not decode line: {line}")
+                        continue
+            return cases
 
 def load_preprocessed():
     try:
@@ -37,13 +43,18 @@ def load_preprocessed():
         return post_ids
     except FileNotFoundError:
         print(f"Error: The file {PREPROCESSED_POSTS} was not found.")
+        return []
     except Exception as e:
         print(f"An error occurred while reading the CSV file: {e}")
+        return []
 
 
 def run_code_pipeline(template, limit=0):
     post_ids = load_preprocessed()
-    processed_post_ids = get_processed_post_ids()
+    
+    # Load already processed cases and get their IDs
+    existing_cases = load_existing_cases(MISUSE_CASES_CODES)
+    processed_post_ids = {case.get('post_id') for case in existing_cases}
 
     # Filter out already processed posts
     posts_to_process = [pid for pid in post_ids if pid not in processed_post_ids]
@@ -51,6 +62,7 @@ def run_code_pipeline(template, limit=0):
         posts_to_process = posts_to_process[0:limit]
 
     total = len(posts_to_process)
+    new_cases = []
 
     for post_id in tqdm(posts_to_process, total=total, desc="Analysing codes"):
         model = ChatOllama(model="gemma3:1b", temperature=0, format='json')
@@ -68,13 +80,21 @@ def run_code_pipeline(template, limit=0):
             response = json.loads(raw_response.content)
 
             response['post_id'] = post_id
-            
-            df_response = pd.DataFrame([response])
-            with open(MISUSE_CASES_CODES, 'a') as f:
-                df_response.to_json(f, orient='records', lines=True)
+            new_cases.append(response)
 
         except Exception as e:
+            print(f"Error processing post_id {post_id}: {e}")
             continue
+    
+    # Combine old and new cases
+    all_cases = existing_cases + new_cases
+
+    # Write the entire list back to the file as a single JSON array
+    with open(MISUSE_CASES_CODES, 'w', encoding='utf-8') as f:
+        json.dump(all_cases, f, indent=2)
+    
+    print(f"\nFinished processing. Added {len(new_cases)} new cases. Total cases: {len(all_cases)}.")
+
 
 if __name__ == "__main__":
     run_code_pipeline(
