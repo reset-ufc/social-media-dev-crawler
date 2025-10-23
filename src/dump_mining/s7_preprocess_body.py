@@ -111,38 +111,43 @@ def clean_text(text: str) -> str:
 
 
 def extract_code_blocks(text: str) -> List[str]:
-    """Extrai conteúdo interno dos blocos <code>."""
-    blocks = re.findall(r'<code.*?>(.*?)</code>', text, flags=re.DOTALL | re.IGNORECASE)
+    """Extrai blocos <code> completos, incluindo as tags."""
+    blocks = re.findall(r'(<code.*?>.*?</code>)', text, flags=re.DOTALL | re.IGNORECASE)
     return [re.sub(r'\r\n?', '\n', b).strip() for b in blocks]
 
 
 def clean_text_and_extract_code(text: str) -> Tuple[str, str, List[str], List[bool], List[str]]:
-    """Limpa texto e valida blocos de código, retornando as razões da validação."""
+    """Limpa texto, valida o conteúdo dos blocos de código, e retorna os blocos completos com tags."""
     if not isinstance(text, str):
         return "", "", [], [], []
 
     cleaned_body = clean_text(text)
-    blocks = extract_code_blocks(text)
+    full_blocks = extract_code_blocks(text)
 
     valid_blocks = []
     invalid_blocks = []
     flags = []
     reasons = []
 
-    for b in blocks:
-        b_s = b.strip()
-        reason = get_code_validity_reason(b_s)
+    for full_block in full_blocks:
+        full_block_s = full_block.strip()
+        
+        # Extrai o conteúdo para validação, mas preserva o bloco inteiro
+        match = re.search(r'<code.*?>(.*?)</code>', full_block_s, flags=re.DOTALL | re.IGNORECASE)
+        content = match.group(1) if match else ""
+        
+        reason = get_code_validity_reason(content.strip())
         reasons.append(reason)
         
         is_valid = reason.startswith("aceito")
         flags.append(is_valid)
 
         if is_valid:
-            valid_blocks.append(b_s)
+            valid_blocks.append(full_block_s)
         else:
-            invalid_blocks.append(b_s)
+            invalid_blocks.append(full_block_s)
 
-    extracted_code = "\n\n".join(valid_blocks).strip()
+    extracted_code = "".join(valid_blocks)
     return cleaned_body, extracted_code, invalid_blocks, flags, reasons
 
 

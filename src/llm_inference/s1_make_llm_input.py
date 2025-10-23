@@ -1,5 +1,6 @@
 import sys
 import os
+import re
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pandas as pd
 from paths import PREPROCESSED_POSTS
@@ -143,8 +144,8 @@ def code_analyze_string(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) 
     if not code_content:
         return ""
 
-    # Divide os blocos de código que estão separados por duas quebras de linha
-    code_blocks = [block for block in code_content.strip().split('\n\n') if block.strip()]
+    # Encontra todos os blocos de código demarcados por <code>...</code>
+    code_blocks = re.findall(r'<code>(.*?)</code>', code_content, re.DOTALL)
 
     if not code_blocks:
         return ""
@@ -152,7 +153,7 @@ def code_analyze_string(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) 
     # Formata cada bloco com um cabeçalho numerado
     formatted_blocks = [f"code {i+1}:\n{block}" for i, block in enumerate(code_blocks)]
 
-    return "\n\n".join(formatted_blocks)
+    return "\n".join(formatted_blocks)
 
 
 def main():
