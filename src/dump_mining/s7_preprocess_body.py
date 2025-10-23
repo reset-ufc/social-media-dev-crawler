@@ -10,41 +10,42 @@ import html
 from tqdm import tqdm
 import pandas as pd
 from typing import Tuple, List
+from collections import Counter
 
 logger = get_logger(__name__)
 
 # ==========================================================
-# === FUNÇÃO DE VALIDAÇÃO DE CÓDIGO APRIMORADA ============
+# === FUNÇÃO DE VALIDAÇÃO DE CÓDIGO APRIMORADA =============
 # ==========================================================
 
-def is_valid_code(block: str) -> bool:
+def get_code_validity_reason(block: str) -> str:
     """
-    Retorna True se o conteúdo que tiver no bloco for código de verdade.
-    Linguagens padrões (C, C++, Python, PHP, Java, ...).
+    Analisa um bloco de texto e retorna uma string indicando por que ele é considerado
+    código válido ou inválido.
     """
     block = (block or "").strip()
     if not block:
-        return False
+        return "rejeitado_bloco_vazio"
 
     # 1. Filtra comandos de terminal e outputs das ferramentas
     if re.match(r"^(\$|#|>>>|\.\.\.|~|sudo|pip|gpg|openssl|make|rm|cd|ls|echo|exit|touch|mv|cp|service|systemctl|kill)\b", block):
-        return False
+        return "rejeitado_comando_terminal"
     if re.search(r"(?:Cipher:|Ciphers:|Version:|usage:|Usage:|Traceback|Exception|Error:|stack traceback|installing|compiling|loading plugin|Copyright|License|Available)", block, re.IGNORECASE):
-        return False
+        return "rejeitado_output_ferramenta"
 
-    # 2. Evitar outputs ou logs 
+    # 2. Evitar outputs ou logs
     if re.search(r"(?:INFO:|DEBUG:|WARN:|WARNING:|ERROR:|failed|successfully|bytes|MB/s|progress|Loading|Saving)", block, re.IGNORECASE):
-        return False
+        return "rejeitado_output_log"
 
-    # 3. Ignorar fórmulas matemáticas e pseudo código 
+    # 3. Ignorar fórmulas matemáticas e pseudo código
     if re.search(r"[⊕±Σ∑√∫≈≤≥∞≠→←⇔×÷∂∇µλφπΩωβθδγψηρ]", block):
-        return False
+        return "rejeitado_formula_matematica"
 
     # 4. Muito curtos, sem estrutura para códigos
-    if len(block) < 8 and not re.search(r"[;{}()\[\]=#.:<>/]", block):
-        return False
+    if len(block) < 8 and not re.search(r"[;{}()[\]=#.:<>/]", block):
+        return "rejeitado_muito_curto"
 
-    # 5. Padrões de linguagens de programação 
+    # 5. Padrões de linguagens de programação
     code_indicators = [
         # Python
         r"\b(def|class|import|from|for|if|elif|else|return|try|except|with|while|break|continue|assert)\b",
@@ -69,18 +70,17 @@ def is_valid_code(block: str) -> bool:
     ]
 
     if any(re.search(p, block) for p in code_indicators):
-        return True
+        return "aceito_por_indicador"
 
     # === 6. Blocos com indentação ou múltiplas linhas ===
     if "\n" in block and re.search(r"^\s{2,}", block, re.MULTILINE):
-        return True
+        return "aceito_por_indentacao"
 
     # === 7. Funções ou atribuições ===
     if re.search(r"\w+\s*\([^)]*\)\s*{?", block) or re.search(r"\b(var|let|const)\s+\w+\s*=", block):
-        return True
+        return "aceito_por_funcao_ou_atribuicao"
 
-    return False
-
+    return "rejeitado_por_padrao"
 
 # ==========================================================
 # === FUNÇÕES DE LIMPEZA E EXTRAÇÃO ========================
@@ -122,10 +122,10 @@ def extract_code_blocks(text: str) -> List[str]:
     return [re.sub(r'\r\n?', '\n', b).strip() for b in blocks]
 
 
-def clean_text_and_extract_code(text: str) -> Tuple[str, str, List[str], List[bool]]:
-    """Limpa texto e valida blocos de código."""
+def clean_text_and_extract_code(text: str) -> Tuple[str, str, List[str], List[bool], List[str]]:
+    """Limpa texto e valida blocos de código, retornando as razões da validação."""
     if not isinstance(text, str):
-        return "", "", [], []
+        return "", "", [], [], []
 
     cleaned_body = clean_text(text)
     blocks = extract_code_blocks(text)
@@ -133,18 +133,23 @@ def clean_text_and_extract_code(text: str) -> Tuple[str, str, List[str], List[bo
     valid_blocks = []
     invalid_blocks = []
     flags = []
+    reasons = []
 
     for b in blocks:
         b_s = b.strip()
-        ok = is_valid_code(b_s)
-        flags.append(ok)
-        if ok:
+        reason = get_code_validity_reason(b_s)
+        reasons.append(reason)
+        
+        is_valid = reason.startswith("aceito")
+        flags.append(is_valid)
+
+        if is_valid:
             valid_blocks.append(b_s)
         else:
             invalid_blocks.append(b_s)
 
     extracted_code = "\n\n".join(valid_blocks).strip()
-    return cleaned_body, extracted_code, invalid_blocks, flags
+    return cleaned_body, extracted_code, invalid_blocks, flags, reasons
 
 
 # ==========================================================
@@ -166,23 +171,22 @@ def main():
     if not invalid_path.lower().endswith(".csv"):
         invalid_path += ".csv"
 
-    # colunas que vão ser do arquivo
     if not os.path.exists(invalid_path):
         with open(invalid_path, 'w', newline='', encoding='utf-8') as f:
             csv.writer(f).writerow(['site_alias', 'post_id', 'post_type', 'invalid_block_preview'])
 
     cleaned_bodies, extracted_codes = [], []
-    total_invalid_blocks = 0
+    all_reasons = []
 
     for _, row in tqdm(df.iterrows(), total=len(df), desc="Pré-processando posts (s7)"):
-
         body = str(row.get('body', ''))
-        cleaned_body, extracted_code, invalid_blocks, flags = clean_text_and_extract_code(body)
+        cleaned_body, extracted_code, invalid_blocks, flags, reasons = clean_text_and_extract_code(body)
+        
         cleaned_bodies.append(cleaned_body)
         extracted_codes.append(extracted_code)
+        all_reasons.extend(reasons)
 
         if invalid_blocks:
-            total_invalid_blocks += len(invalid_blocks)
             site_alias = row.get('site_alias', '')
             post_id = row.get('id', '')
             post_type = row.get('type', '')
@@ -197,7 +201,33 @@ def main():
     df['code'] = extracted_codes
     df.to_csv(PREPROCESSED_POSTS, index=False)
 
-    logger.info(f" Processamento concluído. {total_invalid_blocks} blocos inválidos gravados em {invalid_path}.")
+    # --- LOGGING DE ESTATÍSTICAS ---
+    stats = Counter(all_reasons)
+    total_blocks = len(all_reasons)
+    total_valid = sum(count for reason, count in stats.items() if reason.startswith('aceito'))
+
+    logger.info("--- Relatório de Filtros de Bloco de Código ---")
+    logger.info(f"Total de blocos de código processados: {total_blocks}")
+
+    logger.info("\n--- Blocos Rejeitados ---")
+    rejection_reasons = {r: c for r, c in stats.items() if r.startswith('rejeitado')}
+    sorted_rejections = sorted(rejection_reasons.items(), key=lambda item: item[1], reverse=True)
+    
+    for reason, count in sorted_rejections:
+        percentage = (count / total_blocks) * 100 if total_blocks > 0 else 0
+        logger.info(f"{reason.replace('rejeitado_', '').replace('_', ' ').capitalize():<30}: {count:<7} ({percentage:.2f}%)")
+
+    logger.info("\n--- Blocos Aceitos ---")
+    acceptance_reasons = {r: c for r, c in stats.items() if r.startswith('aceito')}
+    sorted_acceptances = sorted(acceptance_reasons.items(), key=lambda item: item[1], reverse=True)
+
+    for reason, count in sorted_acceptances:
+        percentage = (count / total_blocks) * 100 if total_blocks > 0 else 0
+        logger.info(f"{reason.replace('aceito_por_', '').replace('_', ' ').capitalize():<30}: {count:<7} ({percentage:.2f}%)")
+
+    logger.info("\n--- Resumo ---")
+    valid_percentage = (total_valid / total_blocks) * 100 if total_blocks > 0 else 0
+    logger.info(f"Total de blocos que passaram nos filtros: {total_valid} ({valid_percentage:.2f}%)")
     logger.info(f"Arquivo final salvo em: {PREPROCESSED_POSTS}")
 
 
