@@ -1,6 +1,7 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from utils import get_logger, ensure_parent_dir
 from paths import *
 import csv
@@ -8,201 +9,196 @@ import re
 import html
 from tqdm import tqdm
 import pandas as pd
-from typing import Tuple
-
-
+from typing import Tuple, List
 
 logger = get_logger(__name__)
 
+# ==========================================================
+# === FUNÇÃO DE VALIDAÇÃO DE CÓDIGO APRIMORADA ============
+# ==========================================================
 
 def is_valid_code(block: str) -> bool:
     """
-    Retorna True se o conteúdo parecer um código de programação real.
-    Evita blocos matemáticos como 'C1⊕C2' e mantém código válido.
+    Retorna True se o conteúdo que tiver no bloco for código de verdade.
+    Linguagens padrões (C, C++, Python, PHP, Java, ...).
     """
-    block = block.strip()
+    block = (block or "").strip()
     if not block:
         return False
 
-    # Rejeita comandos de terminal
-    terminal_command_pattern = r"^\s*[$>]?\s*\b(git|npm|docker|sudo|ls|cd|pip|python|java|mvn|gradle|gcc|make|curl|wget|ssh|apt-get|yum|brew|GET|openssl)\b"
-    if re.search(terminal_command_pattern, block):
+    # 1. Filtra comandos de terminal e outputs das ferramentas
+    if re.match(r"^(\$|#|>>>|\.\.\.|~|sudo|pip|gpg|openssl|make|rm|cd|ls|echo|exit|touch|mv|cp|service|systemctl|kill)\b", block):
+        return False
+    if re.search(r"(?:Cipher:|Ciphers:|Version:|usage:|Usage:|Traceback|Exception|Error:|stack traceback|installing|compiling|loading plugin|Copyright|License|Available)", block, re.IGNORECASE):
         return False
 
-    # Muito curto e sem símbolos típicos de código
-    if len(block) < 5 and not re.search(r"[;{}()\[\]=#.:]", block):
+    # 2. Evitar outputs ou logs 
+    if re.search(r"(?:INFO:|DEBUG:|WARN:|WARNING:|ERROR:|failed|successfully|bytes|MB/s|progress|Loading|Saving)", block, re.IGNORECASE):
         return False
 
-    # Rejeita fórmulas matemáticas e símbolos de texto técnico
-    if re.search(r"[⊕±Σ∑√∫≈≤≥∞≠→←⇔×÷∂∇µλφπΩωβ]", block):
+    # 3. Ignorar fórmulas matemáticas e pseudo código 
+    if re.search(r"[⊕±Σ∑√∫≈≤≥∞≠→←⇔×÷∂∇µλφπΩωβθδγψηρ]", block):
         return False
 
-    # Aceita padrões típicos de código
-    patterns = [
-        r"\b(def|class|import|for|if|return|try|catch|new|public|void|const|var|function|while|static|int|char|String|print|AES|RSA|Key)\b",
-        r"[;{}()\[\]=]",  # símbolos estruturais
-        r"[#<>/]"  # possíveis trechos HTML/script
+    # 4. Muito curtos, sem estrutura para códigos
+    if len(block) < 8 and not re.search(r"[;{}()\[\]=#.:<>/]", block):
+        return False
+
+    # 5. Padrões de linguagens de programação 
+    code_indicators = [
+        # Python
+        r"\b(def|class|import|from|for|if|elif|else|return|try|except|with|while|break|continue|assert)\b",
+        r"print\s*\(",
+        # C / C++
+        r"#include\s*[<\"]",
+        r"\b(int|include &lt|stdio.h&gt|char|float|double|long|uint32_t|uint64_t|struct|typedef|void|printf|snprintf|memcpy|return)\b",
+        r"using\s+namespace",
+        r"std::", r"::[a-zA-Z_]",
+        # Java
+        r"\b(public|private|static|void|class|extends|implements|throws|System\.out)\b",
+        # JavaScript
+        r"\b(var|let|const|function|async|await|=>|console\.log)\b",
+        # PHP
+        r"<\?php|\?>", r"function\s+[a-zA-Z_]\w*", r"\$[a-zA-Z_]\w*",
+        r"base64_(encode|decode)", r"openssl_random_pseudo_bytes", r"mt_rand",
+        # Segurança e Criptografia
+        r"\bAES|RSA|SHA256|sha512|Cipher|getInstance|encrypt|decrypt|Key|Spec|seed|nonce|salt\b",
+        # Símbolos de estrutura
+        r"[{}();=\[\]]",
+        r"//|#|/\*|\*/|<!--|-->"
     ]
-    return any(re.search(p, block) for p in patterns)
 
+    if any(re.search(p, block) for p in code_indicators):
+        return True
+
+    # === 6. Blocos com indentação ou múltiplas linhas ===
+    if "\n" in block and re.search(r"^\s{2,}", block, re.MULTILINE):
+        return True
+
+    # === 7. Funções ou atribuições ===
+    if re.search(r"\w+\s*\([^)]*\)\s*{?", block) or re.search(r"\b(var|let|const)\s+\w+\s*=", block):
+        return True
+
+    return False
+
+
+# ==========================================================
+# === FUNÇÕES DE LIMPEZA E EXTRAÇÃO ========================
+# ==========================================================
 
 def clean_text(text: str) -> str:
+    """Limpa HTML, preservando blocos <code>."""
     if not isinstance(text, str):
-        return ""  # Retorna string vazia se a entrada não for string
+        return ""
 
-    # Desescapa entidades HTML (&lt;, &gt;, &amp;, etc.)
     text = html.unescape(text)
-
-    # Substitui <br>, <p>, </p> por quebras de linha
     text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
-    text = re.sub(r'</p>', '\n', text, flags=re.IGNORECASE)
-    text = re.sub(r'<p>', '', text, flags=re.IGNORECASE)
-
-    # Converte "\\n" em quebras reais
+    text = re.sub(r'</p\s*>', '\n', text, flags=re.IGNORECASE)
+    text = re.sub(r'<p\s*>', '', text, flags=re.IGNORECASE)
     text = text.replace("\\n", "\n")
 
-    # Preserva conteúdo dentro de <code>...</code> para não ser removido
+    # preservar blocos <code> temporariamente
     code_blocks = []
 
     def _preserve_code(match):
         original_block = match.group(0)
-
-        # Adiciona uma quebra de linha logo após a tag de abertura `<code>`
-        # Usamos re.sub com count=1 para substituir apenas a primeira ocorrência.
-        modified_block = re.sub(r'(<code\b.*?>)', r'\1\n',
-                                original_block, count=1, flags=re.IGNORECASE)
-
-        # Adiciona uma quebra de linha antes da tag de fechamento `</code>`
-        # Isso garante que o conteúdo não fique colado ao final da tag.
-        modified_block = re.sub(
-            r'(\S)(</code\s*>)', r'\1\n\2', modified_block,
-
-            flags=re.DOTALL | re.IGNORECASE
-        )
-        code_blocks.append(modified_block)
-
-        # Retorna um marcador temporário com quebras de linha para garantir a separação do bloco.
+        code_blocks.append(original_block)
         return f"\n[[CODE_BLOCK_{len(code_blocks)-1}]]\n"
 
-    # Remove todas as tags HTML restantes
-    text = re.sub(r'<code>.*?</code>', _preserve_code,
-                  text, flags=re.DOTALL | re.IGNORECASE)
-    text = re.sub(r'<[^>]+>', '', text)
+    text = re.sub(r'<code.*?>.*?</code>', _preserve_code, text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'<[^>]+>', '', text)  # remove tags restantes
 
-    # Restaura os blocos de código que foram preservados
-    for i, code_block in enumerate(code_blocks):
-        text = text.replace(f"[[CODE_BLOCK_{i}]]", code_block)
+    # restaurar blocos
+    for i, block in enumerate(code_blocks):
+        text = text.replace(f"[[CODE_BLOCK_{i}]]", block)
 
-    # Remove espaços e múltiplas quebras de linha redundantes
     text = re.sub(r'\n\s*\n+', '\n\n', text)
-    text = text.strip()
-
-    return text
+    return text.strip()
 
 
-def clean_text_and_extract_code(text: str) -> Tuple[str, str]:
-    """
-    Limpa o texto HTML do corpo de um post, mantendo o código nele,
-    e também extrai o conteúdo das tags <code> para uma coluna separada.
+def extract_code_blocks(text: str) -> List[str]:
+    """Extrai conteúdo interno dos blocos <code>."""
+    blocks = re.findall(r'<code.*?>(.*?)</code>', text, flags=re.DOTALL | re.IGNORECASE)
+    return [re.sub(r'\r\n?', '\n', b).strip() for b in blocks]
 
-    Args:
-        text: O texto HTML bruto.
 
-    Returns:
-        Uma tupla contendo (texto_limpo, codigo_extraido).
-    """
+def clean_text_and_extract_code(text: str) -> Tuple[str, str, List[str], List[bool]]:
+    """Limpa texto e valida blocos de código."""
     if not isinstance(text, str):
-        return "", ""
+        return "", "", [], []
 
-    # extrai os blocos de código
-    code_blocks = re.findall(r'<code>(.*?)</code>',
-                             text, re.DOTALL | re.IGNORECASE)
-    valid_blocks = [block.strip()
-                    for block in code_blocks if is_valid_code(block)]
-
-    # junta os válidos
-    extracted_code = "\n\n".join(valid_blocks).strip()
-
-    # limpa corpo mantendo o código formatado
     cleaned_body = clean_text(text)
+    blocks = extract_code_blocks(text)
 
-    return cleaned_body, extracted_code
+    valid_blocks = []
+    invalid_blocks = []
+    flags = []
 
+    for b in blocks:
+        b_s = b.strip()
+        ok = is_valid_code(b_s)
+        flags.append(ok)
+        if ok:
+            valid_blocks.append(b_s)
+        else:
+            invalid_blocks.append(b_s)
+
+    extracted_code = "\n\n".join(valid_blocks).strip()
+    return cleaned_body, extracted_code, invalid_blocks, flags
+
+
+# ==========================================================
+# === PIPELINE PRINCIPAL ===================================
+# ==========================================================
 
 def main():
-    """
-    Função principal para carregar, processar e salvar os dados.
-    """
     logger.info(f"Carregando posts de: {FILTRED_POSTS}")
     try:
         df = pd.read_csv(FILTRED_POSTS, dtype=str)
     except FileNotFoundError:
-        logger.error(f"Arquivo de entrada não encontrado: {FILTRED_POSTS}")
+        logger.error(f"Arquivo não encontrado: {FILTRED_POSTS}")
         return
 
-    logger.info(
-        "Pré-processando a coluna 'body' para separar texto e código válidos")
-
-    # 1. Identificar perguntas com código inválido
-    questions = df[df['type'] == 'question'].copy()
-    invalid_question_ids = set()
-    invalid_questions_by_site = {}
-
-    # Garante que o arquivo de códigos inválidos exista com cabeçalho
+    ensure_parent_dir(PREPROCESSED_POSTS)
     ensure_parent_dir(INVALID_CODES)
-    if not os.path.exists(INVALID_CODES):
-        with open(INVALID_CODES, 'w', newline='', encoding='utf-8') as f:
-            csv.writer(f).writerow(df.columns)
 
-    for index, question in tqdm(questions.iterrows(), total=questions.shape[0], desc="Validando código nas perguntas"):
-        body = str(question.get('body', ''))
-        _, extracted_code = clean_text_and_extract_code(body)
-        if not extracted_code:
-            question_id = question['id']
-            site_alias = question['site_alias']
-            invalid_question_ids.add(question_id)
-            invalid_questions_by_site[site_alias] = invalid_questions_by_site.get(
-                site_alias, 0) + 1
-            # Salva a pergunta inválida no CSV
-            with open(INVALID_CODES, 'a', newline='', encoding='utf-8') as f:
-                csv.writer(f).writerow(question.values)
+    invalid_path = str(INVALID_CODES)
+    if not invalid_path.lower().endswith(".csv"):
+        invalid_path += ".csv"
 
-    if invalid_question_ids:
-        logger.info(
-            f"{len(invalid_question_ids)} perguntas com código inválido foram encontradas e movidas para {os.path.basename(str(INVALID_CODES))}.")
-        logger.info("Contagem de perguntas com código inválido por site:")
-        for site, count in invalid_questions_by_site.items():
-            logger.info(f"  - {site}: {count} perguntas")
+    # colunas que vão ser do arquivo
+    if not os.path.exists(invalid_path):
+        with open(invalid_path, 'w', newline='', encoding='utf-8') as f:
+            csv.writer(f).writerow(['site_alias', 'post_id', 'post_type', 'invalid_block_preview'])
 
-        # 2. Remover todos os posts (perguntas, respostas, comentários) relacionados às perguntas inválidas
-        df = df[~df['question_id'].isin(invalid_question_ids)]
-        logger.info(
-            f"Posts relacionados às perguntas inválidas foram removidos. Restam {len(df)} registros para processar.")
+    cleaned_bodies, extracted_codes = [], []
+    total_invalid_blocks = 0
 
-    cleaned_bodies = []
-    extracted_codes = []
+    for _, row in tqdm(df.iterrows(), total=len(df), desc="Pré-processando posts (s7)"):
 
-    for body in tqdm(df['body'].astype(str), desc="Limpando HTML dos posts válidos"):
-        cleaned_body, extracted_code = clean_text_and_extract_code(body)
+        body = str(row.get('body', ''))
+        cleaned_body, extracted_code, invalid_blocks, flags = clean_text_and_extract_code(body)
         cleaned_bodies.append(cleaned_body)
         extracted_codes.append(extracted_code)
 
+        if invalid_blocks:
+            total_invalid_blocks += len(invalid_blocks)
+            site_alias = row.get('site_alias', '')
+            post_id = row.get('id', '')
+            post_type = row.get('type', '')
+
+            with open(invalid_path, 'a', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                for blk in invalid_blocks:
+                    preview = blk if len(blk) <= 1000 else blk[:1000] + " ...[truncated]"
+                    writer.writerow([site_alias, post_id, post_type, preview])
+
     df['body'] = cleaned_bodies
     df['code'] = extracted_codes
-    output_path = PREPROCESSED_POSTS
-    df.to_csv(output_path, index=False)
+    df.to_csv(PREPROCESSED_POSTS, index=False)
 
-    logger.info(f" Processamento concluído. Arquivo salvo em: {output_path}")
-
-    # Log da contagem de perguntas válidas por site
-    valid_questions_df = df[(df['type'] == 'question') & (
-        df['code'].astype(bool))].copy()
-    site_counts = valid_questions_df['site_alias'].value_counts()
-    logger.info(
-        f"\nTotal de {len(valid_questions_df)} perguntas com código válido foram extraídas e salvas.")
-    logger.info("Contagem por site:")
-    for site, count in site_counts.items():
-        logger.info(f"  - {site}: {count} perguntas")
+    logger.info(f" Processamento concluído. {total_invalid_blocks} blocos inválidos gravados em {invalid_path}.")
+    logger.info(f"Arquivo final salvo em: {PREPROCESSED_POSTS}")
 
 
 if __name__ == "__main__":
