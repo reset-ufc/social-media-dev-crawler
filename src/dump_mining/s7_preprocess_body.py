@@ -14,9 +14,6 @@ from collections import Counter
 
 logger = get_logger(__name__)
 
-# ==========================================================
-# === FUNÇÃO DE VALIDAÇÃO DE CÓDIGO APRIMORADA ===========
-# ==========================================================
 
 def get_code_validity_reason(block: str) -> str:
     """
@@ -82,9 +79,6 @@ def get_code_validity_reason(block: str) -> str:
 
     return "rejeitado_por_padrao"
 
-# ==========================================================
-# === FUNÇÕES DE LIMPEZA E EXTRAÇÃO ========================
-# ==========================================================
 
 def clean_text(text: str) -> str:
     """Limpa HTML, preservando blocos <code>."""
@@ -152,10 +146,6 @@ def clean_text_and_extract_code(text: str) -> Tuple[str, str, List[str], List[bo
     return cleaned_body, extracted_code, invalid_blocks, flags, reasons
 
 
-# ==========================================================
-# === PIPELINE PRINCIPAL ===================================
-# ==========================================================
-
 def main():
     logger.info(f"Carregando posts de: {FILTRED_POSTS}")
     try:
@@ -167,15 +157,7 @@ def main():
     ensure_parent_dir(PREPROCESSED_POSTS)
     ensure_parent_dir(INVALID_CODES)
 
-    invalid_path = str(INVALID_CODES)
-    if not invalid_path.lower().endswith(".csv"):
-        invalid_path += ".csv"
-
-    if not os.path.exists(invalid_path):
-        with open(invalid_path, 'w', newline='', encoding='utf-8') as f:
-            csv.writer(f).writerow(['site_alias', 'post_id', 'post_type', 'invalid_block_preview'])
-
-    cleaned_bodies, extracted_codes = [], []
+    cleaned_bodies, extracted_codes, all_invalid_blocks = [], [], []
     all_reasons = []
 
     for _, row in tqdm(df.iterrows(), total=len(df), desc="Pré-processando posts (s7)"):
@@ -184,32 +166,42 @@ def main():
         
         cleaned_bodies.append(cleaned_body)
         extracted_codes.append(extracted_code)
+        all_invalid_blocks.append(invalid_blocks)
         all_reasons.extend(reasons)
-
-        if invalid_blocks:
-            site_alias = row.get('site_alias', '')
-            post_id = row.get('id', '')
-            post_type = row.get('type', '')
-
-            with open(invalid_path, 'a', newline='', encoding='utf-8') as f:
-                writer = csv.writer(f)
-                for blk in invalid_blocks:
-                    preview = blk if len(blk) <= 1000 else blk[:1000] + " ...[truncated]"
-                    writer.writerow([site_alias, post_id, post_type, preview])
 
     df['body'] = cleaned_bodies
     df['code'] = extracted_codes
+    df['invalid_blocks'] = all_invalid_blocks
 
-    # --- ETAPA FINAL: REMOVER AMOSTRAS SEM CÓDIGO ---
+    # --- ETAPA FINAL: SEPARAR AMOSTRAS COM E SEM CÓDIGO VÁLIDO ---
     initial_count = len(df)
-    df = df[df['code'].notna() & (df['code'] != '')].copy()
-    removed_count = initial_count - len(df)
-    final_sample_count = len(df)
+    valid_mask = df['code'].notna() & (df['code'] != '')
+    
+    valid_df = df[valid_mask].copy()
+    invalid_df = df[~valid_mask].copy()
 
+    # Salva posts com código válido
+    valid_df = valid_df.drop(columns=['invalid_blocks'])
+    valid_df.to_csv(PREPROCESSED_POSTS, index=False)
+
+    # Processa e salva posts com código inválido
+    removed_count = len(invalid_df)
     if removed_count > 0:
-        logger.info(f"FILTRO FINAL: Removidas {removed_count} amostras por não conterem blocos de código válidos.")
+        logger.info(f"{removed_count} posts sem blocos de código válidos foram movidos para {INVALID_CODES}")
+        
+        # Concatena blocos de código inválidos na coluna 'code'
+        invalid_df['code'] = invalid_df['invalid_blocks'].apply(
+            lambda blocks: "\n\n".join(b for b in blocks if b)
+        )
+        invalid_df = invalid_df.drop(columns=['invalid_blocks'])
+        
+        # Garante que o arquivo de códigos inválidos seja salvo
+        invalid_path = str(INVALID_CODES)
+        if not invalid_path.lower().endswith(".csv"):
+            invalid_path += ".csv"
+        invalid_df.to_csv(invalid_path, index=False)
 
-    df.to_csv(PREPROCESSED_POSTS, index=False)
+    final_sample_count = len(valid_df)
 
     # --- LOGGING DE ESTATÍSTICAS ---
     stats = Counter(all_reasons)
@@ -237,8 +229,8 @@ def main():
 
     logger.info("\n--- Resumo Final ---")
     logger.info(f"Total de BLOCOS de código válidos encontrados: {total_valid_blocks}")
-    logger.info(f"Total de AMOSTRAS (posts) com código válido: {final_sample_count}")
-    logger.info(f"Arquivo final com {final_sample_count} amostras salvo em: {PREPROCESSED_POSTS}")
+    logger.info(f"Total de posts com código válido: {final_sample_count}")
+    logger.info(f"Arquivo final com {final_sample_count} posts salvo em: {PREPROCESSED_POSTS}")
 
 if __name__ == "__main__":
     main()
