@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import safe_date
-from paths import DUMP, CONNECTED_POSTS, RELEATED_POSTS, SITES, DUMP_MINING_LOG_FILE
+from paths import DUMP, CONNECTED_POSTS, RELEATED_POSTS, SITES
 import csv
 import pandas as pd
 import xml.etree.ElementTree as ET
@@ -11,10 +11,8 @@ import py7zr
 import shutil
 from utils import get_logger
 
-
-
 logger = get_logger(__name__)
-# Ordem padronizada de colunas (compatível com scripts 6 e 7)
+
 POST_FEATURES = [
     "site_alias", "tags", "question_id", "accepted_answer_id", "answer_count",
     "creation_date", "last_activity_date", "last_edit_date",
@@ -22,216 +20,146 @@ POST_FEATURES = [
     "title", "body", "site", "id", "type"
 ]
 
-
 def write_csv_header():
     """Cria o arquivo CONNECTED_POSTS com cabeçalho."""
     os.makedirs(os.path.dirname(CONNECTED_POSTS), exist_ok=True)
     with open(CONNECTED_POSTS, "w", encoding="utf-8", newline="") as f:
         csv.writer(f).writerow(POST_FEATURES)
 
-
 def append_to_csv(row):
     """Adiciona uma linha ao CSV de posts conectados."""
     with open(CONNECTED_POSTS, "a", encoding="utf-8", newline="") as f:
         csv.writer(f).writerow(row)
 
-
 def get_relevant_questions():
     """Lê o arquivo RELEATED_POSTS e retorna as perguntas-base."""
     try:
         df = pd.read_csv(RELEATED_POSTS, dtype=str)
-        if "local_id" not in df.columns:
-            df.rename(columns={"id": "local_id"}, inplace=True)
+        # Garante a compatibilidade de nomes de coluna
+        if "question_id" not in df.columns and "id" in df.columns:
+            df.rename(columns={"id": "question_id"}, inplace=True)
         return df
     except Exception as e:
-        logger.error(
-            f"Não foi possível carregar {RELEATED_POSTS}: {e}", exc_info=True)
+        logger.error(f"Não foi possível carregar {RELEATED_POSTS}: {e}", exc_info=True)
         return pd.DataFrame()
-
 
 def extract_posts_and_comments():
     """Extrai perguntas, respostas e comentários para o arquivo CONNECTED_POSTS."""
-
     questions_df = get_relevant_questions()
     if questions_df.empty:
-        logger.warning("Nenhuma pergunta relevante encontrada.")
+        logger.warning("Nenhuma pergunta relevante encontrada em releated_posts.csv.")
         return
 
     write_csv_header()
 
-    total_questions = 0
-    total_answers = 0
-    total_comments = 0
-
-    for _, q in questions_df.iterrows():
-        row = [
-            q.get("site", ""),
-            q.get("tags", ""),
-            q.get("local_id", ""),
-            q.get("accepted_answer_id", ""),
-            q.get("answer_count", "0"),
-            q.get("creation_date", ""),
-            q.get("last_activity_date", ""),
-            q.get("last_edit_date", ""),
-            q.get("owner_id", ""),
-            q.get("score", "0"),
-            q.get("view_count", "0"),
-            q.get("comment_count", "0"),
-            q.get("title", ""),
-            q.get("body", ""),
-            q.get("site", ""),
-            q.get("local_id", ""),
-            "question"
-        ]
-        append_to_csv(row)
-        total_questions += 1
+    total_questions, total_answers, total_comments = 0, 0, 0
 
     for site_alias, site_file in SITES.items():
+        logger.info(f"\n--- Processando site: {site_alias} ---")
         archive_path = os.path.join(DUMP, site_file)
         if not os.path.exists(archive_path):
-            logger.warning(
-                f"[{site_alias}] Arquivo não encontrado: {archive_path}")
+            logger.warning(f"[{site_alias}] Arquivo de dump não encontrado: {archive_path}")
             continue
 
-        # Otimização: Filtra as perguntas relevantes apenas para o site atual
-        # e converte os IDs para um set para busca O(1) (muito mais rápida).
         site_questions_df = questions_df[questions_df["site_alias"] == site_alias]
         if site_questions_df.empty:
+            logger.info(f"[{site_alias}] Nenhuma pergunta relevante para este site.")
             continue
-        relevant_question_ids = set(site_questions_df["local_id"].values)
 
-        logger.info(f"[{site_alias}] Processando: {archive_path}")
+        relevant_question_ids = set(site_questions_df["question_id"].values)
+        found_answer_ids = set()
+        site_questions, site_answers, site_comments = 0, 0, 0
+
+        # 1. Salva as perguntas relevantes para o site atual
+        for _, q in site_questions_df.iterrows():
+            row = [
+                q.get("site_alias", ""), q.get("tags", ""), q.get("question_id", ""),
+                q.get("accepted_answer_id", ""), q.get("answer_count", "0"),
+                q.get("creation_date", ""), q.get("last_activity_date", ""),
+                q.get("last_edit_date", ""), q.get("owner_id", ""),
+                q.get("score", "0"), q.get("view_count", "0"), q.get("comment_count", "0"),
+                q.get("title", ""), q.get("body", ""), q.get("site", ""),
+                q.get("question_id", ""), "question"
+            ]
+            append_to_csv(row)
+            site_questions += 1
+
+        # 2. Extrai respostas e comentários do dump
         temp_dir = tempfile.mkdtemp()
-
         try:
             with py7zr.SevenZipFile(archive_path, mode="r") as archive:
-                posts_files = [
-                    f for f in archive.getnames() if "Posts.xml" in f]
-                comments_files = [
-                    f for f in archive.getnames() if "Comments.xml" in f]
-
-                # Extrai Posts.xml e Comments.xml
-                targets = posts_files + comments_files
+                targets = [f for f in archive.getnames() if f in ["Posts.xml", "Comments.xml"]]
+                if not targets:
+                    logger.warning(f"[{site_alias}] Posts.xml ou Comments.xml não encontrados no dump.")
+                    continue
                 archive.extract(path=temp_dir, targets=targets)
 
-                if posts_files:
-                    posts_path = os.path.join(temp_dir, posts_files[0])
+                # Processa respostas
+                posts_path = os.path.join(temp_dir, "Posts.xml")
+                if os.path.exists(posts_path):
                     context = ET.iterparse(posts_path, events=("start",))
                     for _, elem in context:
-                        if elem.tag != "row" or elem.attrib.get("PostTypeId") != "2":
-                            continue
-                        parent_id = elem.attrib.get("ParentId")
-                        if parent_id not in relevant_question_ids:
-                            elem.clear()
-                            continue
-
-                        row = [
-                            site_alias,
-                            "",
-                            parent_id,
-                            "",
-                            "",
-                            safe_date(elem.attrib.get("CreationDate", "")),
-                            safe_date(elem.attrib.get("LastActivityDate", "")),
-                            safe_date(elem.attrib.get("LastEditDate", "")),
-                            elem.attrib.get("OwnerUserId", ""),
-                            elem.attrib.get("Score", "0"),
-                            "",
-                            elem.attrib.get("CommentCount", "0"),
-                            "",
-                            elem.attrib.get("Body", ""),
-                            site_file,
-                            elem.attrib.get("Id", ""),
-                            "answer"
-                        ]
-                        append_to_csv(row)
-                        total_answers += 1
+                        if elem.tag == "row" and elem.attrib.get("PostTypeId") == "2":
+                            parent_id = elem.attrib.get("ParentId")
+                            if parent_id in relevant_question_ids:
+                                answer_id = elem.attrib.get("Id", "")
+                                found_answer_ids.add(answer_id)
+                                row = [
+                                    site_alias, "", parent_id, "", "",
+                                    safe_date(elem.attrib.get("CreationDate", "")),
+                                    safe_date(elem.attrib.get("LastActivityDate", "")),
+                                    safe_date(elem.attrib.get("LastEditDate", "")),
+                                    elem.attrib.get("OwnerUserId", ""), elem.attrib.get("Score", "0"),
+                                    "", elem.attrib.get("CommentCount", "0"), "",
+                                    elem.attrib.get("Body", ""), site_file, answer_id, "answer"
+                                ]
+                                append_to_csv(row)
+                                site_answers += 1
                         elem.clear()
 
-                if comments_files:
-                    comments_path = os.path.join(temp_dir, comments_files[0])
+                # Processa comentários (para perguntas E respostas)
+                comments_path = os.path.join(temp_dir, "Comments.xml")
+                if os.path.exists(comments_path):
+                    posts_to_get_comments_for = relevant_question_ids.union(found_answer_ids)
                     context = ET.iterparse(comments_path, events=("start",))
                     for _, elem in context:
-                        if elem.tag != "row":
-                            continue
-                        post_id = elem.attrib.get("PostId")
-                        if post_id not in relevant_question_ids:
-                            elem.clear()
-                            continue
-
-                        row = [
-                            site_alias,
-                            "",
-                            post_id,
-                            "",
-                            "",
-                            safe_date(elem.attrib.get("CreationDate", "")),
-                            "",
-                            "",
-                            elem.attrib.get("UserId", ""),
-                            "",
-                            "",
-                            "",
-                            "",
-                            elem.attrib.get("Text", ""),
-                            site_file,
-                            elem.attrib.get("Id", ""),
-                            "comment"
-                        ]
-                        append_to_csv(row)
-                        total_comments += 1
+                        if elem.tag == "row":
+                            post_id = elem.attrib.get("PostId")
+                            if post_id in posts_to_get_comments_for:
+                                row = [
+                                    site_alias, "", post_id, "", "",
+                                    safe_date(elem.attrib.get("CreationDate", "")),
+                                    "", "", elem.attrib.get("UserId", ""), "", "", "", "",
+                                    elem.attrib.get("Text", ""), site_file,
+                                    elem.attrib.get("Id", ""), "comment"
+                                ]
+                                append_to_csv(row)
+                                site_comments += 1
                         elem.clear()
 
         except Exception as e:
-            logger.error(f"ERRO ao processar {site_alias}: {e}", exc_info=True)
+            logger.error(f"[{site_alias}] ERRO ao processar arquivos do dump: {e}", exc_info=True)
         finally:
             shutil.rmtree(temp_dir)
+        
+        logger.info(f"[{site_alias}] Resumo do site:")
+        logger.info(f"  - Perguntas salvas: {site_questions} (deve ser igual ao número da etapa anterior para este site)")
+        logger.info(f"  - Respostas encontradas: {site_answers}")
+        logger.info(f"  - Comentários encontrados: {site_comments}")
 
-    # --- Atualizar o comment_count das perguntas e respostas ---
-    try:
-        logger.info(
-            "\nAtualizando contagem de comentários em perguntas e respostas...")
-        df = pd.read_csv(CONNECTED_POSTS, dtype=str)
+        total_questions += site_questions
+        total_answers += site_answers
+        total_comments += site_comments
 
-        comment_counts = (
-            df[df["type"] == "comment"]
-            .groupby("question_id")
-            .size()
-            .reset_index(name="num_comments")
-        )
-
-        # Otimização: Usar merge em vez de um loop para atualizar as contagens.
-        # Isso é significativamente mais rápido em dataframes grandes.
-        df_merged = pd.merge(
-            df,
-            comment_counts,
-            left_on="id",
-            right_on="question_id",
-            how="left"
-        )
-
-        # Atualiza a coluna 'comment_count' apenas para perguntas e respostas
-        mask = df['type'].isin(['question', 'answer'])
-        df.loc[mask, 'comment_count'] = df_merged.loc[mask,
-                                                      'num_comments'].fillna(0).astype(int)
-
-        df.to_csv(CONNECTED_POSTS, index=False)
-        logger.info(
-            f"Contagem de comentários atualizada com sucesso ({len(comment_counts)} posts afetados).")
-    except Exception as e:
-        logger.warning(f"Erro ao atualizar comment_count: {e}", exc_info=True)
-
-    logger.info("\nResumo final:")
-    logger.info(f"  Perguntas adicionadas: {total_questions}")
-    logger.info(f"  Respostas adicionadas: {total_answers}")
-    logger.info(f"  Comentários adicionados: {total_comments}")
+    logger.info("\n##### RESUMO FINAL DA ETAPA 5 #####")
+    logger.info(f"  - Total de Perguntas Salvas: {total_questions}")
+    logger.info(f"  - Total de Respostas Adicionadas: {total_answers}")
+    logger.info(f"  - Total de Comentários Adicionados: {total_comments}")
     logger.info(f"Arquivo final consolidado salvo em: {CONNECTED_POSTS}")
-    logger.info("=== Etapa 5 Concluída ===")
-
+    logger.info("====================================")
 
 def main():
     extract_posts_and_comments()
-
 
 if __name__ == "__main__":
     main()
