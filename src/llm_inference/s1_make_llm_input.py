@@ -109,22 +109,9 @@ def post_analyze_string(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) 
 
 
 def code_analyze_string(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) -> str:
-    """
-    Lê um arquivo de posts pré-processados, encontra um post pelo ID,
-    e retorna os trechos de código contidos nele, formatados e numerados.
-
-    Args:
-        post_id: O ID do post a ser analisado.
-        posts_filepath: O caminho para o arquivo CSV com os posts.
-
-    Returns:
-        Uma string formatada com os trechos de código numerados (ex: "code 1:\n...").
-        Retorna uma string vazia se o post não for encontrado ou não contiver
-        código.
-    """
     try:
-        # dtype=str garante que todos os IDs sejam lidos como texto.
         # .fillna('') previne erros com valores NaN na coluna 'code'
+        # não deve haver nenhum nan de qualquer forma
         df = pd.read_csv(posts_filepath, dtype=str).fillna('')
     except FileNotFoundError:
         print(
@@ -150,16 +137,12 @@ def code_analyze_string(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) 
     if not code_blocks:
         return ""
 
-    # Formata cada bloco com um cabeçalho numerado
     formatted_blocks = [f"code {i+1}:\n{block}" for i, block in enumerate(code_blocks)]
 
     return "\n".join(formatted_blocks)
 
 
 def main():
-    """
-    Função principal que demonstra como usar create_llm_input_string.
-    """
     print(code_analyze_string('12795'))
 
 
