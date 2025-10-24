@@ -90,7 +90,7 @@ def preload_commented_and_answered_posts(site_archive_path):
 
 
 def find_and_save_related_posts():
-    """Procura e salva posts que tenham as tags relacionadas e pelo menos uma resposta/comentário."""
+    """Procura e salva posts que tenham as tags relacionadas."""
 
     processed_posts = set()
     site_post_counts = {}
@@ -115,13 +115,6 @@ def find_and_save_related_posts():
             continue
 
         logger.info(f"Processando: {site_archive}")
-
-        # Pré-carrega os IDs de posts com atividade para otimização
-        logger.info(
-            "  Pré-carregando IDs de posts com comentários e respostas...")
-        commented_ids, answered_ids = preload_commented_and_answered_posts(
-            site_archive)
-        active_post_ids = commented_ids.union(answered_ids)
 
         with py7zr.SevenZipFile(site_archive, mode='r') as archive:
             # Assumimos que há apenas um Posts.xml por site
@@ -152,11 +145,6 @@ def find_and_save_related_posts():
                         # Correção: Extrai tags do formato <tag1><tag2>
                         post_tags = set(re.findall(r'<(.+?)>', tags_field))
                         if not related_tags.isdisjoint(post_tags):
-                            # Verificação otimizada: checa se o post_id está no conjunto pré-carregado
-                            if post_id not in active_post_ids:
-                                elem.clear()
-                                continue
-
                             row = [
                                 site_alias,
                                 ";".join(post_tags),
@@ -194,10 +182,8 @@ def find_and_save_related_posts():
             # registra quantos posts foram extraídos deste arquivo
             file_post_counts.append(
                 (f"{site_alias}/{posts_xml_path}", file_count))
-            logger.info(f"  → Arquivo: {posts_xml_path} -> {file_count} posts")
 
         site_post_counts[site_alias] = site_count
-        logger.info(f"→ {site_alias}: {site_count} posts encontrados ")
 
     logger.info("\nResumo final:")
     for site, count in site_post_counts.items():
@@ -205,8 +191,6 @@ def find_and_save_related_posts():
 
 
 def main():
-    logger.info("Inicializando coleta dentro dos arquivos compactados...")
-    logger.info("Buscando posts relacionados com respostas/comentários...")
     find_and_save_related_posts()
     logger.info("Processamento concluído!")
 
