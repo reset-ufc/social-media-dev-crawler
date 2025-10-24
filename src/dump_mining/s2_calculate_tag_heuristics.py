@@ -1,3 +1,6 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pandas as pd
 import xml.etree.ElementTree as ET
 import py7zr
@@ -5,9 +8,6 @@ import tempfile
 from collections import Counter
 from utils import *
 from paths import *
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 logger = get_logger(__name__)
@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 def calculate_tag_counts(site_alias, site_file):
     """
-    Calcula 'b' (ocorrência total de cada tag) lendo o dump de um site específico.
+    Calcula 'b' (ocorrência total de cada tag em perguntas) lendo o dump de um site.
     """
     logger.info(f"-> Calculando 'b' para o site: {site_alias}...")
     tag_occurrence_counter = Counter()  # Para a métrica 'b'
@@ -25,8 +25,6 @@ def calculate_tag_counts(site_alias, site_file):
         logger.warning(
             f"  .7z não encontrado para {site_alias}: {archive_path}")
         return pd.DataFrame()
-
-    logger.info(f"  Lendo dump compactado: {archive_path}")
     try:
         with py7zr.SevenZipFile(archive_path, mode='r') as archive:
             posts_files = [f for f in archive.getnames() if "Posts.xml" in f]
@@ -40,7 +38,7 @@ def calculate_tag_counts(site_alias, site_file):
 
                 context = ET.iterparse(posts_path, events=("end",))
                 for _, elem in context:
-                    if elem.tag == "row":
+                    if elem.tag == "row" and elem.attrib.get("PostTypeId") == "1":
                         tags_field = elem.attrib.get("Tags", "")
                         if tags_field:
                             post_tags = extract_tag_list(tags_field)
