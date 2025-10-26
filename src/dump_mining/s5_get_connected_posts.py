@@ -68,23 +68,8 @@ def extract_posts_and_comments():
 
         relevant_question_ids = set(site_questions_df["question_id"].values)
         found_answer_ids = set()
-        site_questions, site_answers, site_comments = 0, 0, 0
+        comment_counter = {}  # <=== Novo dicionário para contar comentários
 
-        # 1. Salva as perguntas relevantes para o site atual
-        for _, q in site_questions_df.iterrows():
-            row = [
-                q.get("site_alias", ""), q.get("tags", ""), q.get("question_id", ""),
-                q.get("accepted_answer_id", ""), q.get("answer_count", "0"),
-                q.get("creation_date", ""), q.get("last_activity_date", ""),
-                q.get("last_edit_date", ""), q.get("owner_id", ""),
-                q.get("score", "0"), q.get("view_count", "0"), q.get("comment_count", "0"),
-                q.get("title", ""), q.get("body", ""), q.get("site", ""),
-                q.get("question_id", ""), "question"
-            ]
-            append_to_csv(row)
-            site_questions += 1
-
-        # 2. Extrai respostas e comentários do dump
         temp_dir = tempfile.mkdtemp()
         try:
             with py7zr.SevenZipFile(archive_path, mode="r") as archive:
@@ -104,20 +89,9 @@ def extract_posts_and_comments():
                             if parent_id in relevant_question_ids:
                                 answer_id = elem.attrib.get("Id", "")
                                 found_answer_ids.add(answer_id)
-                                row = [
-                                    site_alias, "", parent_id, "", "",
-                                    safe_date(elem.attrib.get("CreationDate", "")),
-                                    safe_date(elem.attrib.get("LastActivityDate", "")),
-                                    safe_date(elem.attrib.get("LastEditDate", "")),
-                                    elem.attrib.get("OwnerUserId", ""), elem.attrib.get("Score", "0"),
-                                    "", elem.attrib.get("CommentCount", "0"), "",
-                                    elem.attrib.get("Body", ""), site_file, answer_id, "answer"
-                                ]
-                                append_to_csv(row)
-                                site_answers += 1
                         elem.clear()
 
-                # Processa comentários (para perguntas E respostas)
+                # Processa comentários e conta
                 comments_path = os.path.join(temp_dir, "Comments.xml")
                 if os.path.exists(comments_path):
                     posts_to_get_comments_for = relevant_question_ids.union(found_answer_ids)
@@ -126,37 +100,68 @@ def extract_posts_and_comments():
                         if elem.tag == "row":
                             post_id = elem.attrib.get("PostId")
                             if post_id in posts_to_get_comments_for:
-                                row = [
-                                    site_alias, "", post_id, "", "",
-                                    safe_date(elem.attrib.get("CreationDate", "")),
-                                    "", "", elem.attrib.get("UserId", ""), "", "", "", "",
-                                    elem.attrib.get("Text", ""), site_file,
-                                    elem.attrib.get("Id", ""), "comment"
-                                ]
-                                append_to_csv(row)
-                                site_comments += 1
+                                comment_counter[post_id] = comment_counter.get(post_id, 0) + 1
                         elem.clear()
 
         except Exception as e:
             logger.error(f"[{site_alias}] ERRO ao processar arquivos do dump: {e}", exc_info=True)
         finally:
             shutil.rmtree(temp_dir)
-        
-        logger.info(f"[{site_alias}] Resumo do site:")
-        logger.info(f"  - Perguntas salvas: {site_questions} (deve ser igual ao número da etapa anterior para este site)")
-        logger.info(f"  - Respostas encontradas: {site_answers}")
-        logger.info(f"  - Comentários encontrados: {site_comments}")
 
-        total_questions += site_questions
-        total_answers += site_answers
-        total_comments += site_comments
+        # Agora gravamos as perguntas e respostas com o comment_count atualizado
+        for _, q in site_questions_df.iterrows():
+            qid = q.get("question_id", "")
+            q_comments = comment_counter.get(qid, 0)
+            row = [
+                q.get("site_alias", ""), q.get("tags", ""), qid,
+                q.get("accepted_answer_id", ""), q.get("answer_count", "0"),
+                q.get("creation_date", ""), q.get("last_activity_date", ""),
+                q.get("last_edit_date", ""), q.get("owner_id", ""),
+                q.get("score", "0"), q.get("view_count", "0"), q_comments,
+                q.get("title", ""), q.get("body", ""), q.get("site", ""),
+                qid, "question"
+            ]
+            append_to_csv(row)
+            total_questions += 1
+
+        # Reabre o dump novamente apenas para salvar as respostas
+        temp_dir = tempfile.mkdtemp()
+        try:
+            with py7zr.SevenZipFile(archive_path, mode="r") as archive:
+                if "Posts.xml" not in archive.getnames():
+                    continue
+                archive.extract(path=temp_dir, targets=["Posts.xml"])
+                posts_path = os.path.join(temp_dir, "Posts.xml")
+                if os.path.exists(posts_path):
+                    context = ET.iterparse(posts_path, events=("start",))
+                    for _, elem in context:
+                        if elem.tag == "row" and elem.attrib.get("PostTypeId") == "2":
+                            parent_id = elem.attrib.get("ParentId")
+                            if parent_id in relevant_question_ids:
+                                answer_id = elem.attrib.get("Id", "")
+                                a_comments = comment_counter.get(answer_id, 0)
+                                row = [
+                                    site_alias, "", parent_id, "", "",
+                                    safe_date(elem.attrib.get("CreationDate", "")),
+                                    safe_date(elem.attrib.get("LastActivityDate", "")),
+                                    safe_date(elem.attrib.get("LastEditDate", "")),
+                                    elem.attrib.get("OwnerUserId", ""), elem.attrib.get("Score", "0"),
+                                    "", a_comments, "", elem.attrib.get("Body", ""),
+                                    site_file, answer_id, "answer"
+                                ]
+                                append_to_csv(row)
+                                total_answers += 1
+                        elem.clear()
+        finally:
+            shutil.rmtree(temp_dir)
+
+        logger.info(f"[{site_alias}] Comentários contabilizados: {sum(comment_counter.values())}")
 
     logger.info("\n##### RESUMO FINAL DA ETAPA 5 #####")
-    logger.info(f"  - Total de Perguntas Salvas: {total_questions}")
-    logger.info(f"  - Total de Respostas Adicionadas: {total_answers}")
-    logger.info(f"  - Total de Comentários Adicionados: {total_comments}")
-    logger.info(f"Arquivo final consolidado salvo em: {CONNECTED_POSTS}")
-    logger.info("====================================")
+    logger.info(f"  - Total de Perguntas: {total_questions}")
+    logger.info(f"  - Total de Respostas: {total_answers}")
+    logger.info(f"  - Total de Comentários Contabilizados: {sum(comment_counter.values())}")
+    logger.info(f"Arquivo final salvo em: {CONNECTED_POSTS}")
 
 def main():
     extract_posts_and_comments()
