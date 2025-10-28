@@ -4,6 +4,7 @@ Your task is to **analyze codes of a Stack Overflow discussion** and identify **
 =================================
 LEVEL 1 — CODE UNDERSTANDING
 =================================
+Read the codes, each code is delimited by CODE (number) and END OF CODE (number) markers.
 Read ONLY the content between the delimiters below:
 
 <<<CODES_IN_DISCUSSION>>>
