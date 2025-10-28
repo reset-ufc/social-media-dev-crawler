@@ -187,6 +187,9 @@ def main():
 
     # Salva posts com código válido
     valid_df = valid_df.drop(columns=['invalid_blocks'])
+    shape1 = valid_df.shape
+    valid_df.drop_duplicates(inplace=True)
+    shape2 = valid_df.shape
     valid_df.to_csv(PREPROCESSED_POSTS, index=False)
 
     # Processa e salva posts com código inválido
@@ -213,6 +216,7 @@ def main():
     total_blocks = len(all_reasons)
     total_valid_blocks = sum(count for reason, count in stats.items() if reason.startswith('aceito'))
 
+    logger.info(f'Duplicatas removidas: {shape1[0] - shape2[0]} (de {shape1} para {shape2})')
     logger.info("--- Relatório de Filtros de Bloco de Código ---")
     logger.info(f"Total de blocos de código processados: {total_blocks}")
 
