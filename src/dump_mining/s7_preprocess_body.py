@@ -102,7 +102,6 @@ def clean_text(text: str) -> str:
     text = re.sub(r'<code.*?>.*?</code>', _preserve_code, text, flags=re.DOTALL | re.IGNORECASE)
     text = re.sub(r'<[^>]+>', '', text)  # remove tags restantes
 
-    # restaurar blocos
     for i, block in enumerate(code_blocks):
         text = text.replace(f"[[CODE_BLOCK_{i}]]", block)
 
@@ -132,7 +131,6 @@ def clean_text_and_extract_code(text: str) -> Tuple[str, str, List[str], List[bo
     for full_block in full_blocks:
         full_block_s = full_block.strip()
         
-        # Extrai o conteúdo para validação, mas preserva o bloco inteiro
         match = re.search(r'<code.*?>(.*?)</code>', full_block_s, flags=re.DOTALL | re.IGNORECASE)
         content = match.group(1) if match else ""
         
@@ -178,21 +176,18 @@ def main():
     df['code'] = extracted_codes
     df['invalid_blocks'] = all_invalid_blocks
 
-    # --- ETAPA FINAL: SEPARAR AMOSTRAS COM E SEM CÓDIGO VÁLIDO ---
     initial_count = len(df)
     valid_mask = df['code'].notna() & (df['code'] != '')
     
     valid_df = df[valid_mask].copy()
     invalid_df = df[~valid_mask].copy()
 
-    # Salva posts com código válido
     valid_df = valid_df.drop(columns=['invalid_blocks'])
     shape1 = valid_df.shape
     valid_df.drop_duplicates(inplace=True)
     shape2 = valid_df.shape
     valid_df.to_csv(PREPROCESSED_POSTS, index=False)
 
-    # Processa e salva posts com código inválido
     removed_count = len(invalid_df)
     if removed_count > 0:
         logger.info(f"{removed_count} posts sem blocos de código válidos foram movidos para {INVALID_CODES}")
@@ -211,7 +206,6 @@ def main():
 
     final_sample_count = len(valid_df)
 
-    # --- LOGGING DE ESTATÍSTICAS ---
     stats = Counter(all_reasons)
     total_blocks = len(all_reasons)
     total_valid_blocks = sum(count for reason, count in stats.items() if reason.startswith('aceito'))

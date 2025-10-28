@@ -28,20 +28,15 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
         logger.error(f"ERRO ao ler o arquivo {input_csv}: {e}", exc_info=True)
         return
 
-    # Converte colunas numéricas
     for col in ['answer_count', 'view_count', 'score', 'comment_count']:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
         else:
             df[col] = 0
 
-    # --- Início: Lógica para remover perguntas com apenas uma auto-resposta ---
+    # Lógica para remover perguntas com apenas uma auto-resposta ---
     logger.info("Verificando perguntas com apenas uma auto-resposta...")
-
-    # Garante que owner_id seja string para a comparação
     df['owner_id'] = df['owner_id'].astype(str)
-
-    # 1. Isola perguntas com exatamente uma resposta
     questions_one_answer = df[(df['type'] == 'question') & (df['answer_count'] == 1)].copy()
 
     if not questions_one_answer.empty:
@@ -84,7 +79,6 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
         logger.warning("Nenhuma pergunta encontrada.")
         return
 
-    # Calcula o percentil 90 para cada métrica
     questions_q = df_questions[[
         'answer_count', 'view_count', 'score', 'comment_count']].quantile(percentile)
     logger.info(f"Limiares de popularidade (percentil {percentile*100}%):")
@@ -104,15 +98,12 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
         logger.warning("Nenhuma questão atende aos critérios de popularidade.")
         return
 
-    # Coleta IDs de perguntas populares
     popular_ids = set(popular_questions['question_id']).union(
         set(popular_questions['id']))
 
-    # Adiciona respostas e comentários vinculados
     popular_related = df[df['question_id'].isin(
         popular_ids) | df['id'].isin(popular_ids)]
 
-    # Salva resultado final
     os.makedirs(os.path.dirname(output_csv), exist_ok=True)
     popular_related.to_csv(output_csv, index=False, quoting=csv.QUOTE_MINIMAL)
 
@@ -125,7 +116,6 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
     logger.info(
         f"  - Comentários: {(popular_related['type'] == 'comment').sum()}")
 
-    # Log da contagem de perguntas por site
     questions_saved = popular_related[popular_related['type'] == 'question']
     site_counts = questions_saved['site_alias'].value_counts()
 

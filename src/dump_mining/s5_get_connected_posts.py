@@ -79,7 +79,6 @@ def extract_posts_and_comments():
                     continue
                 archive.extract(path=temp_dir, targets=targets)
 
-                # Processa respostas
                 posts_path = os.path.join(temp_dir, "Posts.xml")
                 if os.path.exists(posts_path):
                     context = ET.iterparse(posts_path, events=("start",))
@@ -91,7 +90,6 @@ def extract_posts_and_comments():
                                 found_answer_ids.add(answer_id)
                         elem.clear()
 
-                # Processa comentários e conta
                 comments_path = os.path.join(temp_dir, "Comments.xml")
                 if os.path.exists(comments_path):
                     posts_to_get_comments_for = relevant_question_ids.union(found_answer_ids)
@@ -108,7 +106,6 @@ def extract_posts_and_comments():
         finally:
             shutil.rmtree(temp_dir)
 
-        # Agora gravamos as perguntas e respostas com o comment_count atualizado
         for _, q in site_questions_df.iterrows():
             qid = q.get("question_id", "")
             q_comments = comment_counter.get(qid, 0)
@@ -124,7 +121,6 @@ def extract_posts_and_comments():
             append_to_csv(row)
             total_questions += 1
 
-        # Reabre o dump novamente apenas para salvar as respostas
         temp_dir = tempfile.mkdtemp()
         try:
             with py7zr.SevenZipFile(archive_path, mode="r") as archive:
