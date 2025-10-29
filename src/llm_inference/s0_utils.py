@@ -144,7 +144,6 @@ def run_pipeline_code_analysis(input_file, output_file, prompt_template,
     processed_ids = get_processed_ids(output_file, id_column)
 
     cases_to_process = [case for case in cases_questions if case.get(id_column) not in processed_ids]
-    print(cases_to_process)
     if limit:
         cases_to_process = cases_to_process[:limit]
 
