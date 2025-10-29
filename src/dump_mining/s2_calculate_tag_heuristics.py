@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 import py7zr
 import tempfile
 from collections import Counter
-from utils import *
+from utils_global import *
 from paths import *
 
 

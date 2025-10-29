@@ -1,7 +1,7 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils import safe_date
+from utils_global import safe_date
 from paths import DUMP, CONNECTED_POSTS, RELEATED_POSTS, SITES
 import csv
 import pandas as pd
@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 import tempfile
 import py7zr
 import shutil
-from utils import get_logger
+from utils_global import get_logger
 
 logger = get_logger(__name__)
 

@@ -4,7 +4,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
 from paths import CONNECTED_POSTS, FILTRED_POSTS
-from utils import get_logger
+from utils_global import get_logger
 import csv
 
 

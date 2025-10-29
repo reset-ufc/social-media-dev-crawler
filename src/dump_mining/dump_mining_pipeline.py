@@ -7,9 +7,9 @@ from s4_get_posts import main as run_4_get_posts
 from s5_get_connected_posts import main as run_5_get_connected_posts
 from s6_filter_posts import main as run_6_filter_posts
 from s7_preprocess_body import main as run_7_preprocess_body
-from utils import get_logger
+from utils_global import get_logger
 from paths import DUMP_MINING_LOG_FILE
-from utils import ensure_parent_dir
+from utils_global import ensure_parent_dir
 
 
 logger = get_logger(__name__)

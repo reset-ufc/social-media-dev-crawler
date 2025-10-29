@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 import csv
 from paths import *
-from utils import *
+from utils_global import *
 
 
 logger = get_logger(__name__)
