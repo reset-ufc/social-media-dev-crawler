@@ -88,7 +88,7 @@ def append_to_jsonl(data, filepath):
         f.write(df_response.to_json(orient='records', lines=True))
 
 
-def run_pipeline(input_file, output_file, prompt_template, 
+def run_pipeline_judge(input_file, output_file, prompt_template, 
                  process_case_func, id_column='post_id', limit=0, 
                  model_name="gemma3:1b", temperature=0, description="Processing",
                  data_loader=load_data
@@ -109,23 +109,69 @@ def run_pipeline(input_file, output_file, prompt_template,
         if not item_id:
             continue
 
-        try:
-            prompt_inputs = process_case_func(case)
-            
-            if prompt_inputs is None:
-                continue
-            
-            formatted_prompt = prompt_template
-            for key, value in prompt_inputs.items():
-                formatted_prompt = formatted_prompt.replace(f"{{{{{key}}}}}", str(value))
-
-            raw_response = model.invoke(formatted_prompt)
-            response = json.loads(raw_response.content)
-
-            response[id_column] = item_id
-
-            append_to_jsonl(response, output_file)
-
-        except Exception as e:
-            print(f"Error processing item {item_id}: {e}")
+        prompt_inputs = process_case_func(case)
+        
+        if prompt_inputs is None:
             continue
+        
+        formatted_prompt = prompt_template
+        for key, value in prompt_inputs.items():
+            formatted_prompt = formatted_prompt.replace(f"{{{{{key}}}}}", str(value))
+
+        raw_response = model.invoke(formatted_prompt)
+        try:
+            response = json.loads(raw_response.content)
+        except json.JSONDecodeError:
+            print(f"Error decoding JSON for item {item_id}.")
+            print(f"Raw response: {raw_response.content}")
+            continue
+
+        response[id_column] = item_id
+        append_to_jsonl(response, output_file)
+
+
+def run_pipeline_code_analysis(input_file, output_file, prompt_template, 
+                 process_case_func, id_column='post_id', limit=0, 
+                 model_name="gemma3:1b", temperature=0, description="Processing",
+                 data_loader=load_data
+):
+    """A general pipeline for processing data using an LLM, filtering for 'question' type posts."""
+    all_cases = data_loader(input_file)
+    
+    # Filter for questions
+    cases_questions = [case for case in all_cases if case.get('type') == 'question']
+    
+    processed_ids = get_processed_ids(output_file, id_column)
+
+    cases_to_process = [case for case in cases_questions if case.get(id_column) not in processed_ids]
+    print(cases_to_process)
+    if limit:
+        cases_to_process = cases_to_process[:limit]
+
+    total = len(cases_to_process)
+    model = ChatOllama(model=model_name, temperature=temperature, format='json')
+
+    for case in tqdm(cases_to_process, total=total, desc=description):
+        item_id = case.get(id_column)
+        if not item_id:
+            continue
+
+        prompt_inputs = process_case_func(case)
+        
+        if prompt_inputs is None:
+            continue
+        
+        formatted_prompt = prompt_template
+        for key, value in prompt_inputs.items():
+            formatted_prompt = formatted_prompt.replace(f"{{{{{key}}}}}", str(value))
+
+        raw_response = model.invoke(formatted_prompt)
+        try:
+            response = json.loads(raw_response.content)
+        except json.JSONDecodeError:
+            print(f"Error decoding JSON for item {item_id}.")
+            print(f"Raw response: {raw_response.content}")
+            continue
+
+        response[id_column] = item_id
+        append_to_jsonl(response, output_file)

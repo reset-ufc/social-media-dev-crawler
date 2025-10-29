@@ -3,7 +3,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from paths import PREPROCESSED_POSTS, MISUSE_CASES_CODES
-from llm_inference.s0_utils import hierarquical_code_anylisis, run_pipeline, load_csv_data
+from llm_inference.s0_utils import hierarquical_code_anylisis, run_pipeline_code_analysis, load_csv_data
 from llm_inference.s1_make_llm_input import code_analyze_string, get_post_metadata
 
 def process_code_case(case):
@@ -19,7 +19,7 @@ def process_code_case(case):
     return {"codes": code_input, "post_metadata": metadata_input}
 
 if __name__ == "__main__":
-    run_pipeline(
+    run_pipeline_code_analysis(
         input_file=PREPROCESSED_POSTS,
         output_file=MISUSE_CASES_CODES,
         prompt_template=hierarquical_code_anylisis(),
