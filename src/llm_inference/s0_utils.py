@@ -1,17 +1,14 @@
 from functools import lru_cache
+import pandas as pd
+import json
+from langchain_ollama import ChatOllama
+from tqdm import tqdm
 
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from paths import PROMPTS_DIR
-
-import pandas as pd
-import json
-from langchain_ollama import ChatOllama
-from tqdm import tqdm
-
-# s1
 
 
 @lru_cache(maxsize=None)
@@ -42,7 +39,7 @@ def hierarquical_code_anylisis() -> str:
     return _load_prompt_from_file("hierarquical_in_code_v1.txt")
 
 
-# == s2, s3 == 
+# s2, s3
 
 def get_processed_ids(filepath, id_column='post_id'):
     """Reads an output file and returns a set of already processed IDs."""
@@ -72,12 +69,32 @@ def load_data(filepath):
     return df.to_dict('records')
 
 
+def load_csv_data(filepath):
+    """Loads data from a CSV file."""
+    if not os.path.exists(filepath):
+        print(f"Error: The file {filepath} was not found.")
+        return []
+    
+    df = pd.read_csv(filepath)
+    df = df[df['type'] == 'question']
+    return df.to_dict('records')
+
+
+def append_to_jsonl(data, filepath):
+    """Appends a dictionary to a JSONL file."""
+    df_response = pd.DataFrame([data])
+    mode = 'a' if os.path.exists(filepath) else 'w'
+    with open(filepath, mode) as f:
+        f.write(df_response.to_json(orient='records', lines=True))
+
+
 def run_pipeline(input_file, output_file, prompt_template, 
                  process_case_func, id_column='post_id', limit=0, 
-                 model_name="gemma3:1b", temperature=0, description="Processing"
+                 model_name="gemma3:1b", temperature=0, description="Processing",
+                 data_loader=load_data
 ):
     """A general pipeline for processing data using an LLM."""
-    all_cases = load_data(input_file)
+    all_cases = data_loader(input_file)
     processed_ids = get_processed_ids(output_file, id_column)
 
     cases_to_process = [case for case in all_cases if case.get(id_column) not in processed_ids]
@@ -95,18 +112,19 @@ def run_pipeline(input_file, output_file, prompt_template,
         try:
             prompt_inputs = process_case_func(case)
             
+            if prompt_inputs is None:
+                continue
+            
             formatted_prompt = prompt_template
             for key, value in prompt_inputs.items():
-                formatted_prompt = formatted_prompt.replace(f"{{{{{key}}}}}", value)
+                formatted_prompt = formatted_prompt.replace(f"{{{{{key}}}}}", str(value))
 
             raw_response = model.invoke(formatted_prompt)
             response = json.loads(raw_response.content)
 
             response[id_column] = item_id
 
-            df_response = pd.DataFrame([response])
-            with open(output_file, 'a') as f:
-                f.write(df_response.to_json(orient='records', lines=True))
+            append_to_jsonl(response, output_file)
 
         except Exception as e:
             print(f"Error processing item {item_id}: {e}")
