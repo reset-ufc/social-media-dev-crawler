@@ -25,7 +25,6 @@ if __name__ == "__main__":
         prompt_template=hierarquical_code_anylisis(),
         process_case_func=process_code_case,
         data_loader=load_csv_data, 
-        id_column='id',
         limit=6, 
         description="Analysing codes"
     )
