@@ -14,20 +14,24 @@ from collections import Counter
 
 logger = get_logger(__name__)
 
+# ==========================================================
+# === FUNÇÃO DE VALIDAÇÃO DE CÓDIGO ========================
+# ==========================================================
 
 def get_code_validity_reason(block: str) -> str:
     """
     Analisa um bloco de texto e retorna uma string indicando por que ele é considerado
     código válido ou inválido.
+    (C, C++, Python, PHP, Java, etc.).
     """
     block = (block or "").strip()
     if not block:
         return "rejeitado_bloco_vazio"
 
-    # 1. Filtra comandos de terminal e outputs das ferramentas
+    # 1. Filtrar comandos de terminal e outputs de ferramentas
     if re.match(r"^(\$|#|>>>|\.\.\.|~|sudo|pip|gpg|openssl|make|rm|cd|ls|echo|exit|touch|mv|cp|service|systemctl|kill)\b", block):
         return "rejeitado_comando_terminal"
-    if re.search(r"(?:Cipher:|Ciphers:|Version:|usage:|Usage:|Traceback|Exception|Error:|stack traceback|installing|compiling|loading plugin|Copyright|License|Available)", block, re.IGNORECASE):
+    if re.search(r"(?:Cipher:|Ciphers:|Version:|Usage:|Traceback|Exception|Error:|stack traceback|installing|compiling|loading plugin|Copyright|License|Available)", block, re.IGNORECASE):
         return "rejeitado_output_ferramenta"
 
     # 2. Evitar outputs ou logs
@@ -38,8 +42,8 @@ def get_code_validity_reason(block: str) -> str:
     if re.search(r"[⊕±Σ∑√∫≈≤≥∞≠→←⇔×÷∂∇µλφπΩωβθδγψηρ]", block):
         return "rejeitado_formula_matematica"
 
-    # 4. Muito curtos, sem estrutura para códigos
-    if len(block) < 8 and not re.search(r"[;{}()[\]=#.:<>/]", block):
+    # 4. Muito curto e sem estrutura de código
+    if len(block) < 8 and not re.search(r"[;{}()\[\]=#.:<>/]", block):
         return "rejeitado_muito_curto"
 
     # 5. Padrões de linguagens de programação
@@ -52,18 +56,19 @@ def get_code_validity_reason(block: str) -> str:
         r"\b(int|include &lt|stdio.h&gt|char|float|double|long|uint32_t|uint64_t|struct|typedef|void|printf|snprintf|memcpy|return)\b",
         r"using\s+namespace",
         r"std::", r"::[a-zA-Z_]",
+        r"\b(int|char|float|double|long|uint32_t|uint64_t|struct|typedef|void|printf|snprintf|memcpy|return)\b",
+        r"using\s+namespace", r"std::", r"::[a-zA-Z_]",
         # Java
         r"\b(public|private|static|void|class|extends|implements|throws|System\.out)\b",
         # JavaScript
         r"\b(var|let|const|function|async|await|=>|console\.log)\b",
         # PHP
-        r"<\?php|\?>", r"function\s+[a-zA-Z_]\w*", r"\$[a-zA-Z_]\w*",
+        r"<\?php|\?>", r"function\s+[a-zA-Z_]\w*", r"\$[a-zA-Z_]\w*", 
         r"base64_(encode|decode)", r"openssl_random_pseudo_bytes", r"mt_rand",
-        # Segurança e Criptografia
+        # Criptografia
         r"\bAES|RSA|SHA256|sha512|Cipher|getInstance|encrypt|decrypt|Key|Spec|seed|nonce|salt\b",
-        # Símbolos de estrutura
-        r"[{}();=\[\]]",
-        r"//|#|/\*|\*/|<!--|-->"
+        # Estrutura genérica
+        r"[{}();=\[\]]", r"//|#|/\*|\*/|<!--|-->"
     ]
 
     if any(re.search(p, block) for p in code_indicators):
@@ -74,11 +79,15 @@ def get_code_validity_reason(block: str) -> str:
         return "aceito_por_indentacao"
 
     # === 7. Funções ou atribuições ===
-    if re.search(r"\w+\s*\([^)]*\)\s*{?" , block) or re.search(r"\b(var|let|const)\s+\w+\s*=", block):
+    if re.search(r"\w+\s*\([^)]*\)\s*{?", block) or re.search(r"\b(var|let|const)\s+\w+\s*=", block):
         return "aceito_por_funcao_ou_atribuicao"
 
-    return "rejeitado_por_padrao"
+    return "rejeitado_padrao"
 
+
+# ==========================================================
+# === FUNÇÕES DE LIMPEZA E EXTRAÇÃO ========================
+# ==========================================================
 
 def clean_text(text: str) -> str:
     """Limpa HTML, preservando blocos <code>."""
@@ -114,7 +123,6 @@ def extract_code_blocks(text: str) -> List[str]:
     blocks = re.findall(r'(<code.*?>.*?</code>)', text, flags=re.DOTALL | re.IGNORECASE)
     return [re.sub(r'\r\n?', '\n', b).strip() for b in blocks]
 
-
 def clean_text_and_extract_code(text: str) -> Tuple[str, str, List[str], List[bool], List[str]]:
     """Limpa texto, valida o conteúdo dos blocos de código, e retorna os blocos completos com tags."""
     if not isinstance(text, str):
@@ -149,6 +157,10 @@ def clean_text_and_extract_code(text: str) -> Tuple[str, str, List[str], List[bo
     return cleaned_body, extracted_code, invalid_blocks, flags, reasons
 
 
+# ==========================================================
+# === PIPELINE PRINCIPAL ===================================
+# ==========================================================
+
 def main():
     logger.info(f"Carregando posts de: {FILTRED_POSTS}")
     try:
@@ -160,80 +172,92 @@ def main():
     ensure_parent_dir(PREPROCESSED_POSTS)
     ensure_parent_dir(INVALID_CODES)
 
-    cleaned_bodies, extracted_codes, all_invalid_blocks = [], [], []
-    all_reasons = []
+    invalid_path = str(INVALID_CODES)
+    if not invalid_path.lower().endswith(".csv"):
+        invalid_path += ".csv"
+
+    invalid_rows = []
+    valid_rows = []
+
+    logger.info("Iniciando pré-processamento de posts (S7)...")
+
+    invalid_question_ids = set()
+    total_invalid_blocks = 0
 
     for _, row in tqdm(df.iterrows(), total=len(df), desc="Pré-processando posts (s7)"):
         body = str(row.get('body', ''))
         cleaned_body, extracted_code, invalid_blocks, flags, reasons = clean_text_and_extract_code(body)
-        
-        cleaned_bodies.append(cleaned_body)
-        extracted_codes.append(extracted_code)
-        all_invalid_blocks.append(invalid_blocks)
+
+        row_copy = row.copy()
+        row_copy['body'] = cleaned_body
+        row_copy['code'] = extracted_code
+
+        # Marca posts com blocos inválidos
+        if invalid_blocks:
+            total_invalid_blocks += len(invalid_blocks)
+            invalid_question_ids.add(row.get("question_id", ""))
+            row_copy["invalid_block_preview"] = (
+                invalid_blocks[0][:1000] + " ...[truncated]" if len(invalid_blocks[0]) > 1000 else invalid_blocks[0]
+            )
+            invalid_rows.append(row_copy)
+        else:
+            valid_rows.append(row_copy)
+
+    df_valid = pd.DataFrame(valid_rows)
+    df_invalid = pd.DataFrame(invalid_rows)
+
+    # Excluir respostas/comentários ligados a perguntas inválidas ===
+    if invalid_question_ids:
+        logger.info(f"Foram detectadas {len(invalid_question_ids)} perguntas com código inválido. Removendo suas respostas e comentários associados...")
+        related_invalids = df_valid[df_valid["question_id"].isin(invalid_question_ids)]
+        df_invalid = pd.concat([df_invalid, related_invalids], ignore_index=True)
+        df_valid = df_valid[~df_valid["question_id"].isin(invalid_question_ids)]
+
+    # Remover duplicatas 
+    before_dup_valid = len(df_valid)
+    before_dup_invalid = len(df_invalid)
+
+    df_valid.drop_duplicates(subset=["site_alias", "id"], keep="first", inplace=True)
+    df_invalid.drop_duplicates(subset=["site_alias", "id"], keep="first", inplace=True)
+
+    logger.info(f"Removidas {before_dup_valid - len(df_valid)} duplicatas do conjunto válido.")
+    logger.info(f"Removidas {before_dup_invalid - len(df_invalid)} duplicatas do conjunto inválido.")
+
+    # === Estatísticas detalhadas ===
+    from collections import Counter
+    all_reasons = []
+    for _, row in tqdm(df.iterrows(), total=len(df), desc="Gerando estatísticas detalhadas"):
+        _, _, _, _, reasons = clean_text_and_extract_code(str(row.get('body', '')))
         all_reasons.extend(reasons)
-
-    df['body'] = cleaned_bodies
-    df['code'] = extracted_codes
-    df['invalid_blocks'] = all_invalid_blocks
-
-    initial_count = len(df)
-    valid_mask = df['code'].notna() & (df['code'] != '')
-    
-    valid_df = df[valid_mask].copy()
-    invalid_df = df[~valid_mask].copy()
-
-    valid_df = valid_df.drop(columns=['invalid_blocks'])
-    shape1 = valid_df.shape
-    valid_df.drop_duplicates(inplace=True)
-    shape2 = valid_df.shape
-    valid_df.to_csv(PREPROCESSED_POSTS, index=False)
-
-    removed_count = len(invalid_df)
-    if removed_count > 0:
-        logger.info(f"{removed_count} posts sem blocos de código válidos foram movidos para {INVALID_CODES}")
-        
-        # Concatena blocos de código inválidos na coluna 'code'
-        invalid_df['code'] = invalid_df['invalid_blocks'].apply(
-            lambda blocks: "\n\n".join(b for b in blocks if b)
-        )
-        invalid_df = invalid_df.drop(columns=['invalid_blocks'])
-        
-        # Garante que o arquivo de códigos inválidos seja salvo
-        invalid_path = str(INVALID_CODES)
-        if not invalid_path.lower().endswith(".csv"):
-            invalid_path += ".csv"
-        invalid_df.to_csv(invalid_path, index=False)
-
-    final_sample_count = len(valid_df)
 
     stats = Counter(all_reasons)
     total_blocks = len(all_reasons)
     total_valid_blocks = sum(count for reason, count in stats.items() if reason.startswith('aceito'))
 
-    logger.info(f'Duplicatas removidas: {shape1[0] - shape2[0]} (de {shape1} para {shape2})')
-    logger.info("--- Relatório de Filtros de Bloco de Código ---")
+    logger.info("\n--- Relatório de Filtros de Bloco de Código ---")
     logger.info(f"Total de blocos de código processados: {total_blocks}")
 
     logger.info("\n--- Blocos Rejeitados ---")
-    rejection_reasons = {r: c for r, c in stats.items() if r.startswith('rejeitado')}
-    sorted_rejections = sorted(rejection_reasons.items(), key=lambda item: item[1], reverse=True)
-    
-    for reason, count in sorted_rejections:
-        percentage = (count / total_blocks) * 100 if total_blocks > 0 else 0
-        logger.info(f"{reason.replace('rejeitado_', '').replace('_', ' ').capitalize():<30}: {count:<7} ({percentage:.2f}%)")
+    for reason, count in sorted({r: c for r, c in stats.items() if r.startswith('rejeitado')}.items(), key=lambda x: x[1], reverse=True):
+        pct = (count / total_blocks) * 100 if total_blocks else 0
+        logger.info(f"{reason:<35} {count:<6} ({pct:.2f}%)")
 
     logger.info("\n--- Blocos Aceitos ---")
-    acceptance_reasons = {r: c for r, c in stats.items() if r.startswith('aceito')}
-    sorted_acceptances = sorted(acceptance_reasons.items(), key=lambda item: item[1], reverse=True)
-
-    for reason, count in sorted_acceptances:
-        percentage = (count / total_blocks) * 100 if total_blocks > 0 else 0
-        logger.info(f"{reason.replace('aceito_por_', '').replace('_', ' ').capitalize():<30}: {count:<7} ({percentage:.2f}%)")
+    for reason, count in sorted({r: c for r, c in stats.items() if r.startswith('aceito')}.items(), key=lambda x: x[1], reverse=True):
+        pct = (count / total_blocks) * 100 if total_blocks else 0
+        logger.info(f"{reason:<35} {count:<6} ({pct:.2f}%)")
 
     logger.info("\n--- Resumo Final ---")
-    logger.info(f"Total de BLOCOS de código válidos encontrados: {total_valid_blocks}")
-    logger.info(f"Total de posts com código válido: {final_sample_count}")
-    logger.info(f"Arquivo final com {final_sample_count} posts salvo em: {PREPROCESSED_POSTS}")
+    logger.info(f"Total de blocos válidos: {total_valid_blocks}")
+    logger.info(f"Total de posts válidos: {len(df_valid)}")
+    logger.info(f"Total de posts inválidos (incluindo respostas/comentários): {len(df_invalid)}")
+
+    # === Salvar arquivos ===
+    df_valid.to_csv(PREPROCESSED_POSTS, index=False)
+    df_invalid.to_csv(invalid_path, index=False)
+
+    logger.info("Processamento concluído com sucesso!")
+
 
 if __name__ == "__main__":
     main()
