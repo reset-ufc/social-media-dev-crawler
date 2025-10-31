@@ -7,12 +7,13 @@ from paths import PREPROCESSED_POSTS
 import warnings
 
 
-def get_post_metadata(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) -> str:
+def get_post_metadata(post_id: str, site: str, posts_filepath: str = PREPROCESSED_POSTS) -> str:
     """
     Busca metadados de um post (site, ID e tags) e os formata em uma string.
 
     Args:
         post_id: O ID do post a ser buscado.
+        site: O site onde o post está.
         posts_filepath: O caminho para o arquivo CSV com os posts.
 
     Returns:
@@ -25,7 +26,7 @@ def get_post_metadata(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) ->
         print(f"ERRO: Arquivo de posts não encontrado em: {posts_filepath}")
         return ""
 
-    post_series = df[df['id'] == post_id]
+    post_series = df[(df['id'] == post_id) & (df['site'] == site)]
     if post_series.empty:
         print(f"Nenhum post encontrado com ID {post_id}.")
         return ""
@@ -36,13 +37,14 @@ def get_post_metadata(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) ->
     return f"[SITE]: {site_alias} [POST_ID]: {post_id}\n[TAGS]: {tags}"
 
 
-def post_analyze_string(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) -> str:
+def post_analyze_string(post_id: str, site: str, posts_filepath: str = PREPROCESSED_POSTS) -> str:
     """
-    Lê um arquivo de posts pré-processados, encontra uma pergunta específica pelo ID,
+    Lê um arquivo de posts pré-processados, encontra uma pergunta específica pelo ID e site,
     e formata seu conteúdo e o de suas respostas em uma única string para o LLM.
 
     Args:
         post_id: O ID da pergunta a ser formatada.
+        site: O site onde o post está.
         posts_filepath: O caminho para o arquivo CSV com os posts.
 
     Returns:
@@ -60,7 +62,7 @@ def post_analyze_string(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) 
     df['creation_date'] = pd.to_datetime(df['creation_date'], errors='coerce')
 
     # Localiza a pergunta
-    question_series = df[(df['id'] == post_id) & (df['type'] == 'question')]
+    question_series = df[(df['id'] == post_id) & (df['site'] == site) & (df['type'] == 'question')]
     if question_series.empty:
         print(f"Nenhuma pergunta encontrada com ID {post_id}.")
         return ""
@@ -108,7 +110,7 @@ def post_analyze_string(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) 
     return post_str.strip()
 
 
-def code_analyze_string(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) -> str:
+def code_analyze_string(post_id: str, site: str, posts_filepath: str = PREPROCESSED_POSTS) -> str:
     try:
         # .fillna('') previne erros com valores NaN na coluna 'code'
         # não deve haver nenhum nan de qualquer forma
@@ -118,8 +120,8 @@ def code_analyze_string(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) 
             f"ERRO: Arquivo de posts pré-processados não encontrado em: {posts_filepath}")
         return ""
 
-    # Localiza o post pelo ID
-    post_series = df[df['id'] == post_id]
+    # Localiza o post pelo ID e site
+    post_series = df[(df['id'] == post_id) & (df['site'] == site)]
     if post_series.empty:
         print(f"Nenhum post encontrado com ID {post_id}.")
         return ""
@@ -143,7 +145,7 @@ def code_analyze_string(post_id: str, posts_filepath: str = PREPROCESSED_POSTS) 
 
 
 def main():
-    print(code_analyze_string('12795'))
+    print(code_analyze_string('70094', 'crypto.stackexchange.com.7z'))
 
 
 if __name__ == "__main__":

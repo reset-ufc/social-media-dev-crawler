@@ -12,8 +12,12 @@ from llm_inference.s1_make_llm_input import code_analyze_string
 def process_judge_case(case):
     """Processes a case for the judging pipeline."""
     post_id = case.get('question_id')
-    code_input = code_analyze_string(str(post_id))
+    site = case.get('site', '')
+    
+    code_input = code_analyze_string(str(post_id), site)
     analysis_input = json.dumps(case, indent=2)
+    
+    print({"codes": code_input, "analysis": analysis_input})
     return {"codes": code_input, "analysis": analysis_input}
 
 if __name__ == "__main__":

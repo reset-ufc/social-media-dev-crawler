@@ -9,12 +9,14 @@ from llm_inference.s1_make_llm_input import code_analyze_string, get_post_metada
 def process_code_case(case):
     """Processes a case for code analysis."""
     post_id = case.get('id')
-    if not post_id:
+    site = case.get('site')
+    if not post_id or not site:
         return None
-    code_input = code_analyze_string(str(post_id))
+    code_input = code_analyze_string(str(post_id), site)
     if not code_input:
         return None
-    metadata_input = get_post_metadata(str(post_id))
+        
+    metadata_input = get_post_metadata(str(post_id), site)
     
     return {"codes": code_input, "post_metadata": metadata_input}
 
