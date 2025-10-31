@@ -108,7 +108,9 @@ LEVEL 4 — DECISION RULES
 2. **Label Assignment**
    - Assign one label per independent misuse (taxonomy-based).
    - Use only the categories and subtypes from the taxonomy, do not create new subtypes in any way
-   - Merge duplicates caused by the same root cause.
+   - Do not use the category name as a subtype under any circumstances; this is strictly prohibited.
+   - Do not create multiple responses for the same code; only one containing all its categories and subtypes of misuse, if any.
+   - In the code index label, use only the code index that is passed. If 3 codes were received, the response should not contain a code index greater than 3.
 
 3. **Evidence**
    - Provide a short quote (≤90 chars), the exact part where you find misuse.
@@ -137,8 +139,8 @@ OUTPUT (STRICT JSON)
   "misuses": [
     {{
       "code_index": "1"
-      "category": "<WC|PKC|ICV|PKM|PDF|CIB|BRH|IVM|CAI>",
-      "subtype": "<Subtype Name>",
+      "categories": "<WC|PKC|ICV|PKM|PDF|CIB|BRH|IVM|CAI>", // comma separeted
+      "subtypes": "<Subtypes Name>", // comma separeted
       "confidence": 0.xx,
       "evidence": {{
         "quote": "<exact snippet>"
