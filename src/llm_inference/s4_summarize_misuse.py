@@ -112,7 +112,7 @@ def summarize_misuse(input_path, output_path):
     logger.info(f"Total sem misuse: {non_misuse_count}")
     logger.info(f"Categorias distintas: {len(category_counts)}")
     logger.info(f"Subtipos distintos: {len(subtype_counts)}")
-    logger.info(f"Arquivo Excel salvo em: {output_path.with_suffix('.xlsx')}")
+    logger.info(f"Arquivo salvo em: {output_path.with_suffix('.xlsx')}")
     logger.info(f"Lista detalhada dos posts com misuse salva em: {misuse_csv_path}")
 
 if __name__ == "__main__":
