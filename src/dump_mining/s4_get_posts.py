@@ -195,4 +195,5 @@ def main():
     logger.info("Processamento concluído!")
 
 
-main()
+if __name__ == "__main__":
+    main()

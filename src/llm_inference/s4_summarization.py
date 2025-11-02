@@ -8,46 +8,28 @@ import json
 import pandas as pd
 from collections import defaultdict, Counter
 from pathlib import Path
+from llm_inference.s0_utils import load_data
 
 logger = get_logger(__name__)
 
 
-def load_json_array(path: Path):
-    """Carrega JSON ou JSONL)."""
-    if not path.exists():
-        logger.warning(f"Arquivo JSON não encontrado: {path}")
-        return []
-    with open(path, "r", encoding="utf-8") as f:
-        content = f.read().strip()
-        try:
-            if content.startswith("["):
-                return json.loads(content)
-            else:
-                return [json.loads(line) for line in content.splitlines() if line.strip()]
-        except json.JSONDecodeError as e:
-            logger.error(f"Erro ao ler {path.name}: {e}")
-            return []
-
-
-def summarize_combined(misuse_data, judge_data):
-    """Gera sumarização combinando misuse e judgement."""
-    all_data = misuse_data + judge_data
-    if not all_data:
+def summarize_analysis(misuse_data):
+    if not misuse_data:
         return "Nenhum dado encontrado.\n", pd.DataFrame()
 
-    total_posts = len(all_data)
-    misuse_cases = [x for x in all_data if x.get("has_misuse")]
+    total_posts = len(misuse_data)
+    misuse_cases = [x for x in misuse_data if x.get("has_misuse")]
     misuse_count = len(misuse_cases)
     non_misuse_count = total_posts - misuse_count
 
     # Contagem por site
     site_counts_misuse = Counter(x.get("site", "unknown") for x in misuse_cases)
-    site_counts_nonmisuse = Counter(x.get("site", "unknown") for x in all_data if not x.get("has_misuse"))
+    site_counts_nonmisuse = Counter(x.get("site", "unknown") for x in misuse_data if not x.get("has_misuse"))
 
     # Categorias e subtipos
     categories = defaultdict(Counter)
     rows = []
-    for case in all_data:
+    for case in misuse_data:
         qid = case.get("question_id")
         site = case.get("site")
         has_misuse = case.get("has_misuse", False)
@@ -74,7 +56,7 @@ def summarize_combined(misuse_data, judge_data):
 
     # Logs
     lines = []
-    lines.append("s4 summarization \n")
+    lines.append("analysis summarization \n")
     lines.append(f"total posts: {total_posts}")
     lines.append(f"total misuse count: {misuse_count}\n")
 
@@ -96,33 +78,21 @@ def summarize_combined(misuse_data, judge_data):
         for sub, sub_count in subs.items():
             lines.append(f" - {sub}: {sub_count}")
 
-    df = pd.DataFrame(rows)
-    return "\n".join(lines) + "\n", df
+    return "\n".join(lines) + "\n"
 
 
 def main():
-    misuse_data = load_json_array(MISUSE_CASES_CODES)
-    judge_data = load_json_array(JUDGEMENT_CODES)
+    misuse_data = load_data(str(CODE_ANALYSIS))
+    summary_text = summarize_analysis(misuse_data)
 
-    summary_text, df = summarize_combined(misuse_data, judge_data)
+    logger.info(summary_text)
 
-    # Caminhos de saída
-    log_path = LLM_INFERENCE / "combined_summary.log"
-    csv_path = LLM_INFERENCE / "combined_summary.csv"
-
-    ensure_parent_dir(log_path)
-
-    # Salva log 
-    with open(log_path, "w", encoding="utf-8") as f:
-        f.write(summary_text)
-
-    # Salva CSV 
-    if not df.empty:
-        df.to_csv(csv_path, index=False)
-
-    logger.info(f"Sumarização combinada concluída.")
-    logger.info(f"Log salvo em: {log_path}")
-    logger.info(f"CSV salvo em: {csv_path}")
+    try:
+        ensure_parent_dir(str(CODE_ANALYSIS_SUMMARY))
+        with open(CODE_ANALYSIS_SUMMARY, 'w', encoding='utf-8') as f:
+            f.write(summary_text)
+    except Exception:
+        logger.exception(f'Erro ao salvar o resumo em: {CODE_ANALYSIS_SUMMARY}')
 
 if __name__ == "__main__":
     main()

@@ -8,24 +8,7 @@ import json
 import pandas as pd
 from pathlib import Path
 
-logger = get_logger(__name__)
-
-
-def load_json_array(path: Path):
-    """Carrega JSON (com [ ... ]) ou JSONL (um por linha)."""
-    if not path.exists():
-        logger.warning(f"Arquivo JSON não encontrado: {path}")
-        return []
-    with open(path, "r", encoding="utf-8") as f:
-        content = f.read().strip()
-        try:
-            if content.startswith("["):
-                return json.loads(content)
-            else:
-                return [json.loads(line) for line in content.splitlines() if line.strip()]
-        except json.JSONDecodeError as e:
-            logger.error(f"Erro ao ler {path.name}: {e}")
-            return []
+from llm_inference.s0_utils import load_data
 
 
 def merge_results(misuse_data, judge_data, tolerance=0.1):
@@ -69,8 +52,8 @@ def merge_results(misuse_data, judge_data, tolerance=0.1):
         else:
             invalid_count += 1
 
-    df = pd.DataFrame(merged)
-    total = len(df)
+    df_all = pd.DataFrame(merged)
+    total = len(df_all)
     ratio_valid = (valid_count / total * 100) if total > 0 else 0
 
     summary_lines = [
@@ -81,29 +64,25 @@ def merge_results(misuse_data, judge_data, tolerance=0.1):
         f"taxa de alinhamento: {ratio_valid:.2f}%\n"
     ]
 
-    return "\n".join(summary_lines), df
+    df_valid = df_all[df_all['valid_pair'] == True].reset_index(drop=True)
+    return "\n".join(summary_lines), df_valid
 
 
 def main():
-    misuse_data = load_json_array(MISUSE_CASES_CODES)
-    judge_data = load_json_array(JUDGEMENT_CODES)
+    misuse_data = load_data(CODE_ANALYSIS)
+    judge_data = load_data(CODE_JUDGEMENT)
 
     summary_text, df = merge_results(misuse_data, judge_data)
 
-    log_path = LLM_INFERENCE / "s5_merge_summary.log"
-    csv_path = LLM_INFERENCE / "merged_results.csv"
-
-    ensure_parent_dir(log_path)
-
-    with open(log_path, "w", encoding="utf-8") as f:
+    with open(MERGE_SUMMARY, "w", encoding="utf-8") as f:
         f.write(summary_text)
 
-    if not df.empty:
-        df.to_csv(csv_path, index=False)
-
-    logger.info("Merge concluído com sucesso.")
-    logger.info(f"Resumo salvo em: {log_path}")
-    logger.info(f"Dataset salvo em: {csv_path}")
+    try:
+        if not df.empty:
+            with open(MERGED_LLM_RESULTS, 'w', encoding='utf-8') as f:
+                f.write(df.to_json(orient='records', lines=True))
+    except Exception:
+        print(f'Erro ao salvar merged results em: {MERGED_LLM_RESULTS}')
 
 
 if __name__ == "__main__":

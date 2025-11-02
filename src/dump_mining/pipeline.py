@@ -12,7 +12,7 @@ from paths import DUMP_MINING_LOG_FILE
 from utils_global import ensure_parent_dir
 
 
-logger = get_logger(__name__)
+logger = get_logger('dump_mining_pipeline')
 
 def clear_log_file():
     """Limpa o arquivo de log antes de uma nova execução."""

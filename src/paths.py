@@ -16,14 +16,13 @@ PROJECT_ROOT = Path(__file__).parent.parent
 DUMP = PROJECT_ROOT / "Extraidos dump"
 DATA = PROJECT_ROOT / 'data'
 
-LOGS_DIR = DATA / "logs"
-DUMP_MINING_LOG_FILE = LOGS_DIR / "data_mining.log"
-
 PROMPTS_DIR = PROJECT_ROOT / "prompts"
 
 DATA_MINING = DATA / "data_mining"
 DATA_MINING_S1 = DATA_MINING / "s1"
 DATA_MINING_S2 = DATA_MINING / "s2"
+
+DUMP_MINING_LOG_FILE = DATA_MINING / "data_mining.log"
 
 
 SITES = {
@@ -56,10 +55,21 @@ CONNECTED_COMMENTS = DATA_MINING_S2 / "connected_posts_comments.csv"
 PREPROCESSED_POSTS = DATA_MINING_S2 / "preprocessed_full_posts.csv"
 INVALID_CODES = DATA_MINING_S2 / "invalid_codes.csv"
 
+
 LLM_INFERENCE = DATA / "llm_inference"
 
-MISUSE_CASES_POSTS = LLM_INFERENCE / "misuse_cases_posts.json"
-MISUSE_CASES_CODES = LLM_INFERENCE / "misuse_cases_codes.json"
+LLM_CLASSIFICATION = LLM_INFERENCE / "classification"
+LLM_SUMMARIZATION = LLM_INFERENCE / "summarization"
 
-JUDGEMENT_CODES = LLM_INFERENCE / "judgement_codes.json"
-MISUSE_SUMMARY = LLM_INFERENCE / "misuse_summary.csv"
+
+MISUSE_CASES_POSTS = LLM_CLASSIFICATION / "misuse_cases_posts.json"
+
+CODE_ANALYSIS = LLM_CLASSIFICATION / "code_analysis.json"
+CODE_JUDGEMENT = LLM_CLASSIFICATION / "code_judgement.json"
+MERGED_LLM_RESULTS = LLM_CLASSIFICATION / "merged_llm_results.json"
+
+CODE_ANALYSIS_SUMMARY = LLM_SUMMARIZATION / "code_analysis_summary.log"
+CODE_JUDGEMENT_SUMMARY = LLM_SUMMARIZATION / "judgement_summary.log"
+MERGE_SUMMARY = LLM_SUMMARIZATION / "merge_summary.log"
+
+
