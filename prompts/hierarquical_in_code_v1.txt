@@ -108,7 +108,7 @@ LEVEL 4 — DECISION RULES
 2. **Label Assignment**
    - Assign one label per independent misuse (taxonomy-based).
    - Use only the categories and subtypes from the taxonomy, do not create new subtypes in any way
-   - Do not use the category name as a subtype under any circumstances; this is strictly prohibited.
+   - Do not use the category name as a subtype under any circumstances; this is strictly prohibited. Example: if the category is PKM, the subtype cannot be "Poor Key Management".
    - Do not create multiple responses for the same code; only one containing all its categories and subtypes of misuse, if any.
    - In the code index label, use only the code index that is passed. If 3 codes were received, the response should not contain a code index greater than 3.
 
