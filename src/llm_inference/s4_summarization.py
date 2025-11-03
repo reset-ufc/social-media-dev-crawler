@@ -35,8 +35,8 @@ def summarize_analysis(misuse_data):
         has_misuse = case.get("has_misuse", False)
         if has_misuse:
             for m in case.get("misuses", []):
-                cat = m.get("category", "Unknown")
-                sub = m.get("subtype", "N/A")
+                cat = m.get("categories", "Unknown")
+                sub = m.get("subtypes", "N/A")
                 categories[cat][sub] += 1
                 rows.append({
                     "question_id": qid,
