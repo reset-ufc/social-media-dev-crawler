@@ -169,6 +169,11 @@ def main():
         logger.error(f"Arquivo não encontrado: {FILTRED_POSTS}")
         return
 
+    # --- Initial stats ---
+    total_posts = len(df)
+    total_questions = df['question_id'].nunique()
+    logger.info(f"Arquivo carregado. Total de perguntas: {total_questions}")
+
     ensure_parent_dir(PREPROCESSED_POSTS)
     ensure_parent_dir(INVALID_CODES)
 
@@ -176,25 +181,23 @@ def main():
     if not invalid_path.lower().endswith(".csv"):
         invalid_path += ".csv"
 
-    invalid_rows = []
     valid_rows = []
+    invalid_rows = []
+    all_reasons = []
+    invalid_question_ids = set()
 
     logger.info("Iniciando pré-processamento de posts (S7)...")
-
-    invalid_question_ids = set()
-    total_invalid_blocks = 0
 
     for _, row in tqdm(df.iterrows(), total=len(df), desc="Pré-processando posts (s7)"):
         body = str(row.get('body', ''))
         cleaned_body, extracted_code, invalid_blocks, flags, reasons = clean_text_and_extract_code(body)
+        all_reasons.extend(reasons)
 
         row_copy = row.copy()
         row_copy['body'] = cleaned_body
         row_copy['code'] = extracted_code
 
-        # Marca posts com blocos inválidos
         if invalid_blocks:
-            total_invalid_blocks += len(invalid_blocks)
             invalid_question_ids.add(row.get("question_id", ""))
             row_copy["invalid_block_preview"] = (
                 invalid_blocks[0][:1000] + " ...[truncated]" if len(invalid_blocks[0]) > 1000 else invalid_blocks[0]
@@ -203,60 +206,63 @@ def main():
         else:
             valid_rows.append(row_copy)
 
-    df_valid = pd.DataFrame(valid_rows)
-    df_invalid = pd.DataFrame(invalid_rows)
-
-    # Excluir respostas/comentários ligados a perguntas inválidas ===
-    if invalid_question_ids:
-        logger.info(f"Foram detectadas {len(invalid_question_ids)} perguntas com código inválido. Removendo suas respostas e comentários associados...")
-        related_invalids = df_valid[df_valid["question_id"].isin(invalid_question_ids)]
-        df_invalid = pd.concat([df_invalid, related_invalids], ignore_index=True)
-        df_valid = df_valid[~df_valid["question_id"].isin(invalid_question_ids)]
-
-    # Remover duplicatas 
-    before_dup_valid = len(df_valid)
-    before_dup_invalid = len(df_invalid)
-
-    df_valid.drop_duplicates(subset=["site_alias", "id"], keep="first", inplace=True)
-    df_invalid.drop_duplicates(subset=["site_alias", "id"], keep="first", inplace=True)
-
-    logger.info(f"Removidas {before_dup_valid - len(df_valid)} duplicatas do conjunto válido.")
-    logger.info(f"Removidas {before_dup_invalid - len(df_invalid)} duplicatas do conjunto inválido.")
-
-    # === Estatísticas detalhadas ===
-    from collections import Counter
-    all_reasons = []
-    for _, row in tqdm(df.iterrows(), total=len(df), desc="Gerando estatísticas detalhadas"):
-        _, _, _, _, reasons = clean_text_and_extract_code(str(row.get('body', '')))
-        all_reasons.extend(reasons)
-
+    # --- Log rejected blocks ---
     stats = Counter(all_reasons)
     total_blocks = len(all_reasons)
-    total_valid_blocks = sum(count for reason, count in stats.items() if reason.startswith('aceito'))
+    total_valid_blocks = sum(c for r, c in stats.items() if r.startswith('aceito'))
+    logger.info(f"Total de blocos de código encontrados: {total_blocks}")
+    logger.info(f"Total de blocos de código que passaram pelo filtro: {total_valid_blocks}")
+    rejected_stats = {r: c for r, c in stats.items() if r.startswith('rejeitado')}
 
-    logger.info("\n--- Relatório de Filtros de Bloco de Código ---")
-    logger.info(f"Total de blocos de código processados: {total_blocks}")
+    logger.info("\n--- Relatório de Blocos de Código Rejeitados ---")
+    if rejected_stats:
+        for reason, count in sorted(rejected_stats.items(), key=lambda item: item[1], reverse=True):
+            percentage = (count / total_blocks) * 100 if total_blocks > 0 else 0
+            logger.info(f"{reason:<35} {count:<6} ({percentage:.2f}%)")
+    else:
+        logger.info("Nenhum bloco de código foi rejeitado.")
 
-    logger.info("\n--- Blocos Rejeitados ---")
-    for reason, count in sorted({r: c for r, c in stats.items() if r.startswith('rejeitado')}.items(), key=lambda x: x[1], reverse=True):
-        pct = (count / total_blocks) * 100 if total_blocks else 0
-        logger.info(f"{reason:<35} {count:<6} ({pct:.2f}%)")
+    df_valid_intermediate = pd.DataFrame(valid_rows)
+    df_invalid = pd.DataFrame(invalid_rows)
 
-    logger.info("\n--- Blocos Aceitos ---")
-    for reason, count in sorted({r: c for r, c in stats.items() if r.startswith('aceito')}.items(), key=lambda x: x[1], reverse=True):
-        pct = (count / total_blocks) * 100 if total_blocks else 0
-        logger.info(f"{reason:<35} {count:<6} ({pct:.2f}%)")
+    # Move all posts related to an invalid question to df_invalid
+    if invalid_question_ids:
+        related_invalids = df_valid_intermediate[df_valid_intermediate["question_id"].isin(invalid_question_ids)].copy()
+        df_invalid = pd.concat([df_invalid, related_invalids], ignore_index=True)
+        df_valid = df_valid_intermediate[~df_valid_intermediate["question_id"].isin(invalid_question_ids)].copy()
+    else:
+        df_valid = df_valid_intermediate.copy()
 
-    logger.info("\n--- Resumo Final ---")
-    logger.info(f"Total de blocos válidos: {total_valid_blocks}")
-    logger.info(f"Total de posts válidos: {len(df_valid)}")
-    logger.info(f"Total de posts inválidos (incluindo respostas/comentários): {len(df_invalid)}")
+    # --- Calculate final counts for logging ---
+    if "" in invalid_question_ids:
+        invalid_question_ids.remove("")
+    
+    num_invalid_questions = len(invalid_question_ids)
+    
+    if 'id' in df_valid.columns and 'question_id' in df_valid.columns:
+        is_question_mask = df_valid['id'] == df_valid['question_id']
+        num_valid_questions = len(df_valid[is_question_mask])
+        num_valid_answers_comments = len(df_valid[~is_question_mask])
+    else:
+        logger.warning("Colunas 'id' ou 'question_id' não encontradas. A contagem de perguntas/respostas pode estar incorreta.")
+        num_valid_questions = 0
+        num_valid_answers_comments = len(df_valid)
 
-    # === Salvar arquivos ===
+    # --- Log final summary ---
+    logger.info("\n--- Resumo do Processamento ---")
+    logger.info(f"Perguntas Válidas: {num_valid_questions}")
+    logger.info(f"Perguntas Inválidas: {num_invalid_questions}")
+    
+    logger.info(f"\n--- Arquivo Final ({PREPROCESSED_POSTS}) ---")
+    logger.info(f"Perguntas salvas: {num_valid_questions}")
+    logger.info(f"Respostas e Comentários salvos: {num_valid_answers_comments}")
+    logger.info(f"Total de posts salvos: {len(df_valid)}")
+
+    # --- Save files ---
     df_valid.to_csv(PREPROCESSED_POSTS, index=False)
     df_invalid.to_csv(invalid_path, index=False)
 
-    logger.info("Processamento concluído com sucesso!")
+    logger.info("\nProcessamento concluído com sucesso!")
 
 
 if __name__ == "__main__":

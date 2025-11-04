@@ -67,9 +67,7 @@ def extract_posts_and_comments():
             continue
 
         relevant_question_ids = set(site_questions_df["question_id"].values)
-        found_answer_ids = set()
-        comment_counter = {}  # <=== Novo dicionário para contar comentários
-
+        
         temp_dir = tempfile.mkdtemp()
         try:
             with py7zr.SevenZipFile(archive_path, mode="r") as archive:
@@ -79,84 +77,83 @@ def extract_posts_and_comments():
                     continue
                 archive.extract(path=temp_dir, targets=targets)
 
-                posts_path = os.path.join(temp_dir, "Posts.xml")
-                if os.path.exists(posts_path):
-                    context = ET.iterparse(posts_path, events=("start",))
-                    for _, elem in context:
-                        if elem.tag == "row" and elem.attrib.get("PostTypeId") == "2":
-                            parent_id = elem.attrib.get("ParentId")
-                            if parent_id in relevant_question_ids:
-                                answer_id = elem.attrib.get("Id", "")
-                                found_answer_ids.add(answer_id)
-                        elem.clear()
+            # 1. Find answers and store them
+            answers = []
+            found_answer_ids = set()
+            posts_path = os.path.join(temp_dir, "Posts.xml")
+            if os.path.exists(posts_path):
+                context = ET.iterparse(posts_path, events=("start",))
+                for _, elem in context:
+                    if elem.tag == "row" and elem.attrib.get("PostTypeId") == "2":
+                        parent_id = elem.attrib.get("ParentId")
+                        if parent_id in relevant_question_ids:
+                            answers.append(elem.attrib)
+                            found_answer_ids.add(elem.attrib.get("Id"))
+                    elem.clear()
 
-                comments_path = os.path.join(temp_dir, "Comments.xml")
-                if os.path.exists(comments_path):
-                    posts_to_get_comments_for = relevant_question_ids.union(found_answer_ids)
-                    context = ET.iterparse(comments_path, events=("start",))
-                    for _, elem in context:
-                        if elem.tag == "row":
-                            post_id = elem.attrib.get("PostId")
-                            if post_id in posts_to_get_comments_for:
-                                comment_counter[post_id] = comment_counter.get(post_id, 0) + 1
-                        elem.clear()
+            # 2. Count comments for relevant posts
+            comment_counter = {}
+            comments_path = os.path.join(temp_dir, "Comments.xml")
+            if os.path.exists(comments_path):
+                posts_to_get_comments_for = relevant_question_ids.union(found_answer_ids)
+                context = ET.iterparse(comments_path, events=("start",))
+                for _, elem in context:
+                    if elem.tag == "row":
+                        post_id = elem.attrib.get("PostId")
+                        if post_id in posts_to_get_comments_for:
+                            comment_counter[post_id] = comment_counter.get(post_id, 0) + 1
+                    elem.clear()
+            
+            site_comments = sum(comment_counter.values())
+            total_comments += site_comments
+
+            # 3. Write questions to CSV
+            for _, q in site_questions_df.iterrows():
+                qid = q.get("question_id", "")
+                q_comments = comment_counter.get(qid, 0)
+                row = [
+                    q.get("site_alias", ""), q.get("tags", ""), qid,
+                    q.get("accepted_answer_id", ""), q.get("answer_count", "0"),
+                    q.get("creation_date", ""), q.get("last_activity_date", ""),
+                    q.get("last_edit_date", ""), q.get("owner_id", ""),
+                    q.get("score", "0"), q.get("view_count", "0"), q_comments,
+                    q.get("title", ""), q.get("body", ""), q.get("site", ""),
+                    qid, "question"
+                ]
+                append_to_csv(row)
+                total_questions += 1
+
+            # 4. Write answers to CSV
+            total_answers_site = 0
+            for answer_attrib in answers:
+                answer_id = answer_attrib.get("Id", "")
+                parent_id = answer_attrib.get("ParentId")
+                a_comments = comment_counter.get(answer_id, 0)
+                row = [
+                    site_alias, "", parent_id, "", "",
+                    safe_date(answer_attrib.get("CreationDate", "")),
+                    safe_date(answer_attrib.get("LastActivityDate", "")),
+                    safe_date(answer_attrib.get("LastEditDate", "")),
+                    answer_attrib.get("OwnerUserId", ""), answer_attrib.get("Score", "0"),
+                    "", a_comments, "", answer_attrib.get("Body", ""),
+                    site_file, answer_id, "answer"
+                ]
+                append_to_csv(row)
+                total_answers_site += 1
+            total_answers += total_answers_site
+            
+            logger.info(f"[{site_alias}] Perguntas: {len(site_questions_df)}, Respostas: {total_answers_site}")
+            logger.info(f"[{site_alias}] Comentários contabilizados: {site_comments}")
 
         except Exception as e:
             logger.error(f"[{site_alias}] ERRO ao processar arquivos do dump: {e}", exc_info=True)
         finally:
             shutil.rmtree(temp_dir)
 
-        for _, q in site_questions_df.iterrows():
-            qid = q.get("question_id", "")
-            q_comments = comment_counter.get(qid, 0)
-            row = [
-                q.get("site_alias", ""), q.get("tags", ""), qid,
-                q.get("accepted_answer_id", ""), q.get("answer_count", "0"),
-                q.get("creation_date", ""), q.get("last_activity_date", ""),
-                q.get("last_edit_date", ""), q.get("owner_id", ""),
-                q.get("score", "0"), q.get("view_count", "0"), q_comments,
-                q.get("title", ""), q.get("body", ""), q.get("site", ""),
-                qid, "question"
-            ]
-            append_to_csv(row)
-            total_questions += 1
-
-        temp_dir = tempfile.mkdtemp()
-        try:
-            with py7zr.SevenZipFile(archive_path, mode="r") as archive:
-                if "Posts.xml" not in archive.getnames():
-                    continue
-                archive.extract(path=temp_dir, targets=["Posts.xml"])
-                posts_path = os.path.join(temp_dir, "Posts.xml")
-                if os.path.exists(posts_path):
-                    context = ET.iterparse(posts_path, events=("start",))
-                    for _, elem in context:
-                        if elem.tag == "row" and elem.attrib.get("PostTypeId") == "2":
-                            parent_id = elem.attrib.get("ParentId")
-                            if parent_id in relevant_question_ids:
-                                answer_id = elem.attrib.get("Id", "")
-                                a_comments = comment_counter.get(answer_id, 0)
-                                row = [
-                                    site_alias, "", parent_id, "", "",
-                                    safe_date(elem.attrib.get("CreationDate", "")),
-                                    safe_date(elem.attrib.get("LastActivityDate", "")),
-                                    safe_date(elem.attrib.get("LastEditDate", "")),
-                                    elem.attrib.get("OwnerUserId", ""), elem.attrib.get("Score", "0"),
-                                    "", a_comments, "", elem.attrib.get("Body", ""),
-                                    site_file, answer_id, "answer"
-                                ]
-                                append_to_csv(row)
-                                total_answers += 1
-                        elem.clear()
-        finally:
-            shutil.rmtree(temp_dir)
-
-        logger.info(f"[{site_alias}] Comentários contabilizados: {sum(comment_counter.values())}")
-
     logger.info("\n##### RESUMO FINAL DA ETAPA 5 #####")
     logger.info(f"  - Total de Perguntas: {total_questions}")
     logger.info(f"  - Total de Respostas: {total_answers}")
-    logger.info(f"  - Total de Comentários Contabilizados: {sum(comment_counter.values())}")
+    logger.info(f"  - Total de Comentários Contabilizados: {total_comments}")
     logger.info(f"Arquivo final salvo em: {CONNECTED_POSTS}")
 
 def main():
