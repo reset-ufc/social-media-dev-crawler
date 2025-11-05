@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime
 
 import logging
-from paths import DUMP_MINING_LOG_FILE
+from paths import DATA_MINING_S2, DUMP_MINING_LOG_FILE, LLM_CLASSIFICATION, LLM_SUMMARIZATION, RELEATED_TAGS_DIR
 
 
 def ensure_parent_dir(path):
@@ -63,3 +63,10 @@ def get_logger(name: str, level=logging.INFO) -> logging.Logger:
     logger.addHandler(fh)
 
     return logger
+
+def make_data():
+    """Creates the data directory structure."""
+    os.makedirs(RELEATED_TAGS_DIR, exist_ok=True)
+    os.makedirs(DATA_MINING_S2, exist_ok=True)
+    os.makedirs(LLM_CLASSIFICATION, exist_ok=True)
+    os.makedirs(LLM_SUMMARIZATION, exist_ok=True)
