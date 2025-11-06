@@ -5,7 +5,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils_global import ensure_parent_dir
 from paths import *
 import json
-from llm_inference.s0_utils import load_data
+from llm_inference.s2_llm_chain import load_json_data
+
 
 def get_judge_misuses(judge_question):
     """Busca a lista de misuses no objeto de julgamento, que pode ter chaves inconsistentes."""
@@ -14,6 +15,7 @@ def get_judge_misuses(judge_question):
         if key in judge_question and isinstance(judge_question[key], list):
             return judge_question[key]
     return []
+
 
 def merge_results(misuse_data, judge_data):
     """
@@ -77,12 +79,13 @@ def merge_results(misuse_data, judge_data):
 
     return "\n".join(summary_lines), merged_questions_output
 
+
 def main():
     """
     Função principal para carregar os dados, executar o merge e salvar os resultados.
     """
-    misuse_data = load_data(CODE_ANALYSIS)
-    judge_data = load_data(CODE_JUDGEMENT)
+    misuse_data = load_json_data(CODE_ANALYSIS)
+    judge_data = load_json_data(CODE_JUDGEMENT)
 
     summary_text, merged_data = merge_results(misuse_data, judge_data)
 

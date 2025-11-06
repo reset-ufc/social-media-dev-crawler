@@ -1,10 +1,14 @@
 import sys
 import os
-import re
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import re
 import pandas as pd
 from paths import PREPROCESSED_POSTS
-import warnings
+import json
+
+
+# Create inputs
 
 
 def get_post_metadata(post_id: str, site: str, posts_filepath: str = PREPROCESSED_POSTS) -> str:
@@ -142,6 +146,37 @@ def code_analyze_string(post_id: str, site: str, posts_filepath: str = PREPROCES
     formatted_blocks = [f"code {i+1}:\n{block}" for i, block in enumerate(code_blocks)]
 
     return "\n".join(formatted_blocks)
+
+
+
+# pass inputs
+
+
+def input_hierarquical_code_analysis(case) -> dict:
+    """Processes a case for code analysis."""
+    post_id = case.get('id')
+    site = case.get('site')
+    if not post_id or not site:
+        return None
+    code_input = code_analyze_string(str(post_id), site)
+    if not code_input:
+        return None
+        
+    metadata_input = get_post_metadata(str(post_id), site)
+    
+    return {"codes": code_input, "post_metadata": metadata_input}
+
+
+def input_hierarquical_code_judgement(case):
+    """Processes a case for the judging pipeline."""
+    post_id = case.get('question_id')
+    site = case.get('site', '')
+    
+    code_input = code_analyze_string(str(post_id), site)
+    analysis_input = json.dumps(case, indent=2)
+
+    return {"codes": code_input, "analysis": analysis_input}
+
 
 
 def main():

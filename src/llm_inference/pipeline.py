@@ -1,36 +1,35 @@
+from s4_merge_llm_results import main as run_s4
+from s3_summarization import main as run_s3
+from s2_llm_chain import run_llm_chain, load_csv_data
+from s1_make_llm_input import input_hierarquical_code_analysis, input_hierarquical_code_judgement
+from s0_utils import load_prompt
+from paths import PREPROCESSED_POSTS, CODE_ANALYSIS, CODE_JUDGEMENT
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from s1_make_llm_input import main as run_1_s1
-from s2_detect_misuse import process_code_case as process_s2_case
-from s4_summarization import main as run_4_s4
-from s5_merge_llm_results import main as run_5_s5
-from s0_utils import hierarquical_code_anylisis, run_pipeline_code_analysis, judge_code_analysis, run_pipeline_judge, load_csv_data
-from paths import PREPROCESSED_POSTS, CODE_ANALYSIS, CODE_JUDGEMENT
-from s3_judge_model import process_judge_case as process_s3_case
-
 
 def run_full_pipeline(limit=0):
-    run_pipeline_code_analysis(
+    run_llm_chain(
         input_file=PREPROCESSED_POSTS,
         output_file=CODE_ANALYSIS,
-        prompt_template=hierarquical_code_anylisis(),
-        process_case_func=process_s2_case,
+        prompt_template=load_prompt("code_analysis_v1.txt", 'h'),
+        process_case_func=input_hierarquical_code_analysis,
         data_loader=load_csv_data,
+        filter_dict={'type': 'question'},
         limit=limit,
         description='Analysing codes'
     )
-    run_pipeline_judge(
+    run_llm_chain(
         input_file=CODE_ANALYSIS,
         output_file=CODE_JUDGEMENT,
-        prompt_template=judge_code_analysis(),
-        process_case_func=process_s3_case,
+        prompt_template=load_prompt("code_judge_v1.txt", 'h'),
+        process_case_func=input_hierarquical_code_judgement,
         limit=limit,
         description='Judging analyses'
     )
-    run_4_s4()
-    run_5_s5()
+    run_s3()
+    run_s4()
 
 
 if __name__ == '__main__':

@@ -4,11 +4,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils_global import get_logger, ensure_parent_dir
 from paths import *
-import json
 import pandas as pd
 from collections import defaultdict, Counter
-from pathlib import Path
-from llm_inference.s0_utils import load_data
+from llm_inference.s2_llm_chain import load_json_data
 
 logger = get_logger(__name__)
 
@@ -82,7 +80,7 @@ def summarize_analysis(misuse_data):
 
 
 def main():
-    misuse_data = load_data(str(CODE_ANALYSIS))
+    misuse_data = load_json_data(str(CODE_ANALYSIS))
     summary_text = summarize_analysis(misuse_data)
 
     logger.info(summary_text)
