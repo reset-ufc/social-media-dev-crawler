@@ -181,32 +181,49 @@ def main():
         logger.error(f"Arquivo não encontrado: {FILTRED_POSTS}")
         return
 
-    is_question_mask = df['id'] == df['question_id']
-    total_questions = len(df[is_question_mask])
-    logger.info(f"Arquivo carregado. Total de perguntas (questions): {total_questions}")
-
     ensure_parent_dir(PREPROCESSED_POSTS)
     ensure_parent_dir(INVALID_CODES)
     invalid_path = str(INVALID_CODES)
     if not invalid_path.lower().endswith(".csv"):
         invalid_path += ".csv"
 
-    valid_rows, invalid_rows = [], []
-    all_results = []
+    # Etapa 1: Identificar IDs de perguntas com código inválido
+    logger.info("Etapa 1: Identificando perguntas com código inválido...")
+    questions_df = df[df['type'] == 'question'].copy() if 'type' in df.columns else pd.DataFrame()
+    
+    if questions_df.empty:
+        logger.warning("Nenhuma 'question' encontrada para validar. Todos os posts serão considerados válidos.")
+        questions_df = pd.DataFrame(columns=df.columns) # Evita erros, mas processa nada
+
     invalid_question_ids = set()
+    all_results = []
 
-    logger.info("Iniciando pré-processamento e validação de código (S8)...")
-
-    for _, row in tqdm(df.iterrows(), total=len(df), desc="Validando blocos de código (s8)"):
+    logger.info(f"Total de perguntas para analisar: {len(questions_df)}")
+    for _, row in tqdm(questions_df.iterrows(), total=len(questions_df), desc="Analisando perguntas (s8)"):
         body = str(row.get('body', ''))
-        cleaned_body, extracted_code, invalid_blocks, results = process_body_and_validate_code(body)
+        _, extracted_code, invalid_blocks, results = process_body_and_validate_code(body)
         all_results.extend(results)
 
-        row_copy = row.copy()
+        has_valid_blocks = extracted_code.strip() != ""
+        has_invalid_blocks = len(invalid_blocks) > 0
+
+        if has_invalid_blocks and not has_valid_blocks:
+            invalid_question_ids.add(row.get("question_id"))
+
+    logger.info(f"Identificadas {len(invalid_question_ids)} perguntas com blocos de código exclusivamente inválidos.")
+
+    # Etapa 2: Processar e separar todos os posts (perguntas, respostas, comentários)
+    logger.info("Etapa 2: Processando e separando todos os posts...")
+    valid_rows, invalid_rows = [], []
+
+    for _, row in tqdm(df.iterrows(), total=len(df), desc="Processando todos os posts (s8)"):
+        body = str(row.get('body', ''))
+        cleaned_body, extracted_code, invalid_blocks, results = process_body_and_validate_code(body)
+        
+        row_copy = row.to_dict()
         row_copy['body'] = cleaned_body
         row_copy['code'] = extracted_code
 
-        # Create a summary of detected languages
         valid_languages = [res['language'] for res in results if res['classification'] == 'valid']
         if valid_languages:
             lang_counts = Counter(valid_languages)
@@ -214,18 +231,13 @@ def main():
         else:
             row_copy['languages'] = None
 
-        # A post is invalid ONLY if it contains code blocks, but NONE are valid.
-        # Otherwise, it's considered valid, and its 'code' column will contain only the valid blocks.
-        has_valid_blocks = extracted_code.strip() != ""
-        has_invalid_blocks = len(invalid_blocks) > 0
-
-        if has_invalid_blocks and not has_valid_blocks:
-            invalid_question_ids.add(row.get("question_id", ""))
-            preview = invalid_blocks[0]
-            row_copy["invalid_block_preview"] = (preview[:1000] + "..." if len(preview) > 1000 else preview)
+        # Separa a linha para a lista de válidos ou inválidos
+        if row.get("question_id") in invalid_question_ids:
+            if invalid_blocks:
+                preview = invalid_blocks[0]
+                row_copy["invalid_block_preview"] = (preview[:1000] + "..." if len(preview) > 1000 else preview)
             invalid_rows.append(row_copy)
         else:
-            # Post is valid if it has no code, only valid code, or a mix of valid and invalid code.
             valid_rows.append(row_copy)
 
     # --- Log de Estatísticas ---
@@ -233,7 +245,7 @@ def main():
     valid_blocks = [r for r in all_results if r['classification'] == 'valid']
     invalid_blocks_results = [r for r in all_results if r['classification'] == 'invalid']
     
-    logger.info(f"\nTotal de blocos de código encontrados: {total_blocks}")
+    logger.info(f"\nTotal de blocos de código encontrados nas PERGUNTAS: {total_blocks}")
     logger.info(f"Total de blocos VÁLIDOS: {len(valid_blocks)}")
     logger.info(f"Total de blocos INVÁLIDOS: {len(invalid_blocks_results)}")
 
@@ -241,14 +253,14 @@ def main():
         lang_stats = Counter(r['language'] for r in valid_blocks)
         logger.info("\n--- Estatísticas de Linguagens Válidas ---")
         for lang, count in sorted(lang_stats.items(), key=lambda item: item[1], reverse=True):
-            percentage = (count / len(valid_blocks)) * 100
+            percentage = (count / len(valid_blocks)) * 100 if valid_blocks else 0
             logger.info(f"{lang:<20} {count:<6} ({percentage:.2f}%)")
 
     if invalid_blocks_results:
         reason_stats = Counter(r['reason'] for r in invalid_blocks_results)
         logger.info("\n--- Motivos de Rejeição de Blocos Inválidos ---")
         for reason, count in sorted(reason_stats.items(), key=lambda item: item[1], reverse=True):
-            percentage = (count / total_blocks) * 100
+            percentage = (count / total_blocks) * 100 if total_blocks else 0
             logger.info(f"{reason:<45} {count:<6} ({percentage:.2f}%)")
 
     # --- Separação Final de Posts Válidos e Inválidos ---
