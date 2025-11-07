@@ -166,3 +166,5 @@ dump/
 data/
 Extraidos dump/
 .csv
+.python-version
+.vscode
