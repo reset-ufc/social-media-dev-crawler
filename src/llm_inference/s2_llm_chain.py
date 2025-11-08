@@ -40,7 +40,7 @@ def load_csv_data(filepath):
         return []
 
     df = pd.read_csv(filepath)
-    df = df[df['type'] == ['question', 'answer']] # df = df[df['type'] == 'question'] (versão antiga)
+    df = df[df['type'] == 'question'] 
     return df.to_dict('records')
 
 
