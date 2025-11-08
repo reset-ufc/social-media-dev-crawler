@@ -41,7 +41,28 @@ def load_csv_data(filepath):
 
     df = pd.read_csv(filepath)
     df = df[df['type'] == 'question'] 
-    return df.to_dict('records')
+    df = df[df["body"].notna() & df["body"].str.strip().astype(bool)]
+    df = df[df["body"].str.len() > 100]
+
+    # Palavras-chave padrões de criptografia 
+    crypto_keywords = [
+        'aes', 'rsa', 'pbkdf2', 'sha', 'hash', 'cipher', 'iv', 'key', 
+        'nonce', 'encryption', 'crypto', 'decrypt', 'openssl', 'salt', 
+        'random', 'secret', 'base64'
+    ]
+
+    # Filtros de relevância
+    has_crypto_code = df["body"].str.contains('|'.join(crypto_keywords), case=False, na=False)
+    has_crypto_tag = df["tags"].str.contains(
+        'crypto|encryption|key|hash|cipher|rsa|aes|security', case=False, na=False
+    )
+    has_code_block = df["body"].str.contains("<code>", na=False)
+
+    # Mantém perguntas que tenham indícios de criptografia
+    df = df[has_crypto_code | has_crypto_tag | has_code_block]
+
+    print(f"Total de perguntas selecionadas para LLM: {len(df)}")
+    return df.to_dict("records")
 
 
 def append_to_jsonl(data, filepath):
