@@ -12,7 +12,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 def run_full_pipeline(limit=0):
     run_llm_chain(
         input_file=PREPROCESSED_POSTS,
-        output_file=HIER_LLM_CLASSIFICATION,
+        output_file=HIER_CODE_ANALYSIS,
         prompt_template=load_prompt("code_analysis_v1.txt", 'h'),
         process_case_func=input_hierarquical_code_analysis,
         data_loader=load_csv_data,
@@ -21,7 +21,7 @@ def run_full_pipeline(limit=0):
         description='Analysing codes'
     )
     run_llm_chain(
-        input_file=HIER_LLM_CLASSIFICATION,
+        input_file=HIER_CODE_ANALYSIS,
         output_file=HIER_CODE_JUDGEMENT,
         prompt_template=load_prompt("code_judge_v1.txt", 'h'),
         process_case_func=input_hierarquical_code_judgement,
