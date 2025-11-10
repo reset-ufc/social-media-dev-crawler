@@ -80,17 +80,17 @@ def merge_results(misuse_data, judge_data):
     return "\n".join(summary_lines), merged_questions_output
 
 
-def main():
+def main(misuse_data, judge_data, merge_summary, merged_llm_results):
     """
     Função principal para carregar os dados, executar o merge e salvar os resultados.
     """
-    misuse_data = load_json_data(CODE_ANALYSIS)
-    judge_data = load_json_data(CODE_JUDGEMENT)
+    misuse_data = load_json_data(misuse_data)
+    judge_data = load_json_data(judge_data)
 
     summary_text, merged_data = merge_results(misuse_data, judge_data)
 
-    ensure_parent_dir(MERGE_SUMMARY)
-    with open(MERGE_SUMMARY, "w", encoding="utf-8") as f:
+    ensure_parent_dir(merge_summary)
+    with open(merge_summary, "w", encoding="utf-8") as f:
         f.write(summary_text)
     
     print("--- Merge Summary ---")
@@ -98,13 +98,13 @@ def main():
 
     if merged_data:
         try:
-            ensure_parent_dir(MERGED_LLM_RESULTS)
-            with open(MERGED_LLM_RESULTS, 'w', encoding='utf-8') as f:
+            ensure_parent_dir(merged_llm_results)
+            with open(merged_llm_results, 'w', encoding='utf-8') as f:
                 for item in merged_data:
                     f.write(json.dumps(item) + '\n')
-            print(f"Resultados mergeados salvos em: {MERGED_LLM_RESULTS}")
+            print(f"Resultados mergeados salvos em: {merged_llm_results}")
         except Exception as e:
-            print(f'Erro ao salvar resultados mergeados em: {MERGED_LLM_RESULTS}, erro: {e}')
+            print(f'Erro ao salvar resultados mergeados em: {merged_llm_results}, erro: {e}')
     else:
         print("Nenhum dado mergeado para salvar.")
 

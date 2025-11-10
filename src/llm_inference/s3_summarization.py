@@ -79,18 +79,18 @@ def summarize_analysis(misuse_data):
     return "\n".join(lines) + "\n"
 
 
-def main():
-    misuse_data = load_json_data(str(CODE_ANALYSIS))
-    summary_text = summarize_analysis(misuse_data)
+def main(misuse_data, summary):
+    misuse = load_json_data(misuse_data)
+    summary_text = summarize_analysis(misuse)
 
     logger.info(summary_text)
 
     try:
-        ensure_parent_dir(str(CODE_ANALYSIS_SUMMARY))
-        with open(CODE_ANALYSIS_SUMMARY, 'w', encoding='utf-8') as f:
+        ensure_parent_dir(summary)
+        with open(summary, 'w', encoding='utf-8') as f:
             f.write(summary_text)
     except Exception:
-        logger.exception(f'Erro ao salvar o resumo em: {CODE_ANALYSIS_SUMMARY}')
+        logger.exception(f'Erro ao salvar o resumo em: {summary}')
 
 if __name__ == "__main__":
     main()
