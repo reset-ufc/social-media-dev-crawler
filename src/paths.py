@@ -28,7 +28,7 @@ DUMP_MINING_LOG_FILE = DATA_MINING / "data_mining.log"
 
 
 SITES = {
-    "stackoverflow": "stackapps.com.7z",
+    "stackoverflow": "stackoverflow.com.7z",
     "crypto": "crypto.stackexchange.com.7z",
     "security": "security.stackexchange.com.7z",
 }

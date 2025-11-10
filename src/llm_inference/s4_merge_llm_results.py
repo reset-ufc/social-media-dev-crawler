@@ -17,6 +17,10 @@ def get_judge_misuses(judge_question):
     return []
 
 
+def merge_analysis_flat(misuse_data, judge_data):
+    ...
+
+
 def merge_results(misuse_data, judge_data):
     """
     Compara os resultados da análise e do julgamento. A concordância ocorre quando um 'misuse'
