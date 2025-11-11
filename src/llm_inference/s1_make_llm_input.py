@@ -1,10 +1,10 @@
+import re
+import pandas as pd
+from paths import PREPROCESSED_POSTS, HIER_CODE_DETECTION
+import json
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import json
-from paths import PREPROCESSED_POSTS
-import pandas as pd
-import re
 
 
 def get_all_code_blocks(post_id: str, site_alias: str, posts_filepath: str = PREPROCESSED_POSTS) -> list[str]:
@@ -23,7 +23,8 @@ def get_all_code_blocks(post_id: str, site_alias: str, posts_filepath: str = PRE
     try:
         df = pd.read_csv(posts_filepath, dtype=str).fillna('')
     except FileNotFoundError:
-        print(f"ERRO: Arquivo de posts pré-processados não encontrado em: {posts_filepath}")
+        print(
+            f"ERRO: Arquivo de posts pré-processados não encontrado em: {posts_filepath}")
         return []
 
     post_series = df[(df['id'] == post_id) & (df['site_alias'] == site_alias)]
@@ -188,15 +189,14 @@ def code_analyze_string(post_id: str, site_alias: str, posts_filepath: str = PRE
     return "\n".join(formatted_blocks)
 
 
-# Adicionar para ambas as abordagens
 def code_analyze_specific_code_blocks(post_id: str, site: str, indices: list[int], posts_filepath: str = PREPROCESSED_POSTS) -> str:
     all_blocks = get_all_code_blocks(post_id, site, posts_filepath)
-    
+
     if not all_blocks:
         return ""
 
     valid_indices = [i for i in indices if 1 <= i <= len(all_blocks)]
-    
+
     specific_blocks = get_specific_code_blocks(all_blocks, valid_indices)
 
     formatted_blocks = []
@@ -204,20 +204,56 @@ def code_analyze_specific_code_blocks(post_id: str, site: str, indices: list[int
         original_index = valid_indices[i]
         block = specific_blocks[i]
         formatted_blocks.append(f"code {original_index}:\n{block}")
-            
+
     return "\n".join(formatted_blocks)
 
 
 # pass inputs
 
 
-def input_flat_code_analysis(case) -> dict:
-    """Processes a case for code analysis."""
+def input_analysis_specific_codes_metadata(case, path=HIER_CODE_DETECTION) -> dict:
+    """
+    For type step. Extracts specific code blocks from a post based on detected misuses.
+    It reads a jsonl file containing misuse detections, finds the entry corresponding
+    to the post, extracts the code indices of misuses, and formats the specified
+    code blocks for analysis.
+    """
     post_id = case.get('id')
     site = case.get('site')
     if not post_id or not site:
         return None
-    code_input = code_analyze_string(str(post_id), site)
+
+    code_indices = []
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            for line in f:
+                try:
+                    data = json.loads(line)
+                    # NOTE: Assuming the jsonl file contains 'id' and 'site' to match with the case.
+                    # The user-provided structure did not include them, but it's necessary to link
+                    # detections to the correct post.
+                    if str(data.get('id')) == str(post_id) and data.get('site') == site:
+                        if data.get('has_misuse') and 'misuses' in data:
+                            for misuse in data['misuses']:
+                                if 'code_index' in misuse:
+                                    code_indices.append(
+                                        int(misuse['code_index']))
+                        break  # Found the entry for the post, no need to read further.
+                except (json.JSONDecodeError, AttributeError):
+                    # Silently ignore lines that are not valid JSON or not objects
+                    continue
+    except FileNotFoundError:
+        print(
+            f"Warning: Detection file not found at {path}. Cannot select specific code blocks.")
+        return None
+
+    if not code_indices:
+        return None  # No misuses with code blocks found for this post.
+
+    unique_indices = sorted(list(set(code_indices)))
+
+    code_input = code_analyze_specific_code_blocks(
+        str(post_id), site, unique_indices)
     if not code_input:
         return None
 
@@ -226,7 +262,7 @@ def input_flat_code_analysis(case) -> dict:
     return {"codes": code_input, "post_metadata": metadata_input}
 
 
-def input_flat_code_judgement(case):
+def input_judgement_all_codes(case):
     """Processes a case for the judging pipeline."""
     post_id = case.get('question_id')
     site = case.get('site', '')
