@@ -2,11 +2,14 @@ from s4_merge_llm_results import main as run_s4
 from s3_summarization import main as run_s3
 from s2_llm_chain import run_llm_chain, load_csv_data
 from s1_make_llm_input import input_flat_code_analysis, input_flat_code_judgement
-from s0_utils import load_prompt
+from s0_utils import *
 from paths import *
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+model = 'deepseek-r1:32b'
 
 
 def flat_pipeline(limit=0):
@@ -36,7 +39,7 @@ def hier_pipeline(limit=0):
     run_llm_chain(
         input_file=PREPROCESSED_POSTS,
         output_file=HIER_CODE_DETECTION,
-        prompt_template=load_prompt("code_analysis_v1.txt", 'f'),
+        prompt_template=load_prompt("code_analysis_v1.txt", 'h'),
         process_case_func=input_flat_code_analysis,
         data_loader=load_csv_data,
         filter_dict={'type': 'question'},
@@ -46,15 +49,20 @@ def hier_pipeline(limit=0):
     run_llm_chain(
         input_file=HIER_CODE_DETECTION,
         output_file=HIER_CODE_TYPE,
-        prompt_template=load_prompt("code_judge_v1.txt", 'f'),
+        prompt_template=load_prompt("code_judge_v1.txt", 'h'),
         process_case_func=input_flat_code_judgement,
         limit=limit,
         description='Infering type (hier)'
     )
+    combine_hieraruchical_codes(
+        detection=HIER_CODE_DETECTION,
+        code_type=HIER_CODE_TYPE,
+        output_file=HIER_CODE_FULL_CLASSIFICATION
+    )
     run_llm_chain(
         input_file=HIER_CODE_FULL_CLASSIFICATION,
         output_file=FLAT_CODE_JUDGEMENT,
-        prompt_template=load_prompt("code_judge_v1.txt", 'f'),
+        prompt_template=load_prompt("code_judge_v1.txt", 'h'),
         process_case_func=input_flat_code_judgement,
         limit=limit,
         description='Judging analyses (hier)'

@@ -30,3 +30,7 @@ def load_prompt(filename: str, type) -> str:
         print(
             f"Erro: O arquivo de prompt '{filename}' não foi encontrado em '{PROMPTS_DIR}'.")
         raise
+
+
+def combine_hieraruchical_codes(detection, code_type, output_file):
+    ...
