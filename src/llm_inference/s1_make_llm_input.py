@@ -1,10 +1,61 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import json
 from paths import PREPROCESSED_POSTS
 import pandas as pd
 import re
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def get_all_code_blocks(post_id: str, site_alias: str, posts_filepath: str = PREPROCESSED_POSTS) -> list[str]:
+    """
+    Extrai todos os blocos de código de um post e os retorna como uma lista.
+
+    Args:
+        post_id: O ID do post a ser buscado.
+        site_alias: O alias do site onde o post está.
+        posts_filepath: O caminho para o arquivo CSV com os posts.
+
+    Returns:
+        Uma lista de strings, onde cada string é um bloco de código. Retorna
+        uma lista vazia se não houver blocos ou o post não for encontrado.
+    """
+    try:
+        df = pd.read_csv(posts_filepath, dtype=str).fillna('')
+    except FileNotFoundError:
+        print(f"ERRO: Arquivo de posts pré-processados não encontrado em: {posts_filepath}")
+        return []
+
+    post_series = df[(df['id'] == post_id) & (df['site_alias'] == site_alias)]
+    if post_series.empty:
+        print(f"Nenhum post encontrado com ID {post_id} em {site_alias}.")
+        return []
+
+    post = post_series.iloc[0]
+    code_content = post.get('code', '')
+
+    if not code_content:
+        return []
+
+    return re.findall(r'<code[^>]*>(.*?)</code>', code_content, re.DOTALL)
+
+
+def get_specific_code_blocks(all_blocks: list[str], indices: list[int]) -> list[str]:
+    """
+    Seleciona blocos de código de uma lista com base nos índices fornecidos.
+
+    Args:
+        all_blocks: Uma lista de strings de blocos de código.
+        indices: Uma lista de inteiros (1-based) para selecionar os blocos.
+
+    Returns:
+        Uma lista contendo os blocos de código selecionados.
+    """
+    selected_blocks = []
+    for i in indices:
+        if 1 <= i <= len(all_blocks):
+            selected_blocks.append(all_blocks[i - 1])
+    return selected_blocks
 
 
 # Create inputs
@@ -114,31 +165,19 @@ def post_analyze_string(post_id: str, site: str, posts_filepath: str = PREPROCES
     return post_str.strip()
 
 
-def code_analyze_string(post_id: str, site: str, posts_filepath: str = PREPROCESSED_POSTS) -> str:
-    try:
-        # .fillna('') previne erros com valores NaN na coluna 'code'
-        # não deve haver nenhum nan de qualquer forma
-        df = pd.read_csv(posts_filepath, dtype=str).fillna('')
-    except FileNotFoundError:
-        print(
-            f"ERRO: Arquivo de posts pré-processados não encontrado em: {posts_filepath}")
-        return ""
+def code_analyze_string(post_id: str, site_alias: str, posts_filepath: str = PREPROCESSED_POSTS) -> str:
+    """
+    Formata todos os blocos de código de um post em uma única string numerada.
 
-    # Localiza o post pelo ID e site
-    post_series = df[(df['id'] == post_id) & (df['site'] == site)]
-    if post_series.empty:
-        print(f"Nenhum post encontrado com ID {post_id}.")
-        return ""
+    Args:
+        post_id: O ID do post a ser buscado.
+        site: O site onde o post está.
+        posts_filepath: O caminho para o arquivo CSV com os posts.
 
-    post = post_series.iloc[0]
-
-    code_content = post.get('code', '')
-
-    if not code_content:
-        return ""
-
-    # Encontra todos os blocos de código demarcados por <code>...</code>
-    code_blocks = re.findall(r'<code>(.*?)</code>', code_content, re.DOTALL)
+    Returns:
+        Uma string formatada com todos os blocos de código.
+    """
+    code_blocks = get_all_code_blocks(post_id, site_alias, posts_filepath)
 
     if not code_blocks:
         return ""
@@ -146,6 +185,26 @@ def code_analyze_string(post_id: str, site: str, posts_filepath: str = PREPROCES
     formatted_blocks = [f"code {i+1}:\n{block}" for i,
                         block in enumerate(code_blocks)]
 
+    return "\n".join(formatted_blocks)
+
+
+# Adicionar para ambas as abordagens
+def code_analyze_specific_code_blocks(post_id: str, site: str, indices: list[int], posts_filepath: str = PREPROCESSED_POSTS) -> str:
+    all_blocks = get_all_code_blocks(post_id, site, posts_filepath)
+    
+    if not all_blocks:
+        return ""
+
+    valid_indices = [i for i in indices if 1 <= i <= len(all_blocks)]
+    
+    specific_blocks = get_specific_code_blocks(all_blocks, valid_indices)
+
+    formatted_blocks = []
+    for i in range(len(specific_blocks)):
+        original_index = valid_indices[i]
+        block = specific_blocks[i]
+        formatted_blocks.append(f"code {original_index}:\n{block}")
+            
     return "\n".join(formatted_blocks)
 
 
@@ -179,7 +238,7 @@ def input_flat_code_judgement(case):
 
 
 def main():
-    print(code_analyze_string('70094', 'crypto.stackexchange.com.7z'))
+    print(code_analyze_specific_code_blocks('2945', 'crypto', [1, 3]))
 
 
 if __name__ == "__main__":
