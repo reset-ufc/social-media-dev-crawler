@@ -1,0 +1,130 @@
+Your task is to **analyze codes of a Stack Overflow discussion** and identify **all cryptographic misuses** present, using a structured hierarchical approach.
+
+=================================
+LEVEL 1 — CODE UNDERSTANDING
+=================================
+Read the codes, each code is delimited by CODE (number) and END OF CODE (number) markers.
+Read ONLY the content between the delimiters below:
+
+<<<CODES_IN_DISCUSSION>>>
+{{post_metadata}}
+{{codes}}
+<<<END>>>
+
+At this stage:
+- Summarize briefly (1-2 sentences) what the each code is about.
+
+===========================================
+LEVEL 2 — CRYPTOGRAPHIC CONTENT ISOLATION
+===========================================
+If cryptography is present:
+- Extract ALL **cryptography-related snippets** from the codes.
+- Group them logically into independent **analysis units**, where each unit represents a distinct cryptographic operation.
+- Each unit will be analyzed independently in Level 3.
+
+======================================
+LEVEL 3 — MISUSE DETECTION (PER UNIT)
+======================================
+For each analysis unit:
+- Determine the type of criptography misuse using the taxonomy provided below.
+- For each misuse found, report:
+  - category (taxonomy group)
+  - subtype (specific misuse type)
+  - confidence (0-1)
+  - evidence (exact quote)
+  - rationale (why it is insecure)
+
+==================
+MISUSE TAXONOMY
+==================
+**Code-level Misuses**
+- WC (Weak Cryptography): 
+  -  broken/risky algorithms or hashes
+  -  proprietary crypto
+  -  deterministic symmetric encryption
+  -  wrong PBE configs
+- CIB (Coding & Implementation Bugs): 
+  - coding errors
+  - IV bug
+  - missing encryption
+  - key leakage
+- BRH (Bad Randomness Handling): 
+  - PRNG misuse
+  - low-entropy or reused seeds
+
+**Design Flaws**
+- PDF (Program Design Flaws): 
+  - insecure defaults
+  - improper key handling
+  - weak enc-auth combinations
+  - side-channel vulnerabilities
+- ICV (Improper Certificate Validation): 
+  - missing/incomplete TLS validation
+  - insecure certificate acceptance
+- PKC (Public-Key Cryptography): 
+  - deterministic RSA
+  - weak padding; insecure key configs
+  - weak signatures
+  - bad DH/ECDH curves
+
+**Insecure Architectures**
+- IVM (IV & Nonce Management): 
+    - static
+    - predictable, or reused IVs/nonces
+- PKM (Poor Key Management): 
+  - weak or hardcoded keys
+  - reused stream keys
+  - poor key distribution
+- CAI (Crypto Architecture & Infrastructure): 
+  - crypto agility issues
+  - API misconfigurations
+  - randomness reuse
+  - PKI/CA mismanagement
+
+==========================
+LEVEL 4 — DECISION RULES
+==========================
+1. **Label Assignment**
+   - Assign one label per independent misuse (taxonomy-based).
+   - Use only the categories and subtypes from the taxonomy, do not create new subtypes in any way
+   - Do not use the category name as a subtype under any circumstances; this is strictly prohibited. Example: if the category is PKM, the subtype cannot be "Poor Key Management".
+   - Do not create multiple responses for the same code; only one containing all its categories and subtypes of misuse, if any.
+   - In the code index label, use only the code index that is passed. If 3 codes were received, the response should not contain a code index greater than 3.
+
+2. **Evidence**
+   - Provide a short quote (≤90 chars), the exact part where you find misuse.
+   - Focus on explicit insecure code, parameters, or guidance.
+   
+3. **Confidence Calibration (0-1)**
+   - 0.95-1.00 → explicit insecure API/mode/parameter in accepted or top-voted answer.
+   - 0.80-0.94 → clear misuse in code/text with consistent evidence.
+   - 0.60-0.79 → probable misuse, limited context.
+   - <0.60 → insufficient evidence → do not report.
+
+==============================
+LEVEL 5 — OUTPUT AGGREGATION
+==============================
+Combine the analyses from all units into a **single structured JSON object** following these rules:
+- `"has_misuse": true` only if ≥1 misuse detected.
+- If no misuse is found, `"misuses"` must be an empty list, and `"summary"` must reflect that.
+
+========================
+OUTPUT (STRICT JSON)
+========================
+```json
+{{
+  "summary": "Short overall summary of the detected cryptographic misuses found in the discussion.",
+  "misuses": [
+    {{
+      "code_index": "1"
+      "categories": "<WC|PKC|ICV|PKM|PDF|CIB|BRH|IVM|CAI>", // comma separeted
+      "subtypes": "<Subtypes Name>", // comma separeted
+      "confidence": 0.xx,
+      "evidence": {{
+        "quote": "<exact snippet>"
+      }},
+      "rationale": "Brief explanation of why this usage represents an insecure or incorrect cryptographic practice."
+    }}
+    // Add more misuse objects if found
+  ],
+}}
