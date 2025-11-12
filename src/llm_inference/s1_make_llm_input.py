@@ -62,7 +62,7 @@ def get_specific_code_blocks(all_blocks: list[str], indices: list[int]) -> list[
 # Create inputs
 
 
-def get_post_metadata(post_id: str, site: str, posts_filepath: str = PREPROCESSED_POSTS) -> str:
+def get_post_metadata(post_id: str, site_alias: str, posts_filepath: str = PREPROCESSED_POSTS) -> str:
     """
     Busca metadados de um post (site, ID e tags) e os formata em uma string.
 
@@ -81,7 +81,7 @@ def get_post_metadata(post_id: str, site: str, posts_filepath: str = PREPROCESSE
         print(f"ERRO: Arquivo de posts não encontrado em: {posts_filepath}")
         return ""
 
-    post_series = df[(df['id'] == post_id) & (df['site'] == site)]
+    post_series = df[(df['id'] == post_id) & (df['site_alias'] == site_alias)]
     if post_series.empty:
         print(f"Nenhum post encontrado com ID {post_id}.")
         return ""
@@ -265,14 +265,14 @@ def input_analysis_specific_codes(case, path=HIER_CODE_DETECTION) -> dict:
 def input_analyze_all_codes(case) -> dict:
     """Processes a case for code analysis."""
     post_id = case.get('id')
-    site = case.get('site')
-    if not post_id or not site:
+    site_alias = case.get('site_alias')
+    if not post_id or not site_alias:
         return None
-    code_input = code_analyze_string(str(post_id), site)
+    code_input = code_analyze_string(str(post_id), site_alias)
     if not code_input:
         return None
 
-    metadata_input = get_post_metadata(str(post_id), site)
+    metadata_input = get_post_metadata(str(post_id), site_alias)
 
     return {"codes": code_input, "post_metadata": metadata_input}
 
