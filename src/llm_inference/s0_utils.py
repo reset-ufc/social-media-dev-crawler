@@ -33,6 +33,20 @@ def load_prompt(filename: str, type) -> str:
         raise
 
 
+def load_json_data(filepath):
+    """Loads data from a JSON file, supporting both standard and JSONL formats."""
+    if not os.path.exists(filepath):
+        print(f"Error: The file {filepath} was not found.")
+        return []
+
+    try:
+        df = pd.read_json(filepath, lines=False)
+    except (ValueError, TypeError):
+        df = pd.read_json(filepath, lines=True)
+
+    return df.to_dict('records')
+
+
 def combine_hier_codes(detection_path, code_type_path, output_path):
     """
     Combina os resultados de 'detection' e 'code_type' e salva em um arquivo,

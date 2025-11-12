@@ -1,7 +1,7 @@
 from paths import *
 from s0_utils import *
 from s1_make_llm_input import *
-from s2_llm_chain import run_llm_chain, load_csv_data
+from s2_llm_chain import run_llm_chain, load_csv_questions
 from s3_summarization import main as run_s3
 from s4_merge_llm_results import main as run_s4
 import sys
@@ -18,7 +18,7 @@ def flat_pipeline(limit=0):
         output_file=FLAT_CODE_ANALYSIS,
         prompt_template=load_prompt("code_analysis_v1.txt", 'f'),
         process_case_func=input_analyze_all_codes,
-        data_loader=load_csv_data,
+        data_loader=load_csv_questions,
         filter_dict={'type': 'question'},
         limit=limit,
         description='Analysing codes (flat)'
@@ -42,7 +42,7 @@ def hier_pipeline(limit=0):
         output_file=HIER_CODE_DETECTION,
         prompt_template=load_prompt("code_detection.txt", 'h'),
         process_case_func=input_analyze_all_codes,
-        data_loader=load_csv_data,
+        data_loader=load_csv_questions,
         filter_dict={'type': 'question'},
         limit=limit,
         description='Detecting (hier)'

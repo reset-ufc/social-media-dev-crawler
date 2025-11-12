@@ -3,6 +3,7 @@ import os
 from tqdm import tqdm
 import json
 from langchain_ollama import ChatOllama
+from s0_utils import load_json_data
 
 
 def get_processed_ids(filepath, id_column='post_id'):
@@ -19,22 +20,8 @@ def get_processed_ids(filepath, id_column='post_id'):
         return set()
 
 
-def load_json_data(filepath):
-    """Loads data from a JSON file, supporting both standard and JSONL formats."""
-    if not os.path.exists(filepath):
-        print(f"Error: The file {filepath} was not found.")
-        return []
-
-    try:
-        df = pd.read_json(filepath, lines=False)
-    except (ValueError, TypeError):
-        df = pd.read_json(filepath, lines=True)
-
-    return df.to_dict('records')
-
-
-def load_csv_data(filepath):
-    """Loads data from a CSV file."""
+def load_csv_questions(filepath):
+    """Loads data from a CSV file, only getting questions."""
     if not os.path.exists(filepath):
         print(f"Error: The file {filepath} was not found.")
         return []
@@ -44,8 +31,8 @@ def load_csv_data(filepath):
     return df.to_dict('records')
 
 
-def append_to_jsonl(data, filepath):
-    """Appends a dictionary to a JSONL file."""
+def append_response_to_jsonl(data, filepath):
+    """Appends the llm response to a JSONL file."""
     df_response = pd.DataFrame([data])
     mode = 'a' if os.path.exists(filepath) else 'w'
     with open(filepath, mode) as f:
@@ -78,7 +65,7 @@ def save_response(cases_to_process, total, description, id_column, process_case_
 
         response[id_column] = item_id
         response['site'] = item_site
-        append_to_jsonl(response, output_file)
+        append_response_to_jsonl(response, output_file)
 
 
 def run_llm_chain(input_file, output_file, prompt_template,
