@@ -211,7 +211,7 @@ def code_analyze_specific_code_blocks(post_id: str, site: str, indices: list[int
 # pass inputs
 
 
-def input_analysis_specific_codes_metadata(case, path=HIER_CODE_DETECTION) -> dict:
+def input_analysis_specific_codes(case, path=HIER_CODE_DETECTION) -> dict:
     """
     For type step. Extracts specific code blocks from a post based on detected misuses.
     It reads a jsonl file containing misuse detections, finds the entry corresponding
@@ -254,6 +254,21 @@ def input_analysis_specific_codes_metadata(case, path=HIER_CODE_DETECTION) -> di
 
     code_input = code_analyze_specific_code_blocks(
         str(post_id), site, unique_indices)
+    if not code_input:
+        return None
+
+    metadata_input = get_post_metadata(str(post_id), site)
+
+    return {"codes": code_input, "post_metadata": metadata_input}
+
+
+def input_analyze_all_codes(case) -> dict:
+    """Processes a case for code analysis."""
+    post_id = case.get('id')
+    site = case.get('site')
+    if not post_id or not site:
+        return None
+    code_input = code_analyze_string(str(post_id), site)
     if not code_input:
         return None
 

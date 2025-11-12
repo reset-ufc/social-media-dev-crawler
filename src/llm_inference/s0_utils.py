@@ -32,5 +32,5 @@ def load_prompt(filename: str, type) -> str:
         raise
 
 
-def combine_hieraruchical_codes(detection, code_type, output_file):
+def combine_hier_codes(detection, code_type, output_file):
     ...
