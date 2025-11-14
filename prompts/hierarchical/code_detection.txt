@@ -1,8 +1,7 @@
 Your task is to **analyze codes of a Stack Overflow question** and identify **all cryptographic misuses** present.
 
-=================================
-LEVEL 1 — CODE UNDERSTANDING
-=================================
+## LEVEL 1 — CODE UNDERSTANDING
+
 Read the codes, each code is delimited by CODE (number) and END OF CODE (number) markers.
 Read ONLY the content between the delimiters below:
 
@@ -15,17 +14,17 @@ At this stage:
 - Summarize briefly (1-2 sentences) what the each code is about.
 - Identify if the codes involves **any cryptography-related**.
 
-===========================================
-LEVEL 2 — CRYPTOGRAPHIC CONTENT ISOLATION
-===========================================
+
+## LEVEL 2 — CRYPTOGRAPHIC CONTENT ISOLATION
+
 If cryptography is present:
 - Extract ALL **cryptography-related snippets** from the codes.
 - Group them logically into independent **analysis units**, where each unit represents a distinct cryptographic operation.
 - Each unit will be analyzed independently in Level 3.
 
-======================================
-LEVEL 3 — MISUSE DETECTION (PER UNIT)
-======================================
+
+## LEVEL 3 — MISUSE DETECTION (PER UNIT)
+
 For each analysis unit:
 - Determine if it contains a **cryptographic misuse**, using the definitions provided below.
 - Each unit may contain **zero, one, or multiple** misuses.
@@ -34,9 +33,9 @@ For each analysis unit:
   - evidence (exact quote)
   - rationale (why it is insecure)
 
-===================================
+
 DEFINITION OF CRYPTOGRAPHIC MISUSE
-===================================
+
 A **cryptographic misuse** occurs when cryptography is applied incorrectly, 
 introducing or implying a **real security weakness** in implementation or design.
 
@@ -48,9 +47,9 @@ Examples include:
 - Missing authentication, integrity, or certificate validation.
 
 
-==========================
-LEVEL 4 — DECISION RULES
-==========================
+
+## LEVEL 4 — DECISION RULES
+
 1. **has_misuse**
    - true → at least one misuse detected.
    - false → no insecure code, recommendation, or design flaw found.
@@ -68,16 +67,16 @@ LEVEL 4 — DECISION RULES
    - 0.60-0.79 → probable misuse, limited context.
    - <0.60 → insufficient evidence → do not report.
 
-==============================
-LEVEL 5 — OUTPUT AGGREGATION
-==============================
+
+## LEVEL 5 — OUTPUT AGGREGATION
+
 Combine the analyses from all units into a **single structured JSON object** following these rules:
 - `"has_misuse": true` only if ≥1 misuse detected.
 - If no misuse is found, `"misuses"` must be an empty list, and `"summary"` must reflect that.
 
-========================
+
 OUTPUT (STRICT JSON)
-========================
+
 ```json
 {{
   "has_misuse": <true|false>,

@@ -218,9 +218,9 @@ def input_analysis_specific_codes(case, path=HIER_CODE_DETECTION) -> dict:
     to the post, extracts the code indices of misuses, and formats the specified
     code blocks for analysis.
     """
-    post_id = case.get('id')
+    question_id = case.get('id')
     site = case.get('site')
-    if not post_id or not site:
+    if not question_id or not site:
         return None
 
     code_indices = []
@@ -232,7 +232,7 @@ def input_analysis_specific_codes(case, path=HIER_CODE_DETECTION) -> dict:
                     # NOTE: Assuming the jsonl file contains 'id' and 'site' to match with the case.
                     # The user-provided structure did not include them, but it's necessary to link
                     # detections to the correct post.
-                    if str(data.get('id')) == str(post_id) and data.get('site') == site:
+                    if str(data.get('question_id')) == str(question_id) and data.get('site') == site:
                         if data.get('has_misuse') and 'misuses' in data:
                             for misuse in data['misuses']:
                                 if 'code_index' in misuse:
@@ -240,8 +240,7 @@ def input_analysis_specific_codes(case, path=HIER_CODE_DETECTION) -> dict:
                                         int(misuse['code_index']))
                         break  # Found the entry for the post, no need to read further.
                 except (json.JSONDecodeError, AttributeError):
-                    # Silently ignore lines that are not valid JSON or not objects
-                    continue
+                    print(f'Error to decode json line:\n{data}')
     except FileNotFoundError:
         print(
             f"Warning: Detection file not found at {path}. Cannot select specific code blocks.")
@@ -253,11 +252,11 @@ def input_analysis_specific_codes(case, path=HIER_CODE_DETECTION) -> dict:
     unique_indices = sorted(list(set(code_indices)))
 
     code_input = code_analyze_specific_code_blocks(
-        str(post_id), site, unique_indices)
+        str(question_id), site, unique_indices)
     if not code_input:
         return None
 
-    metadata_input = get_post_metadata(str(post_id), site)
+    metadata_input = get_post_metadata(str(question_id), site)
 
     return {"codes": code_input, "post_metadata": metadata_input}
 

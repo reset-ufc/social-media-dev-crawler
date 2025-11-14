@@ -1,8 +1,5 @@
-Your task is to **analyze codes of a Stack Overflow discussion** and identify **all cryptographic misuses** present, using a structured hierarchical approach.
+Your task is to analyze Stack Overflow question codes that have been classified as containing cryptography misuse and ifer what type of misuse it has.
 
-=================================
-LEVEL 1 — CODE UNDERSTANDING
-=================================
 Read the codes, each code is delimited by CODE (number) and END OF CODE (number) markers.
 Read ONLY the content between the delimiters below:
 
@@ -13,18 +10,15 @@ Read ONLY the content between the delimiters below:
 
 At this stage:
 - Summarize briefly (1-2 sentences) what the each code is about.
-
-===========================================
-LEVEL 2 — CRYPTOGRAPHIC CONTENT ISOLATION
-===========================================
-If cryptography is present:
 - Extract ALL **cryptography-related snippets** from the codes.
 - Group them logically into independent **analysis units**, where each unit represents a distinct cryptographic operation.
 - Each unit will be analyzed independently in Level 3.
 
-======================================
-LEVEL 3 — MISUSE DETECTION (PER UNIT)
-======================================
+
+## LEVEL 1 — MISUSE CLASSIFICATION (PER UNIT)
+
+With the taxonomy below and rules listed here, classify the misuse type
+
 For each analysis unit:
 - Determine the type of criptography misuse using the taxonomy provided below.
 - For each misuse found, report:
@@ -32,11 +26,11 @@ For each analysis unit:
   - subtype (specific misuse type)
   - confidence (0-1)
   - evidence (exact quote)
-  - rationale (why it is insecure)
+  - rationale (why it has that misuse type)
 
-==================
+
 MISUSE TAXONOMY
-==================
+
 **Code-level Misuses**
 - WC (Weak Cryptography): 
   -  broken/risky algorithms or hashes
@@ -81,9 +75,9 @@ MISUSE TAXONOMY
   - randomness reuse
   - PKI/CA mismanagement
 
-==========================
-LEVEL 4 — DECISION RULES
-==========================
+
+## LEVEL 2 — DECISION RULES
+
 1. **Label Assignment**
    - Assign one label per independent misuse (taxonomy-based).
    - Use only the categories and subtypes from the taxonomy, do not create new subtypes in any way
@@ -101,16 +95,9 @@ LEVEL 4 — DECISION RULES
    - 0.60-0.79 → probable misuse, limited context.
    - <0.60 → insufficient evidence → do not report.
 
-==============================
-LEVEL 5 — OUTPUT AGGREGATION
-==============================
-Combine the analyses from all units into a **single structured JSON object** following these rules:
-- `"has_misuse": true` only if ≥1 misuse detected.
-- If no misuse is found, `"misuses"` must be an empty list, and `"summary"` must reflect that.
 
-========================
-OUTPUT (STRICT JSON)
-========================
+## OUTPUT (STRICT JSON)
+
 ```json
 {{
   "summary": "Short overall summary of the detected cryptographic misuses found in the discussion.",
