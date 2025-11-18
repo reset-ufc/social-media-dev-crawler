@@ -1,10 +1,11 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import re
 import pandas as pd
 from paths import PREPROCESSED_POSTS, HIER_CODE_DETECTION
 import json
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 
 def get_all_code_blocks(post_id: str, site_alias: str, posts_filepath: str = PREPROCESSED_POSTS) -> list[str]:

@@ -1,12 +1,13 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from paths import *
 from s0_utils import *
 from s1_make_llm_input import *
 from s2_llm_chain import run_llm_chain, load_csv_questions
 from s3_summarization import main as run_s3
 from s4_merge_llm_results import main as run_s4
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 
 model = 'deepseek-r1:32b'
