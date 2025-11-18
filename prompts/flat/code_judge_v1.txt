@@ -40,11 +40,12 @@ You should consider the model's reasoning, evidence quotes, and rationale consis
 
 ### Step 3. Output Format
 
-Return a **single valid JSON** containing the fields below. 
+Return a **single valid JSON** containing the fields below, in the exact format.
+Do not write anything else.
 
 ```json
 {{
-  [
+  "judgment":[
     {{
       "code_index": "1"
       "misuse_validity": <0 | 0.5 | 1>,

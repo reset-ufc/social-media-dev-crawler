@@ -43,7 +43,9 @@ def save_response(cases_to_process, total, description, id_column, process_case_
                   prompt_template, model, output_file):
     for case in tqdm(cases_to_process, total=total, desc=description):
         item_id = case.get(id_column)
-        item_site = case.get('site')
+        item_site = case.get('site_alias')
+        if not item_site:  # Json load (for judgement)
+            item_site = case.get('site')
 
         prompt_inputs = process_case_func(case)
 

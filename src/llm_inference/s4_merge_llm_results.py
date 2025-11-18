@@ -110,4 +110,5 @@ def main(misuse_data, judge_data, merge_summary, merged_llm_results):
 
 
 if __name__ == "__main__":
-    main()
+    main(FLAT_CODE_ANALYSIS, FLAT_CODE_JUDGEMENT,
+           FLAT_MERGED_SUMMARY, FLAT_MERGED_LLM_RESULTS)

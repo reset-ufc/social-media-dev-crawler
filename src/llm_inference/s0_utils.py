@@ -4,6 +4,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from functools import lru_cache
 from paths import PROMPTS_DIR
 import json
+import pandas as pd
 
 
 @lru_cache(maxsize=None)
