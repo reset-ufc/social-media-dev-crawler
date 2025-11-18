@@ -10,6 +10,9 @@ QUESTION_TAG = "encryption"
 THRE1 = 0.2
 THRE2 = 0.01
 
+DIF_CONFIDENCE_THRESHOLD = 0.5
+
+
 
 PROJECT_ROOT = Path(__file__).parent.parent
 
