@@ -62,44 +62,68 @@ def combine_hier_codes(detection_path, code_type_path, output_path):
     code_type_map = {}
     with open(code_type_path, 'r', encoding='utf-8') as f_type:
         for line_str in f_type:
-            line_data = json.loads(line_str)
-            site = line_data.get('site')
-            question_id = line_data.get('question_id')
-            if site and question_id:
-                code_type_map[(site, question_id)] = line_data
+            try:
+                line_data = json.loads(line_str)
+                # Lida com JSON aninhado que foi salvo como string
+                if isinstance(line_data, str):
+                    line_data = json.loads(line_data)
+                
+                site = line_data.get('site')
+                question_id = line_data.get('question_id')
+                if site and question_id:
+                    code_type_map[(site, question_id)] = line_data
+            except (json.JSONDecodeError, TypeError):
+                # Pula linhas que não são JSON válido
+                continue
 
     # Processa o arquivo de detecção e faz o merge com os dados de code_type
     with open(detection_path, 'r', encoding='utf-8') as f_det, \
          open(output_path, 'w', encoding='utf-8') as f_out:
         
         for det_line_str in f_det:
-            det_line = json.loads(det_line_str)
-            det_site = det_line.get('site')
-            det_question_id = det_line.get('question_id')
-            
-            # Encontra a linha correspondente em code_type
-            type_line = code_type_map.get((det_site, det_question_id))
+            try:
+                det_line = json.loads(det_line_str)
+                # Lida com JSON aninhado que foi salvo como string
+                if isinstance(det_line, str):
+                    det_line = json.loads(det_line)
 
-            if type_line:
-                # Se encontrou, faz o merge
-                type_misuses_map = {
-                    misuse['code_index']: misuse for misuse in type_line.get('misuses', []) if isinstance(type_line.get('misuses'), list) and 'code_index' in misuse
-                }
+                det_site = det_line.get('site')
+                det_question_id = det_line.get('question_id')
+                
+                # Encontra a linha correspondente em code_type
+                type_line = code_type_map.get((det_site, det_question_id))
 
-                if 'misuses' in det_line and isinstance(det_line['misuses'], list):
-                    for det_misuse in det_line['misuses']:
-                        code_index = det_misuse.get('code_index')
-                        if code_index in type_misuses_map:
-                            type_misuse = type_misuses_map[code_index]
+                if type_line:
+                    type_misuses = type_line.get('misuses', [])
+                    type_misuses_map = {}
+                    if isinstance(type_misuses, list):
+                        type_misuses_map = {
+                            misuse['code_index']: misuse 
+                            for misuse in type_misuses 
+                            if isinstance(misuse, dict) and 'code_index' in misuse
+                        }
 
-                            # Adiciona 'categories' e 'subtypes'
-                            det_misuse['categories'] = type_misuse.get('categories')
-                            det_misuse['subtypes'] = type_misuse.get('subtypes')
+                    det_misuses = det_line.get('misuses')
+                    if isinstance(det_misuses, list):
+                        for det_misuse in det_misuses:
+                            if not isinstance(det_misuse, dict):
+                                continue
+                            
+                            code_index = det_misuse.get('code_index')
+                            if code_index in type_misuses_map:
+                                type_misuse = type_misuses_map[code_index]
 
-                            # Calcula a média da 'confidence'
-                            det_confidence = det_misuse.get('confidence', 0)
-                            type_confidence = type_misuse.get('confidence', 0)
-                            det_misuse['confidence'] = (det_confidence + type_confidence) / 2
-            
-            # Escreve a linha de detecção (modificada ou não) no arquivo de saída
-            f_out.write(json.dumps(det_line) + '\n')
+                                # Adiciona 'categories' e 'subtypes'
+                                det_misuse['categories'] = type_misuse.get('categories')
+                                det_misuse['subtypes'] = type_misuse.get('subtypes')
+
+                                # Calcula a média da 'confidence'
+                                det_confidence = det_misuse.get('confidence', 0)
+                                type_confidence = type_misuse.get('confidence', 0)
+                                det_misuse['confidence'] = (det_confidence + type_confidence) / 2
+                
+                # Escreve a linha de detecção (modificada ou não) no arquivo de saída
+                f_out.write(json.dumps(det_line) + '\n')
+            except (json.JSONDecodeError, TypeError):
+                # Se a linha de detecção for inválida, pula para a próxima
+                continue

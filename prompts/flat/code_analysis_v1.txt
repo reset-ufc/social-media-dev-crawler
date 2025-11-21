@@ -80,7 +80,8 @@ MISUSE TAXONOMY
   - insecure certificate acceptance
 - PKC (Public-Key Cryptography): 
   - deterministic RSA
-  - weak padding; insecure key configs
+  - weak padding
+  - insecure key configs
   - weak signatures
   - bad DH/ECDH curves
 
