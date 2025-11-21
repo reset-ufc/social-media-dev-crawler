@@ -17,7 +17,7 @@ def get_judge_misuses(judge_question):
     return []
 
 
-def merge_results(misuse_data, judge_data, diff_threshold=0.5):
+def merge_results(misuse_data, judge_data, diff_threshold=DIF_CONFIDENCE_THRESHOLD):
     """
     Compara os resultados da análise e do julgamento, gerando um resultado consolidado.
     A concordância ocorre se a avaliação do juiz for consistente com a da inferência.

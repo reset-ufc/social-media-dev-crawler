@@ -219,7 +219,7 @@ def input_analysis_specific_codes(case, path=HIER_CODE_DETECTION) -> dict:
     to the post, extracts the code indices of misuses, and formats the specified
     code blocks for analysis.
     """
-    question_id = case.get('id')
+    question_id = case.get('question_id')
     site = case.get('site')
     if not question_id or not site:
         return None

@@ -20,7 +20,7 @@ DUMP = PROJECT_ROOT / "Extraidos dump"
 DATA = PROJECT_ROOT / 'data'
 
 PROMPTS_DIR = PROJECT_ROOT / "prompts"
-HIERARCHICAL_PROMPTS_DIR = PROMPTS_DIR / "hierarchical"
+HIERARCHICAL_PROMPTS_DIR = PROMPTS_DIR / "hierarquical"
 FLAT_PROMPTS_DIR = PROMPTS_DIR / "flat"
 
 DATA_MINING = DATA / "data_mining"

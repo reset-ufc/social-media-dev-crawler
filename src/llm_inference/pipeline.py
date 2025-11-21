@@ -46,13 +46,14 @@ def hier_pipeline(limit=0):
         data_loader=load_csv_questions,
         filter_dict={'type': 'question'},
         limit=limit,
-        description='Detecting (hier)'
+        description='Detecting (hier)',
     )
     run_llm_chain(
         input_file=HIER_CODE_DETECTION,
         output_file=HIER_CODE_TYPE,
         prompt_template=load_prompt("code_type.txt", 'h'),
         process_case_func=input_analysis_specific_codes,
+        filter_dict={'has_misuse': True},
         limit=limit,
         description='Infering type (hier)'
     )
@@ -75,4 +76,4 @@ def hier_pipeline(limit=0):
 """
 
 if __name__ == '__main__':
-    flat_pipeline(limit=2)
+    hier_pipeline(limit=3)
