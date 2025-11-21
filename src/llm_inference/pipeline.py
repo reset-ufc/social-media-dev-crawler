@@ -10,7 +10,7 @@ from s4_merge_llm_results import main as run_s4
 
 
 
-model = 'deepseek-r1:32b'
+model = 'deepseek-r1:70b'
 
 
 def flat_pipeline(limit=0):
@@ -38,14 +38,35 @@ def flat_pipeline(limit=0):
 
 
 def hier_pipeline(limit=0):
+    run_llm_chain(
+        input_file=PREPROCESSED_POSTS,
+        output_file=HIER_CODE_DETECTION,
+        prompt_template=load_prompt("code_detection.txt", 'h'),
+        process_case_func=input_analyze_all_codes,
+        data_loader=load_csv_questions,
+        filter_dict={'type': 'question'},
+        limit=limit,
+        description='Detecting (hier)',
+        model_name=model,
+    )
+    run_llm_chain(
+        input_file=HIER_CODE_DETECTION,
+        output_file=HIER_CODE_TYPE,
+        prompt_template=load_prompt("code_type.txt", 'h'),
+        process_case_func=input_analysis_specific_codes,
+        filter_dict={'has_misuse': True},
+        limit=limit,
+        description='Infering type (hier)',
+        model_name=model,
+    )
     combine_hier_codes(
         detection_path=HIER_CODE_DETECTION,
         code_type_path=HIER_CODE_TYPE,
         output_path=HIER_CODE_FULL_CLASSIFICATION
     )
-    """run_llm_chain(
+    run_llm_chain(
         input_file=HIER_CODE_FULL_CLASSIFICATION,
-        output_file=FLAT_CODE_JUDGEMENT,
+        output_file=HIER_CODE_JUDGEMENT,
         prompt_template=load_prompt("code_judge_v2.txt", 'h'),
         process_case_func=input_judgement_all_codes,
         limit=limit,
@@ -54,7 +75,7 @@ def hier_pipeline(limit=0):
     run_s3(HIER_CODE_FULL_CLASSIFICATION, HIER_CODE_ANALYSIS_SUMMARY)
     run_s4(HIER_CODE_FULL_CLASSIFICATION, HIER_CODE_JUDGEMENT,
            HIER_MERGED_SUMMARY, HIER_MERGED_LLM_RESULTS)
-"""
+
 
 if __name__ == '__main__':
-    hier_pipeline(limit=3)
+    hier_pipeline(limit=50)
