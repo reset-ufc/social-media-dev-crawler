@@ -78,4 +78,6 @@ def hier_pipeline(limit=0):
 
 
 if __name__ == '__main__':
-    hier_pipeline(limit=50)
+    run_s3(HIER_CODE_FULL_CLASSIFICATION, HIER_CODE_ANALYSIS_SUMMARY)
+    run_s4(HIER_CODE_FULL_CLASSIFICATION, HIER_CODE_JUDGEMENT,
+           HIER_MERGED_SUMMARY, HIER_MERGED_LLM_RESULTS)
