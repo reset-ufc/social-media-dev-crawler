@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 
 def summarize_analysis(misuse_data):
     if not misuse_data:
-        return "Nenhum dado encontrado.\n", pd.DataFrame()
+        return "Nenhum dado encontrado.\n"
 
     total_posts = len(misuse_data)
     misuse_cases = [x for x in misuse_data if x.get("has_misuse")]
@@ -27,22 +27,27 @@ def summarize_analysis(misuse_data):
     # Categorias e subtipos
     categories = defaultdict(Counter)
     rows = []
+    failed_samples = []
     for case in misuse_data:
         qid = case.get("question_id")
         site = case.get("site")
         has_misuse = case.get("has_misuse", False)
         if has_misuse:
             for m in case.get("misuses", []):
-                cat = m.get("categories", "Unknown")
-                sub = m.get("subtypes", "N/A")
-                categories[cat][sub] += 1
-                rows.append({
-                    "question_id": qid,
-                    "site": site,
-                    "category": cat,
-                    "subtype": sub,
-                    "has_misuse": True
-                })
+                try:
+                    cat = m.get("categories", "Unknown")
+                    sub = m.get("subtypes", "N/A")
+                    categories[cat][sub] += 1
+                    rows.append({
+                        "question_id": qid,
+                        "site": site,
+                        "category": cat,
+                        "subtype": sub,
+                        "has_misuse": True
+                    })
+                except AttributeError:
+                    logger.warning(f"Amostra com erro de atributo em 'summarize_analysis' para site: {site}, qid: {qid}")
+                    failed_samples.append({'site': site, 'question_id': qid})
         else:
             rows.append({
                 "question_id": qid,
@@ -75,6 +80,12 @@ def summarize_analysis(misuse_data):
         lines.append(f"{cat}: {total_cat}")
         for sub, sub_count in subs.items():
             lines.append(f" - {sub}: {sub_count}")
+
+    if failed_samples:
+        lines.append("\nAmostras que falharam na sumarização:")
+        unique_failures = sorted(list(set((d['site'], d['question_id']) for d in failed_samples)))
+        for site, qid in unique_failures:
+            lines.append(f" - site: {site}, question_id: {qid}")
 
     return "\n".join(lines) + "\n"
 

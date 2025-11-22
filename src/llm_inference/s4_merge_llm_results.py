@@ -40,7 +40,7 @@ def merge_results(misuse_data, judge_data, diff_threshold=DIF_CONFIDENCE_THRESHO
         judge_question = judge_map[qid]
 
         infer_misuses = infer_question.get("misuses", [])
-        infer_misuses_map = {m.get("code_index"): m for m in infer_misuses if m.get("code_index")}
+        infer_misuses_map = {m.get("code_index"): m for m in infer_misuses if isinstance(m, dict) and m.get("code_index")}
         
         judge_misuses_list = get_judge_misuses(judge_question)
         
