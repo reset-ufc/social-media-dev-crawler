@@ -124,7 +124,7 @@ def extract_code_blocks(text: str) -> List[str]:
     return [re.sub(r'\r\n?', '\n', b).strip() for b in blocks]
 
 def clean_text_and_extract_code(text: str) -> Tuple[str, str, List[str], List[bool], List[str]]:
-    """Limpa texto, valida o conteúdo dos blocos de código, e retorna os blocos completos com tags."""
+    """Limpa texto, valida o conteúdo dos blocos de código, e retorna os blocos completos com tags indexadas."""
     if not isinstance(text, str):
         return "", "", [], [], []
 
@@ -136,7 +136,8 @@ def clean_text_and_extract_code(text: str) -> Tuple[str, str, List[str], List[bo
     flags = []
     reasons = []
 
-    for full_block in full_blocks:
+    for i, full_block in enumerate(full_blocks):
+        code_index = i + 1  # 1-based index
         full_block_s = full_block.strip()
         
         match = re.search(r'<code.*?>(.*?)</code>', full_block_s, flags=re.DOTALL | re.IGNORECASE)
@@ -148,10 +149,15 @@ def clean_text_and_extract_code(text: str) -> Tuple[str, str, List[str], List[bo
         is_valid = reason.startswith("aceito")
         flags.append(is_valid)
 
+        # Replace tags with indexed tags
+        indexed_block = re.sub(r'<code.*?>', f'<{code_index}code>', full_block_s, count=1, flags=re.IGNORECASE)
+        indexed_block = re.sub(r'</code>', f'</{code_index}code>', indexed_block, count=1)
+
+
         if is_valid:
-            valid_blocks.append(full_block_s)
+            valid_blocks.append(indexed_block)
         else:
-            invalid_blocks.append(full_block_s)
+            invalid_blocks.append(indexed_block)
 
     extracted_code = "".join(valid_blocks)
     return cleaned_body, extracted_code, invalid_blocks, flags, reasons

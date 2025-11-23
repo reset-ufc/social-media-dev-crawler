@@ -8,9 +8,9 @@ import json
 
 
 
-def get_all_code_blocks(post_id: str, site_alias: str, posts_filepath: str = PREPROCESSED_POSTS) -> list[str]:
+def get_all_code_blocks(post_id: str, site_alias: str, posts_filepath: str = PREPROCESSED_POSTS) -> list[tuple[int, str]]:
     """
-    Extrai todos os blocos de código de um post e os retorna como uma lista.
+    Extrai todos os blocos de código de um post e os retorna como uma lista de tuplas (índice, conteúdo).
 
     Args:
         post_id: O ID do post a ser buscado.
@@ -18,8 +18,8 @@ def get_all_code_blocks(post_id: str, site_alias: str, posts_filepath: str = PRE
         posts_filepath: O caminho para o arquivo CSV com os posts.
 
     Returns:
-        Uma lista de strings, onde cada string é um bloco de código. Retorna
-        uma lista vazia se não houver blocos ou o post não for encontrado.
+        Uma lista de tuplas (int, str), onde cada tupla contém o índice original
+        e o conteúdo de um bloco de código. Retorna lista vazia se não houver blocos.
     """
     try:
         df = pd.read_csv(posts_filepath, dtype=str).fillna('')
@@ -39,24 +39,34 @@ def get_all_code_blocks(post_id: str, site_alias: str, posts_filepath: str = PRE
     if not code_content:
         return []
 
-    return re.findall(r'<code[^>]*>(.*?)</code>', code_content, re.DOTALL)
+    # Regex para encontrar <ncode>...</ncode> e capturar o número 'n' e o conteúdo.
+    # Retorna uma lista de tuplas (str_index, content)
+    found_blocks = re.findall(r'<(\d+)code>(.*?)<\/\d+code>', code_content, re.DOTALL)
+    
+    # Converte o índice para int
+    return [(int(index), content) for index, content in found_blocks]
 
 
-def get_specific_code_blocks(all_blocks: list[str], indices: list[int]) -> list[str]:
+def get_specific_code_blocks(all_blocks: list[tuple[int, str]], indices: list[int]) -> list[tuple[int, str]]:
     """
-    Seleciona blocos de código de uma lista com base nos índices fornecidos.
+    Seleciona blocos de código de uma lista de tuplas com base nos índices fornecidos.
 
     Args:
-        all_blocks: Uma lista de strings de blocos de código.
+        all_blocks: Uma lista de tuplas (índice, conteúdo) de blocos de código.
         indices: Uma lista de inteiros (1-based) para selecionar os blocos.
 
     Returns:
-        Uma lista contendo os blocos de código selecionados.
+        Uma lista contendo as tuplas dos blocos de código selecionados.
     """
+    # Cria um dicionário para busca rápida dos blocos pelo índice original
+    blocks_by_index = {index: content for index, content in all_blocks}
+    
     selected_blocks = []
-    for i in indices:
-        if 1 <= i <= len(all_blocks):
-            selected_blocks.append(all_blocks[i - 1])
+    # Itera sobre os índices desejados para manter a ordem de `indices`
+    for i in sorted(list(set(indices))): # Usar sorted para ter uma ordem previsível
+        if i in blocks_by_index:
+            selected_blocks.append((i, blocks_by_index[i]))
+            
     return selected_blocks
 
 
@@ -169,11 +179,12 @@ def post_analyze_string(post_id: str, site: str, posts_filepath: str = PREPROCES
 
 def code_analyze_string(post_id: str, site_alias: str, posts_filepath: str = PREPROCESSED_POSTS) -> str:
     """
-    Formata todos os blocos de código de um post em uma única string numerada.
+    Formata todos os blocos de código de um post em uma única string numerada,
+    usando os índices originais das tags <ncode>.
 
     Args:
         post_id: O ID do post a ser buscado.
-        site: O site onde o post está.
+        site_alias: O alias do site onde o post está.
         posts_filepath: O caminho para o arquivo CSV com os posts.
 
     Returns:
@@ -184,27 +195,37 @@ def code_analyze_string(post_id: str, site_alias: str, posts_filepath: str = PRE
     if not code_blocks:
         return ""
 
-    formatted_blocks = [f"code {i+1}:\n{block}" for i,
-                        block in enumerate(code_blocks)]
+    # Usa o índice original extraído da tag
+    formatted_blocks = [f"code {index}:\n{block}" for index,
+                        block in code_blocks]
 
     return "\n".join(formatted_blocks)
 
 
 def code_analyze_specific_code_blocks(post_id: str, site: str, indices: list[int], posts_filepath: str = PREPROCESSED_POSTS) -> str:
+    """
+    Seleciona e formata blocos de código específicos de um post, usando os índices
+    originais das tags <ncode>.
+
+    Args:
+        post_id: O ID do post a ser buscado.
+        site: O alias do site onde o post está.
+        indices: A lista de índices (1-based) dos blocos de código a serem selecionados.
+        posts_filepath: O caminho para o arquivo CSV com os posts.
+
+    Returns:
+        Uma string formatada com os blocos de código selecionados.
+    """
     all_blocks = get_all_code_blocks(post_id, site, posts_filepath)
 
     if not all_blocks:
         return ""
 
-    valid_indices = [i for i in indices if 1 <= i <= len(all_blocks)]
+    # A função get_specific_code_blocks agora retorna as tuplas (index, content)
+    specific_blocks = get_specific_code_blocks(all_blocks, indices)
 
-    specific_blocks = get_specific_code_blocks(all_blocks, valid_indices)
-
-    formatted_blocks = []
-    for i in range(len(specific_blocks)):
-        original_index = valid_indices[i]
-        block = specific_blocks[i]
-        formatted_blocks.append(f"code {original_index}:\n{block}")
+    # O índice já é o correto (original), então basta formatar
+    formatted_blocks = [f"code {index}:\n{block}" for index, block in specific_blocks]
 
     return "\n".join(formatted_blocks)
 
