@@ -19,12 +19,15 @@ def get_judge_misuses(judge_question):
 
 def merge_results(misuse_data, judge_data, diff_threshold=DIF_CONFIDENCE_THRESHOLD):
     """
-    Compara os resultados da análise e do julgamento, gerando um resultado consolidado.
-    A concordância ocorre se a avaliação do juiz for consistente com a da inferência.
-    - Se inferência aponta misuse: a diferença entre a confiança da inferência e a média da
-      validação do juiz deve ser menor que o limiar.
-    - Se inferência não aponta misuse: a média da validação do juiz deve ser menor que o limiar,
-      indicando que o juiz também não viu um misuse claro.
+    Une as respostas do juiz e do inferente.
+    Para cada código, se a confidencia entre as respostas não tiver diferença maior
+    que o diff_threshold, então o código é adicionado a resposta final.
+    Caso o campo misuses do infer estiver vazio, então considere sua cofidence como 1.
+
+    Na resposta final, se houve ao menos um código em que teve concordancia,
+    adicione agreement=True na resposta. Caso o infer retornou o campo misuse
+    vazio e o juiz retornou um confidence alto o bastante, adicione também
+    agreement=True, para dizer que ambos concordaram que não há misuse.
     """
     misuse_map = {x["question_id"]: x for x in misuse_data if "question_id" in x}
     judge_map = {x["question_id"]: x for x in judge_data if "question_id" in x}
@@ -39,88 +42,80 @@ def merge_results(misuse_data, judge_data, diff_threshold=DIF_CONFIDENCE_THRESHO
         infer_question = misuse_map[qid]
         judge_question = judge_map[qid]
 
+        # Mapa de misuses do inferente para acesso rápido pelo code_index
         infer_misuses = infer_question.get("misuses", [])
-        infer_misuses_map = {m.get("code_index"): m for m in infer_misuses if isinstance(m, dict) and m.get("code_index")}
-        
-        judge_misuses_list = get_judge_misuses(judge_question)
-        
+        infer_misuses_map = {m["code_index"]: m for m in infer_misuses if isinstance(m, dict) and "code_index" in m}
+
+        # Lista de avaliações do juiz
+        judge_evals = get_judge_misuses(judge_question)
+
         agreed_codes = []
-        
-        # Itera sobre todos os códigos que o juiz analisou
-        for judge_misuse in judge_misuses_list:
-            code_index = judge_misuse.get("code_index")
+        question_agreement = False
+
+        # Itera sobre todas as avaliações do juiz para a questão
+        for judge_eval in judge_evals:
+            code_index = judge_eval.get("code_index")
             if not code_index:
                 continue
 
-            misuse_validity = judge_misuse.get("misuse_validity")
-            classification_validity = judge_misuse.get("classification_validity")
+            # Confiança do Juiz (considerando a média de validade como a confiança)
+            misuse_validity = judge_eval.get("misuse_validity", 0)
+            classification_validity = judge_eval.get("classification_validity", 0)
+            judge_confidence = (misuse_validity + classification_validity) / 2.0
 
-            # Ignora se o juiz não forneceu valores válidos
-            if not all(isinstance(v, (int, float)) for v in [misuse_validity, classification_validity]):
-                continue
-            
-            avg_validity = (misuse_validity + classification_validity) / 2.0
-            
             infer_misuse = infer_misuses_map.get(code_index)
+            
+            agreement_found = False
 
             if infer_misuse:
-                # Caso 1: Inferência encontrou um misuse para este código.
-                confidence = infer_misuse.get("confidence")
-                if not isinstance(confidence, (int, float)):
-                    continue
-
-                # Concordância se a confiança da inferência não for muito maior que a validação do juiz.
-                if (confidence - avg_validity) < diff_threshold:
-                    code_obj = {
-                        "code_index": infer_misuse.get("code_index"),
+                # Caso 1: Inferente encontrou um misuse.
+                infer_confidence = infer_misuse.get("confidence", 0)
+                # Verifica se a diferença de confiança está dentro do limiar
+                if abs(judge_confidence - infer_confidence) <= diff_threshold:
+                    agreement_found = True
+                    question_agreement = True
+            else:
+                # Caso 2: Inferente NÃO encontrou misuse, sua confiança de que não há misuse é 1.
+                infer_confidence = 1
+                # Concordam se a confiança do juiz também for alta (próxima de 1).
+                if abs(judge_confidence - 1) <= diff_threshold:
+                    agreement_found = True
+                    question_agreement = True
+            
+            if agreement_found:
+                code_obj = {
+                    "code_index": code_index,
+                    "infer_confidence": infer_confidence,
+                    "judge_confidence": judge_confidence,
+                    "agreed_on_misuse": bool(infer_misuse) # True se concordaram que HÁ misuse
+                }
+                if infer_misuse:
+                    code_obj.update({
                         "categories": infer_misuse.get("category") or infer_misuse.get("categories"),
                         "subtypes": infer_misuse.get("subtype") or infer_misuse.get("subtypes"),
-                        "infer_confidence": confidence,
-                        "misuse_validity": misuse_validity,
-                        "classification_validity": classification_validity,
                         "infer_evidence": infer_misuse.get("evidence"),
                         "infer_rationale": infer_misuse.get("rationale"),
-                        "judge_rationale": judge_misuse.get("rationale")
-                    }
-                    agreed_codes.append({k: v for k, v in code_obj.items() if v is not None})
-            
-            else:
-                # Caso 2: Inferência NÃO encontrou misuse para este código.
-                # A confidence da inferência de que HÁ um misuse é 0.
-                # O usuário pediu para considerar a confidence de que NÃO HÁ misuse como 1.
-                # A concordância ocorre se o juiz também não apontar um misuse (avg_validity baixo).
-                # abs(0 - avg_validity) < diff_threshold  => avg_validity < diff_threshold
-                if avg_validity < diff_threshold:
-                    # Concordância de que não há misuse.
-                    code_obj = {
-                        "code_index": code_index,
-                        "misuse_validity": misuse_validity,
-                        "classification_validity": classification_validity,
-                        "judge_rationale": judge_misuse.get("rationale")
-                    }
-                    agreed_codes.append({k: v for k, v in code_obj.items() if v is not None})
+                    })
+                code_obj["judge_rationale"] = judge_eval.get("rationale")
+                agreed_codes.append({k: v for k, v in code_obj.items() if v is not None})
 
-        # Determina o status final da questão com base nos códigos acordados
-        has_misuse_in_agreed = any(c.get("categories") for c in agreed_codes)
-        
         question_output = {
             "question_id": qid,
             "site": infer_question.get("site", ""),
-            "has_misuse": has_misuse_in_agreed,
+            "agreement": question_agreement,
             "codes": agreed_codes
         }
         merged_questions_output.append(question_output)
 
-        if question_output["has_misuse"]:
+        if agreed_codes and any(c.get("agreed_on_misuse") for c in agreed_codes):
             questions_with_merged_codes += 1
-            # Conta apenas os códigos que são misuses
-            total_merged_codes += len([c for c in agreed_codes if c.get("categories")])
+            total_merged_codes += sum(1 for c in agreed_codes if c.get("agreed_on_misuse"))
 
     summary_lines = [
-        "s5 merge llm results\n",
+        "s4 merge llm results\n",
         f"Total unique questions analyzed (present in both files): {len(common_qids)}",
         f"Total merged codes (agreed and validated misuses): {total_merged_codes}",
-        f"Total questions with at least one merged code: {questions_with_merged_codes}\n"
+        f"Total questions with at least one merged misuse code: {questions_with_merged_codes}\n"
     ]
 
     return "\n".join(summary_lines), merged_questions_output
