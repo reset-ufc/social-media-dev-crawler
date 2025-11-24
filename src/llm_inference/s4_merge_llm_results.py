@@ -87,7 +87,7 @@ def merge_results(misuse_data, judge_data, diff_threshold=DIF_CONFIDENCE_THRESHO
                     "code_index": code_index,
                     "infer_confidence": infer_confidence,
                     "judge_confidence": judge_confidence,
-                    "agreed_on_misuse": bool(infer_misuse) # True se concordaram que HÁ misuse
+                    "detected_misuse": bool(infer_misuse) # True se concordaram que HÁ misuse
                 }
                 if infer_misuse:
                     code_obj.update({
@@ -107,9 +107,9 @@ def merge_results(misuse_data, judge_data, diff_threshold=DIF_CONFIDENCE_THRESHO
         }
         merged_questions_output.append(question_output)
 
-        if agreed_codes and any(c.get("agreed_on_misuse") for c in agreed_codes):
+        if agreed_codes and any(c.get("detected_misuse") for c in agreed_codes):
             questions_with_merged_codes += 1
-            total_merged_codes += sum(1 for c in agreed_codes if c.get("agreed_on_misuse"))
+            total_merged_codes += sum(1 for c in agreed_codes if c.get("detected_misuse"))
 
     summary_lines = [
         "s4 merge llm results\n",
@@ -151,5 +151,5 @@ def main(misuse_data, judge_data, merge_summary, merged_llm_results):
 
 
 if __name__ == "__main__":
-    main(FLAT_CODE_ANALYSIS, FLAT_CODE_JUDGEMENT,
-           FLAT_MERGED_SUMMARY, FLAT_MERGED_LLM_RESULTS)
+    main(HIER_CODE_FULL_CLASSIFICATION, HIER_CODE_JUDGEMENT,
+           HIER_MERGED_SUMMARY, HIER_MERGED_LLM_RESULTS)
