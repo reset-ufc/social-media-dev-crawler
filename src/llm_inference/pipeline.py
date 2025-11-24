@@ -78,4 +78,5 @@ def hier_pipeline(limit=0):
 
 
 if __name__ == '__main__':
-    ...
+    run_s4(FLAT_CODE_ANALYSIS, FLAT_CODE_JUDGEMENT,
+           FLAT_MERGED_SUMMARY, FLAT_MERGED_LLM_RESULTS)

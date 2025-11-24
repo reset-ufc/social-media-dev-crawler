@@ -87,8 +87,6 @@ Correct model output:
   "misuses": [
     {
       "code_index": "1",
-      "categories": "PKM, IVM",
-      "subtypes": "hardcoded-key, static-iv",
       "confidence": 1.00,
       "evidence": { "quote": "key = b'1234567890123456'" },
       "rationale": "A hardcoded key combined with a fixed IV represents a clear cryptographic misuse."
@@ -117,8 +115,6 @@ Correct model output:
   "misuses": [
     {
       "code_index": "1",
-      "categories": "PKM, IVM",
-      "subtypes": "weak-key, static-iv",
       "confidence": 1.00,
       "evidence": { "quote": "const iv = Buffer.alloc(16);" },
       "rationale": "A weak key and an all-zero IV enable predictable ciphertext and weaken security."
