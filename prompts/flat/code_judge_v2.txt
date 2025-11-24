@@ -98,7 +98,7 @@ Use these allowed values: **0, 0.25, 0.5, 0.75, 1.0**
 **0.25** → The decision appears mostly incorrect, but there is a small amount of partial alignment.  
 **0.0** → The misuse judgment is clearly incorrect or unsupported by the code content.
 
-- If the model's response indicates that **there is no misuse** in the analyzed code **and this is correct**, assign a **high score** (0.75 or 1.0).
+- If the model's response indicates that **there is no misuse** in the analyzed code **and if that's actually correct**, assign a **high score** (0.75 or 1.0).
 
 2. **Classification Accuracy Validity (0–1)**
 
