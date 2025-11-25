@@ -13,7 +13,6 @@ THRE2 = 0.01
 DIF_CONFIDENCE_THRESHOLD = 0.5
 
 
-
 PROJECT_ROOT = Path(__file__).parent.parent
 
 DUMP = PROJECT_ROOT / "Extraidos dump"
@@ -88,3 +87,15 @@ HIER_MERGED_SUMMARY = HIER_LLM_SUMMARIZATION / "merge_summary.log"
 
 
 VALIDATION_SHEET = LLM_INFERENCE / "validation_sheet.xlsx"
+
+
+
+# s3 LDA
+
+LDA_DIR = DATA / 'Lda'
+NORMALIZED_POSTS = LDA_DIR/'normalized_posts.csv'
+MODEL = LDA_DIR / 'model'
+TRAINED_LDA = MODEL / 'trained_lda.model'
+TRAINED_DCT = MODEL / 'trained_dictionary.dict'
+TRAINED_BOW = MODEL / 'trained_corpus.mm'
+LDA_VISUALIZATION = MODEL / 'lda_visualization.html'
