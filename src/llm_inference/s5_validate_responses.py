@@ -4,6 +4,20 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from paths import *
 import pandas as pd
+import math
+import pandas as pd
+import scipy.stats as st
+import numpy as np
+
+
+def calc_sample_size(population, error_margin=0.05, confidence=0.95, p=0.5):
+    Z = st.norm.ppf((1 + confidence) / 2)
+    
+    numerator = population * (Z**2) * p * (1 - p)
+    denominator = (population - 1) * (error_margin**2) + (Z**2) * p * (1 - p)
+    n = numerator / denominator
+
+    return math.ceil(n)
 
 
 def generate_validation_xlsx(n_samples: int):
