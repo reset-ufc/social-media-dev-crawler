@@ -11,6 +11,7 @@ import numpy as np
 
 
 def calc_sample_size(population, error_margin=0.05, confidence=0.95, p=0.5):
+    """(Finite Population Correction - FPC)"""
     Z = st.norm.ppf((1 + confidence) / 2)
     
     numerator = population * (Z**2) * p * (1 - p)
