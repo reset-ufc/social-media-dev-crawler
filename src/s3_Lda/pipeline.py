@@ -13,7 +13,7 @@ import pandas as pd
 from s3_Lda import s2_evaluate_model
 from s3_Lda import s1_normalisation
 from paths import NORMALIZED_POSTS, TRAINED_LDA, TRAINED_DCT, TRAINED_BOW, LDA_VISUALIZATION
-
+import multiprocessing
 
 
 def run_pipeline(use_search: bool = True):
@@ -42,7 +42,6 @@ def run_pipeline(use_search: bool = True):
     else:
         texts = df['normalized_text'].fillna(
             '').map(lambda s: s.split()).tolist()
-
     # 3) Train/evaluate model (this function also saves artifacts)
     print('Training/evaluating LDA model...')
     model, dct, bow, cfg = s2_evaluate_model.evaluate_model(
@@ -62,4 +61,17 @@ def run_pipeline(use_search: bool = True):
 
 
 if __name__ == '__main__':
+    # Ensure safe multiprocessing start method to avoid fork-related DeprecationWarnings
+    try:
+        current = multiprocessing.get_start_method()
+    except RuntimeError:
+        current = None
+
+    if current != 'spawn':
+        try:
+            multiprocessing.set_start_method("spawn", force=True)
+        except RuntimeError:
+            # already set by child process; ignore
+            pass
+
     run_pipeline()

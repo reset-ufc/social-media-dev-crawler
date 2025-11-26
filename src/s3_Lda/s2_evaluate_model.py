@@ -10,6 +10,9 @@ import gensim
 from gensim.corpora.dictionary import Dictionary
 from gensim.models.ldamodel import LdaModel
 from gensim.models.coherencemodel import CoherenceModel
+import logging as _logging
+# silence noisy ldamodel warnings coming from gensim internals
+_logging.getLogger('gensim.models.ldamodel').setLevel(_logging.ERROR)
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -32,8 +35,9 @@ def find_best_model(
     dictionary: Dictionary,
     bow_corpus: List[List[tuple]],
     topic_range: Iterable[int] = range(2, 9),
-    alphas: Iterable = ('auto', 0.1, 0.5, 1.0),
-    etas: Iterable = ('auto', 0.1, 0.5, 1.0),
+    # avoid 'auto' values in grid search by default to reduce instability warnings
+    alphas: Iterable = (0.1, 0.5, 1.0),
+    etas: Iterable = (0.1, 0.5, 1.0),
     passes: int = 50,
     iterations: int = 100,
     coherence: str = 'c_v'

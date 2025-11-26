@@ -1,15 +1,20 @@
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+import nltk
+import warnings
+from bs4 import MarkupResemblesLocatorWarning
+from bs4 import BeautifulSoup
+import pandas as pd
+from typing import List
+import re
+from paths import PREPROCESSED_POSTS, NORMALIZED_POSTS
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from paths import PREPROCESSED_POSTS, NORMALIZED_POSTS
-import re
-from typing import List
-import pandas as pd
-from bs4 import BeautifulSoup
-import nltk
-from nltk.stem import WordNetLemmatizer
-from nltk.corpus import stopwords
+
+# Suppress BeautifulSoup warning when content resembles a URL
+warnings.filterwarnings("ignore", category=MarkupResemblesLocatorWarning)
 
 
 def _ensure_nltk_resources():
