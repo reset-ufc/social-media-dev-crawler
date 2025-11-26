@@ -16,8 +16,8 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-def run_pipeline(use_search: bool = True):
-    # 1) Normalize posts -> produces NORMALIZED_POSTS
+def run_pipeline(use_search: bool = True, llm=None, num_topics: int = None, alpha: float = None, eta: float = None):
+
     print('Running normalization...')
     try:
         s1_normalisation.main()
@@ -42,10 +42,16 @@ def run_pipeline(use_search: bool = True):
     else:
         texts = df['normalized_text'].fillna(
             '').map(lambda s: s.split()).tolist()
+
     # 3) Train/evaluate model (this function also saves artifacts)
     print('Training/evaluating LDA model...')
     model, dct, bow, cfg = s2_evaluate_model.evaluate_model(
-        texts, use_search=use_search)
+        texts,
+        use_search=use_search,
+        lda_num_topics=num_topics,
+        lda_alpha=alpha,
+        lda_eta=eta,
+    )
     print('Model trained. Config:', cfg)
 
     # 4) Prepare visualization
@@ -69,7 +75,12 @@ def run_pipeline(use_search: bool = True):
     pyLDAvis.save_html(vis, str(LDA_VISUALIZATION))
     print(f'Visualization saved to {LDA_VISUALIZATION}')
 
-    infer_topics()
+    # call topic inference, passing the chosen LLM if provided
+    try:
+        infer_topics(llm)
+    except TypeError:
+        # fallback if infer_topics expects no args (backward compatibility)
+        infer_topics()
 
 
 if __name__ == '__main__':

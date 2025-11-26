@@ -93,6 +93,9 @@ def evaluate_model(
     passes: int = 100,
     iterations: int = 150,
     random_state: Optional[int] = None,
+    lda_num_topics: Optional[int] = None,
+    lda_alpha: Optional[float] = None,
+    lda_eta: Optional[float] = None,
 ):
     """Create dictionary/bow and return a trained LDA model.
 
@@ -104,22 +107,35 @@ def evaluate_model(
         list(texts), no_below=no_below, no_above=no_above)
 
     if use_search:
-        model, best_config = find_best_model(texts, dictionary, bow_corpus, topic_range=topic_range, passes=max(
-            10, passes//2), iterations=max(50, iterations//2))
+        model, best_config = find_best_model(
+            texts,
+            dictionary,
+            bow_corpus,
+            topic_range=topic_range,
+            passes=max(10, passes // 2),
+            iterations=max(50, iterations // 2),
+        )
     else:
-        num_topics = int(sum(topic_range) / len(list(topic_range)))
+        # Use provided LDA params if given, otherwise derive sensible defaults
+        if lda_num_topics is not None:
+            num_topics = int(lda_num_topics)
+        else:
+            num_topics = int(sum(topic_range) / len(list(topic_range)))
+
+        alpha = lda_alpha if lda_alpha is not None else (1.0 / num_topics)
+        eta = lda_eta if lda_eta is not None else (1.0 / num_topics)
+
         model = LdaModel(
             corpus=bow_corpus,
             id2word=dictionary,
             num_topics=num_topics,
-            alpha=1.0/num_topics,
-            eta=1.0/num_topics,
+            alpha=alpha,
+            eta=eta,
             passes=passes,
             iterations=iterations,
             random_state=random_state,
         )
-        best_config = {"num_topics": num_topics,
-                       "alpha": 1.0/num_topics, "eta": 1.0/num_topics}
+        best_config = {"num_topics": num_topics, "alpha": alpha, "eta": eta}
 
     # After training, save model, dictionary and bow corpus so they can be reloaded later.
     try:
