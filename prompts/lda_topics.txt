@@ -1,0 +1,29 @@
+# TASK: Interpret and Name LDA Topics
+
+You are an expert in **topic modeling**, **LDA interpretation**, and **software engineering/data-security concepts**.  
+You will receive a list of LDA topics, each represented by its most relevant words.
+
+Your job is to:
+1. **Infer the underlying semantic theme** of each topic.  
+2. **Assign a short, clear, human-readable name** to every topic (2–6 words).  
+3. **Explain briefly** why this name fits (1–2 sentences max).  
+
+The LDA model was trained on **StackOverflow posts related to data-security**, so the themes will likely involve concepts such as encryption, key management, authentication, secure communication, cryptographic primitives, vulnerabilities, attacks, and secure coding practices.
+
+LDA OUTPUT
+{model_output}
+
+
+## OUTPUT FORMAT
+Return the results in the following JSON structure:
+
+```json
+{{
+  "topics": [
+    {{
+      "topic_index": 0,
+      "topic_name": "Short descriptive name",
+      "justification": "Brief explanation of how the top words relate to the chosen name."
+    }}
+  ]
+}}

@@ -22,6 +22,10 @@ PROMPTS_DIR = PROJECT_ROOT / "prompts"
 HIERARCHICAL_PROMPTS_DIR = PROMPTS_DIR / "hierarquical"
 FLAT_PROMPTS_DIR = PROMPTS_DIR / "flat"
 
+LDA_TOPICS = PROMPTS_DIR / 'lda_topics.txt'
+
+
+
 DATA_MINING = DATA / "data_mining"
 DATA_MINING_S1 = DATA_MINING / "s1"
 DATA_MINING_S2 = DATA_MINING / "s2"
@@ -99,3 +103,5 @@ TRAINED_LDA = MODEL / 'trained_lda.model'
 TRAINED_DCT = MODEL / 'trained_dictionary.dict'
 TRAINED_BOW = MODEL / 'trained_corpus.mm'
 LDA_VISUALIZATION = MODEL / 'lda_visualization.html'
+
+TOPIC_INFERENCE = LDA_DIR / 'topic_inference.json'

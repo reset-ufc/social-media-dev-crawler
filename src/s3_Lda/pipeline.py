@@ -12,6 +12,7 @@ import pyLDAvis.gensim_models as gensimvisualize
 import pandas as pd
 from s3_Lda import s2_evaluate_model
 from s3_Lda import s1_normalisation
+from s3_infer_topics import main as infer_topics
 from paths import NORMALIZED_POSTS, TRAINED_LDA, TRAINED_DCT, TRAINED_BOW, LDA_VISUALIZATION
 import multiprocessing
 
@@ -58,6 +59,8 @@ def run_pipeline(use_search: bool = True):
     Path(LDA_VISUALIZATION).parent.mkdir(parents=True, exist_ok=True)
     pyLDAvis.save_html(vis, str(LDA_VISUALIZATION))
     print(f'Visualization saved to {LDA_VISUALIZATION}')
+
+    infer_topics()
 
 
 if __name__ == '__main__':
