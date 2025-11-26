@@ -1,20 +1,19 @@
+import multiprocessing
+from paths import NORMALIZED_POSTS, TRAINED_LDA, TRAINED_DCT, TRAINED_BOW, LDA_VISUALIZATION
+from s3_infer_topics import main as infer_topics
+from s3_Lda import s1_normalisation
+from s3_Lda import s2_evaluate_model
+import pandas as pd
+import pyLDAvis.gensim_models as gensimvisualize
+import pyLDAvis
+from gensim.models.ldamodel import LdaModel
+from gensim.corpora.dictionary import Dictionary
+from gensim.corpora import MmCorpus
 import sys
 import os
 from pathlib import Path
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from gensim.corpora import MmCorpus
-from gensim.corpora.dictionary import Dictionary
-from gensim.models.ldamodel import LdaModel
-import pyLDAvis
-import pyLDAvis.gensim_models as gensimvisualize
-import pandas as pd
-from s3_Lda import s2_evaluate_model
-from s3_Lda import s1_normalisation
-from s3_infer_topics import main as infer_topics
-from paths import NORMALIZED_POSTS, TRAINED_LDA, TRAINED_DCT, TRAINED_BOW, LDA_VISUALIZATION
-import multiprocessing
 
 
 def run_pipeline(use_search: bool = True):
@@ -49,13 +48,23 @@ def run_pipeline(use_search: bool = True):
         texts, use_search=use_search)
     print('Model trained. Config:', cfg)
 
-    # 4) Load saved artifacts to prepare visualization (use saved files to ensure reproducible pipeline)
+    # 4) Prepare visualization
     print('Preparing visualization...')
-    lda = LdaModel.load(str(TRAINED_LDA))
-    dictionary = Dictionary.load(str(TRAINED_DCT))
-    corpus = MmCorpus(str(TRAINED_BOW))
+    # Prefer using in-memory artifacts returned by evaluate_model to ensure indices align
+    try:
+        if 'model' in locals() and 'dct' in locals() and 'bow' in locals() and model is not None:
+            lda = model
+            dictionary = dct
+            corpus = bow
+        else:
+            lda = LdaModel.load(str(TRAINED_LDA))
+            dictionary = Dictionary.load(str(TRAINED_DCT))
+            corpus = MmCorpus(str(TRAINED_BOW))
 
-    vis = gensimvisualize.prepare(lda, corpus, dictionary, mds='mmds')
+        # corpus may be an iterable of (id, count) pairs or an MmCorpus object; pyLDAvis accepts both
+        vis = gensimvisualize.prepare(lda, corpus, dictionary, mds='mmds')
+    except Exception as e:
+        print(e)
     Path(LDA_VISUALIZATION).parent.mkdir(parents=True, exist_ok=True)
     pyLDAvis.save_html(vis, str(LDA_VISUALIZATION))
     print(f'Visualization saved to {LDA_VISUALIZATION}')

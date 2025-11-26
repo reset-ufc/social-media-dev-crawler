@@ -7,7 +7,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from typing import List
 from pydantic import BaseModel, Field
-from langchain.output_parsers import JsonOutputParser
+from langchain_core.output_parsers import JsonOutputParser
 from langchain.prompts import PromptTemplate
 from langchain_ollama import ChatOllama
 import json
@@ -124,13 +124,7 @@ def main(llm=None):
     inference_result = infer_topic_names(model, llm)
 
     # Save results
-    save_topic_inference(inference_result.model_dump(), Path(TOPIC_INFERENCE))
-
-    # Print summary
-    print("\n=== Topic Inference Results ===")
-    for topic in inference_result.topics:
-        print(f"Topic {topic.topic_id}: {topic.inferred_name}")
-        print(f"  Rationale: {topic.rationale}\n")
+    save_topic_inference(inference_result, Path(TOPIC_INFERENCE))
 
 
 if __name__ == '__main__':
