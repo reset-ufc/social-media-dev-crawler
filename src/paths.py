@@ -98,6 +98,7 @@ VALIDATION_SHEET = LLM_INFERENCE / "validation_sheet.xlsx"
 
 LDA_DIR = DATA / 'Lda'
 NORMALIZED_POSTS = LDA_DIR/'normalized_posts.csv'
+
 MODEL = LDA_DIR / 'model'
 TRAINED_LDA = MODEL / 'trained_lda.model'
 TRAINED_DCT = MODEL / 'trained_dictionary.dict'
@@ -105,3 +106,4 @@ TRAINED_BOW = MODEL / 'trained_corpus.mm'
 LDA_VISUALIZATION = MODEL / 'lda_visualization.html'
 
 TOPIC_INFERENCE = LDA_DIR / 'topic_inference.json'
+CLASSIFIED_POSTS = LDA_DIR / 'classified_posts.csv'
