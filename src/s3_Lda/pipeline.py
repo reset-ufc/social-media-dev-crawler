@@ -1,3 +1,8 @@
+import sys
+import os
+from pathlib import Path
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import multiprocessing
 from paths import NORMALIZED_POSTS, TRAINED_LDA, TRAINED_DCT, TRAINED_BOW, LDA_VISUALIZATION
 from s3_infer_topics import main as infer_topics
@@ -9,11 +14,8 @@ import pyLDAvis
 from gensim.models.ldamodel import LdaModel
 from gensim.corpora.dictionary import Dictionary
 from gensim.corpora import MmCorpus
-import sys
-import os
-from pathlib import Path
+from langchain_ollama import ChatOllama
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def run_pipeline(use_search: bool = True, llm=None, num_topics: int = None, alpha: float = None, eta: float = None):
@@ -73,7 +75,7 @@ def run_pipeline(use_search: bool = True, llm=None, num_topics: int = None, alph
         print(e)
     Path(LDA_VISUALIZATION).parent.mkdir(parents=True, exist_ok=True)
     pyLDAvis.save_html(vis, str(LDA_VISUALIZATION))
-    print(f'Visualization saved to {LDA_VISUALIZATION}')
+    print(f'Visualization saved')
 
     # call topic inference, passing the chosen LLM if provided
     try:
@@ -97,4 +99,5 @@ if __name__ == '__main__':
             # already set by child process; ignore
             pass
 
-    run_pipeline()
+    run_pipeline(num_topics=7, alpha=0.1, eta=0.1, use_search=False,
+                  llm=ChatOllama(model="deepseek-r1:32b", temperature=0.3))

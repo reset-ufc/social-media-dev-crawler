@@ -1,3 +1,6 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 import nltk
@@ -8,9 +11,7 @@ import pandas as pd
 from typing import List
 import re
 from paths import PREPROCESSED_POSTS, NORMALIZED_POSTS
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 
 # Suppress BeautifulSoup warning when content resembles a URL

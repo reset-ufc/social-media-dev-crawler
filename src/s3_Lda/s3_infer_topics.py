@@ -44,7 +44,7 @@ def format_topics_for_llm(model: LdaModel, num_words: int = 10) -> str:
         # Format: "Topic 0: [word1 (0.05), word2 (0.04), ...]"
         terms_str = ", ".join(
             [f"{word} ({weight:.4f})" for word, weight in top_terms])
-        formatted_topics.append(f"Topic {topic_id}: [{terms_str}]")
+        formatted_topics.append(f"Topic {topic_id + 1}: [{terms_str}]")
 
     return "\n".join(formatted_topics)
 
@@ -96,7 +96,7 @@ def save_topic_inference(inference_result: dict, output_path: Path) -> None:
     with open(str(output_path), 'w', encoding='utf-8') as f:
         json.dump(inference_result, f, indent=2, ensure_ascii=False)
 
-    print(f"Topic inference saved to {output_path}")
+    print(f"Topic inference saved")
 
 
 def main(llm=None):
@@ -116,7 +116,7 @@ def main(llm=None):
         raise FileNotFoundError(
             f"Trained LDA model not found at {TRAINED_LDA}")
 
-    print(f"Loading trained LDA model from {TRAINED_LDA}")
+    print(f"Loading trained LDA")
     model = LdaModel.load(str(TRAINED_LDA))
     print(f"Model loaded. Number of topics: {model.num_topics}")
 
