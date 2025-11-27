@@ -1,21 +1,21 @@
+from langchain_ollama import ChatOllama
+from gensim.corpora import MmCorpus
+from gensim.corpora.dictionary import Dictionary
+from gensim.models.ldamodel import LdaModel
+import pyLDAvis
+import pyLDAvis.gensim_models as gensimvisualize
+import pandas as pd
+from s3_Lda import s4_classify_posts
+from s3_Lda import s2_evaluate_model
+from s3_Lda import s1_normalisation
+from s3_infer_topics import main as infer_topics
+from paths import NORMALIZED_POSTS, TRAINED_LDA, TRAINED_DCT, TRAINED_BOW, LDA_VISUALIZATION
+import multiprocessing
 import sys
 import os
 from pathlib import Path
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import multiprocessing
-from paths import NORMALIZED_POSTS, TRAINED_LDA, TRAINED_DCT, TRAINED_BOW, LDA_VISUALIZATION
-from s3_infer_topics import main as infer_topics
-from s3_Lda import s1_normalisation
-from s3_Lda import s2_evaluate_model
-import pandas as pd
-import pyLDAvis.gensim_models as gensimvisualize
-import pyLDAvis
-from gensim.models.ldamodel import LdaModel
-from gensim.corpora.dictionary import Dictionary
-from gensim.corpora import MmCorpus
-from langchain_ollama import ChatOllama
-
 
 
 def run_pipeline(use_search: bool = True, llm=None, num_topics: int = None, alpha: float = None, eta: float = None):
@@ -77,12 +77,16 @@ def run_pipeline(use_search: bool = True, llm=None, num_topics: int = None, alph
     pyLDAvis.save_html(vis, str(LDA_VISUALIZATION))
     print(f'Visualization saved')
 
-    # call topic inference, passing the chosen LLM if provided
+    # 5) Infer topic names using LLM, passing the chosen LLM if provided
     try:
         infer_topics(llm)
     except TypeError:
         # fallback if infer_topics expects no args (backward compatibility)
         infer_topics()
+
+    # 6) Classify posts to topics based on LDA model and inferred topic names
+    print('Classifying posts to topics...')
+    s4_classify_posts.main()
 
 
 if __name__ == '__main__':
@@ -100,4 +104,4 @@ if __name__ == '__main__':
             pass
 
     run_pipeline(num_topics=7, alpha=0.1, eta=0.1, use_search=False,
-                  llm=ChatOllama(model="deepseek-r1:32b", temperature=0.3))
+                 llm=ChatOllama(model="deepseek-r1:32b", temperature=0.3))
