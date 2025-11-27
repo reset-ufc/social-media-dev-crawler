@@ -35,60 +35,52 @@ def load_topic_mapping(topic_inference_path: Path) -> dict:
 
 
 def classify_posts(model: LdaModel, posts_df: pd.DataFrame, topic_mapping: dict) -> pd.DataFrame:
-    """Classify posts to their most probable topic based on LDA model.
-
-    For each post's normalized text, get the most probable topic from the model,
-    then map to the inferred topic name from topic_mapping.
-
-    Args:
-        model: Trained LDA model
-        posts_df: DataFrame with 'normalized_text' column (space-separated tokens)
-        topic_mapping: Dict mapping topic_id (0-indexed) to inferred_name
-
-    Returns:
-        DataFrame with added 'topic' column containing inferred topic names.
     """
+    Classifies post groups to their most probable topic and assigns it to the question post.
+    """
+    # Create a new 'topic' column, initialized to None
     result_df = posts_df.copy()
-    topics = []
+    result_df['topic'] = pd.NA
 
-    for idx, row in posts_df.iterrows():
-        normalized_text = row.get('normalized_text', '')
+    # Group by site and question_id
+    grouped = result_df.groupby(['site', 'question_id'])
 
-        if not normalized_text or not isinstance(normalized_text, str):
-            topics.append(None)
+    for name, group in grouped:
+        # Concatenate normalized_text of all posts in the group
+        # Filling na with empty string to avoid errors
+        # Also ensuring we only join non-empty strings
+        texts_to_join = group['normalized_text'].dropna().astype(str)
+        if texts_to_join.empty:
+            continue
+        
+        combined_text = ' '.join(texts_to_join)
+
+        if not combined_text.strip():
             continue
 
-        # Tokenize the normalized text (space-separated)
-        tokens = normalized_text.split()
-
+        tokens = combined_text.split()
         if not tokens:
-            topics.append(None)
             continue
 
-        # Get topic distribution for this document
-        # First convert to bow using the model's dictionary
         bow = model.id2word.doc2bow(tokens)
-
         if not bow:
-            topics.append(None)
             continue
 
-        # Get topic distribution: list of (topic_id, probability) tuples
         doc_topics = model.get_document_topics(bow)
-
         if not doc_topics:
-            topics.append(None)
             continue
 
-        # Find the most probable topic (highest probability)
         most_probable_topic_id = max(doc_topics, key=lambda x: x[1])[0]
+        topic_name = topic_mapping.get(most_probable_topic_id, f"Unknown Topic {most_probable_topic_id}")
 
-        # Map to inferred name (topic_id is 0-indexed in model, matches topic_mapping keys)
-        topic_name = topic_mapping.get(
-            most_probable_topic_id, f"Unknown Topic {most_probable_topic_id}")
-        topics.append(topic_name)
+        # Find the index of the post with type 'question' in the original dataframe
+        question_post_index = group[group['type'] == 'question'].index
 
-    result_df['topic'] = topics
+        if not question_post_index.empty:
+            # Assign the topic to the question post(s) in the result_df
+            # Using .loc to ensure we are modifying the result_df
+            result_df.loc[question_post_index, 'topic'] = topic_name
+
     return result_df
 
 
