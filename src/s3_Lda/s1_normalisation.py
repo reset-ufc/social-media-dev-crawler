@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from typing import List
 import re
-from paths import PREPROCESSED_POSTS, NORMALIZED_POSTS
+from paths import FILTRED_POSTS, NORMALIZED_POSTS
 
 
 
@@ -103,11 +103,18 @@ def normalize_corpora_from_posts(df: pd.DataFrame, body_field: str = 'body') -> 
 
 
 def main():
-    if not PREPROCESSED_POSTS.exists():
+    if not FILTRED_POSTS.exists():
         raise FileNotFoundError(
-            f"Preprocessed posts not found at {PREPROCESSED_POSTS}")
+            f"Filtered posts not found at {FILTRED_POSTS}")
 
-    df = pd.read_csv(str(PREPROCESSED_POSTS))
+    df = pd.read_csv(str(FILTRED_POSTS))
+    
+    # Combine title and body if title exists
+    if 'title' in df.columns:
+        df['title'] = df['title'].fillna('')
+        df['body'] = df['body'].fillna('')
+        df['body'] = df['title'] + ' ' + df['body']
+
     result_df = normalize_corpora_from_posts(df, body_field='body')
 
     # Save normalized posts. Store tokens as space-joined string to keep CSV simple.
