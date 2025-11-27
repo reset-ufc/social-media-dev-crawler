@@ -1,3 +1,9 @@
+import sys
+import os
+from pathlib import Path
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from langchain_ollama import ChatOllama
 from gensim.corpora import MmCorpus
 from gensim.corpora.dictionary import Dictionary
@@ -5,16 +11,10 @@ from gensim.models.ldamodel import LdaModel
 import pyLDAvis
 import pyLDAvis.gensim_models as gensimvisualize
 import pandas as pd
-from s3_Lda import s4_classify_posts
-from s3_Lda import s1_normalisation
+import s4_classify_posts
 from s3_infer_topics import main as infer_topics
 from paths import NORMALIZED_POSTS, TRAINED_LDA, TRAINED_DCT, TRAINED_BOW, LDA_VISUALIZATION
 import multiprocessing
-import sys
-import os
-from pathlib import Path
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def run_pipeline(llm=None):

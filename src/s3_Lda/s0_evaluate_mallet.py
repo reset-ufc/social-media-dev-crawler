@@ -88,7 +88,7 @@ def find_best_model(
             )
                 
             # Convert to gensim model for coherence calculation
-            model = mallet_model.convert_to_gensim()
+            model = gensim.models.wrappers.ldamallet.malletmodel2ldamodel(mallet_model)
 
             cm = CoherenceModel(model=model, texts=list(
                 texts), dictionary=dictionary, coherence=coherence)
@@ -144,7 +144,6 @@ def evaluate_model(
             dictionary,
             bow_corpus,
             topic_range=topic_range,
-            passes=max(10, passes // 2),
             iterations=max(50, iterations // 2),
         )
 
@@ -208,3 +207,4 @@ if __name__ == '__main__':
         texts = df['normalized_text'].fillna(
             '').map(lambda s: s.split()).tolist()
     evaluate_model(texts)
+    
