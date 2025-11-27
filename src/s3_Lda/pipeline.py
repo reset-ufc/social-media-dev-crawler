@@ -6,7 +6,6 @@ import pyLDAvis
 import pyLDAvis.gensim_models as gensimvisualize
 import pandas as pd
 from s3_Lda import s4_classify_posts
-from s3_Lda import s0_evaluate_mallet
 from s3_Lda import s1_normalisation
 from s3_infer_topics import main as infer_topics
 from paths import NORMALIZED_POSTS, TRAINED_LDA, TRAINED_DCT, TRAINED_BOW, LDA_VISUALIZATION
@@ -19,18 +18,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def run_pipeline(llm=None):
-
-    print('Running normalization...')
-    try:
-        s1_normalisation.main()
-    except Exception as e:
-        print('Normalization failed:', e)
-        raise
-
-    if not Path(NORMALIZED_POSTS).exists():
-        raise FileNotFoundError(
-            f'Normalized posts not found at {NORMALIZED_POSTS}')
-
     # 4) Prepare visualization
     print('Preparing visualization...')
     try:
