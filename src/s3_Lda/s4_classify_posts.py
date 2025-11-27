@@ -11,10 +11,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def load_topic_mapping(topic_inference_path: Path) -> dict:
-    """Load topic names from TOPIC_INFERENCE JSON file.
+    """Load topic names from TOPIC_INFERENCE JSON file using pandas.
 
     Returns a dict mapping topic_id (0-indexed) to inferred_name.
-    Note: topic_inference.json uses 0-indexed topic_id, but we map it accordingly.
     """
     if not Path(topic_inference_path).exists():
         raise FileNotFoundError(
@@ -23,13 +22,29 @@ def load_topic_mapping(topic_inference_path: Path) -> dict:
     with open(str(topic_inference_path), 'r', encoding='utf-8') as f:
         data = json.load(f)
 
-    # Build mapping: topic_id -> inferred_name
-    topic_mapping = {}
-    for topic in data.get('topics', []):
-        topic_id = topic.get('topic_id')
-        inferred_name = topic.get('inferred_name')
-        if topic_id is not None and inferred_name is not None:
-            topic_mapping[topic_id] = inferred_name
+    if 'topics' not in data:
+        return {}
+
+    topics_df = pd.DataFrame(data['topics'])
+
+    id_col = None
+    if 'topic_id' in topics_df.columns:
+        id_col = 'topic_id'
+    elif 'topic_index' in topics_df.columns:
+        id_col = 'topic_index'
+
+    name_col = None
+    if 'inferred_name' in topics_df.columns:
+        name_col = 'inferred_name'
+    elif 'topic_name' in topics_df.columns:
+        name_col = 'topic_name'
+    
+    if id_col is None or name_col is None:
+        print(f"Warning: Could not find topic ID or name columns in {topic_inference_path}. Topic names will be unknown.")
+        return {}
+
+    # Create the mapping
+    topic_mapping = topics_df.set_index(id_col)[name_col].to_dict()
 
     return topic_mapping
 
@@ -71,7 +86,7 @@ def classify_posts(model: LdaModel, posts_df: pd.DataFrame, topic_mapping: dict)
             continue
 
         most_probable_topic_id = max(doc_topics, key=lambda x: x[1])[0]
-        topic_name = topic_mapping.get(most_probable_topic_id, f"Unknown Topic {most_probable_topic_id}")
+        topic_name = topic_mapping.get(most_probable_topic_id, most_probable_topic_id)
 
         # Find the index of the post with type 'question' in the original dataframe
         question_post_index = group[group['type'] == 'question'].index
@@ -124,13 +139,15 @@ def main():
     classified_df.to_csv(str(CLASSIFIED_POSTS), index=False)
     print(f"Classified posts saved to {CLASSIFIED_POSTS}")
 
-    # Print summary
-    print("\n=== Classification Summary ===")
-    print(f"Total posts classified: {len(classified_df)}")
-    print(f"Posts with valid topic: {classified_df['topic'].notna().sum()}")
-    print(f"Posts with no topic: {classified_df['topic'].isna().sum()}")
-    print("\nTopic distribution:")
-    print(classified_df['topic'].value_counts())
+    # Print summary for question posts only
+    question_posts_df = classified_df[classified_df['type'] == 'question']
+
+    print("\n=== Classification Summary (Questions Only) ===")
+    print(f"Total questions: {len(question_posts_df)}")
+    print(f"Questions with valid topic: {question_posts_df['topic'].notna().sum()}")
+    print(f"Questions with no topic: {question_posts_df['topic'].isna().sum()}")
+    print("\nTopic distribution (Questions Only):")
+    print(question_posts_df['topic'].value_counts())
 
 
 if __name__ == '__main__':
