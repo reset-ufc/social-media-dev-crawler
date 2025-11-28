@@ -64,12 +64,6 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
     df_questions = df[df['type'] == 'question'].copy()
     logger.info(f"Encontradas {len(df_questions)} perguntas no total.")
 
-    # 2. Filtra perguntas que contêm a tag <code> no corpo
-    df_questions = df_questions[df_questions['body'].str.contains(
-        '<code>', na=False)]
-    logger.info(
-        f"Destas, {len(df_questions)} perguntas contêm a tag <code> e serão consideradas para análise de popularidade.")
-
     # Garante que todas as colunas numéricas existem
     for col in ['answer_count', 'view_count', 'score', 'comment_count']:
         if col not in df_questions.columns:
