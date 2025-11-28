@@ -25,7 +25,6 @@ FLAT_PROMPTS_DIR = PROMPTS_DIR / "flat"
 LDA_TOPICS = PROMPTS_DIR / 'lda_topics.txt'
 
 
-
 DATA_MINING = DATA / "data_mining"
 DATA_MINING_S1 = DATA_MINING / "s1"
 DATA_MINING_S2 = DATA_MINING / "s2"
@@ -93,7 +92,6 @@ HIER_MERGED_SUMMARY = HIER_LLM_SUMMARIZATION / "merge_summary.log"
 VALIDATION_SHEET = LLM_INFERENCE / "validation_sheet.xlsx"
 
 
-
 # s3 LDA
 
 LDA_DIR = DATA / 'Lda'
@@ -104,6 +102,9 @@ TRAINED_LDA = MODEL / 'trained_lda.model'
 TRAINED_DCT = MODEL / 'trained_dictionary.dict'
 TRAINED_BOW = MODEL / 'trained_corpus.mm'
 LDA_VISUALIZATION = MODEL / 'lda_visualization.html'
+LDA_CONFIG = MODEL / 'trained_lda.meta.json'
+
+FUSED_METRICS = LDA_DIR / 'fused_popularity.csv'
 
 TOPIC_INFERENCE = LDA_DIR / 'topic_inference.json'
 CLASSIFIED_POSTS = LDA_DIR / 'classified_posts.csv'
