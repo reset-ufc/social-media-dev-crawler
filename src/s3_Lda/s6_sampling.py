@@ -6,6 +6,7 @@ from utils_global import calc_sample_size, neyman_allocation
 from paths import *
 import pandas as pd
 from pathlib import Path
+from openpyxl.worksheet.datavalidation import DataValidation
 
 
 def generate_stratum_table(classfication_path: str = CLASSIFIED_POSTS) -> None:
@@ -89,7 +90,6 @@ def validation_sample():
     if out_path.suffix.lower() != '.xlsx':
         out_path = out_path.with_suffix('.xlsx')
 
-    # Build sheet with required columns: question_id, link, topic
     # Determine site column name if present
     site_col = None
     if 'site' in result.columns:
@@ -98,9 +98,8 @@ def validation_sample():
         site_col = 'site_alias'
 
     def make_link(row):
-        qid = row.get('question_id') if 'question_id' in row else row.get('id')
-        site_alias = row.get(
-            site_col) if site_col is not None else 'stackoverflow'
+        qid = row.get('id')
+        site_alias = row.get(site_col) if site_col is not None else 'stackoverflow'
         if pd.isna(qid):
             return ''
         try:
@@ -114,16 +113,25 @@ def validation_sample():
         return f"https://{domain}/questions/{qid_str}"
 
     if result.empty:
-        out_df = pd.DataFrame(columns=['question_id', 'link', 'topic'])
+        out_df = pd.DataFrame(columns=['id', 'site', 'topic', 'link', 'is_valid'])
     else:
-        # Ensure question_id and topic exist in result; fall back to 'id' if needed
-        if 'question_id' not in result.columns and 'id' in result.columns:
-            result = result.rename(columns={'id': 'question_id'})
+        # Ensure id and topic exist in result; fall back to 'question_id' if needed
+        if 'id' not in result.columns and 'question_id' in result.columns:
+            result = result.rename(columns={'question_id': 'id'})
 
         out_df = pd.DataFrame()
-        out_df['question_id'] = result['question_id'] if 'question_id' in result.columns else pd.NA
+        out_df['id'] = result['id'] if 'id' in result.columns else pd.NA
+        if site_col:
+            out_df['site'] = result[site_col]
+        else:
+            out_df['site'] = 'stackoverflow' # default if not found
         out_df['topic'] = result['topic'] if 'topic' in result.columns else pd.NA
         out_df['link'] = result.apply(make_link, axis=1)
+        out_df['is_valid'] = None # Placeholder for dropdown
+
+        # Ensure correct column order
+        out_df = out_df[['id', 'site', 'topic', 'link', 'is_valid']]
+
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     # Write to Excel
@@ -131,8 +139,20 @@ def validation_sample():
         with pd.ExcelWriter(out_path, engine='openpyxl') as writer:
             out_df.to_excel(writer, index=False,
                             sheet_name='validation_sample')
-    except Exception:
-        # Fallback: try default engine
+
+            # Add data validation for 'is_valid' column
+            workbook = writer.book
+            worksheet = writer.sheets['validation_sample']
+            dv = DataValidation(type="list", formula1='"True,False"', allow_blank=True)
+            worksheet.add_data_validation(dv)
+            # Apply validation to all cells in the 'is_valid' column (column E)
+            # from the second row to the last row of data.
+            if not out_df.empty:
+                dv.add(f'E2:E{len(out_df)+1}')
+
+    except Exception as e:
+        print(f"Failed to write with openpyxl and data validation, error: {e}")
+        # Fallback: try default engine without data validation
         out_df.to_excel(out_path, index=False, sheet_name='validation_sample')
 
     return out_df
