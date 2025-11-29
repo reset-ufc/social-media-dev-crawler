@@ -104,11 +104,16 @@ TRAINED_BOW = MODEL / 'trained_corpus.mm'
 LDA_VISUALIZATION = MODEL / 'lda_visualization.html'
 LDA_CONFIG = MODEL / 'trained_lda.meta.json'
 
-FUSED_METADATA = LDA_DIR / 'fused_metadata.csv'
-FUSED_PLOT = LDA_DIR / 'fused_plot.png'
+LDA_CSVS = LDA_DIR / 'csvs'
+LDA_PLOTS = LDA_TOPICS / 'plots'
 
-STRATUM_TABLE = LDA_DIR / 'stratum_table.csv'
+
+FUSED_METADATA = LDA_CSVS / 'fused_metadata.csv'
+CLASSIFIED_POSTS = LDA_CSVS / 'classified_posts.csv'
+STRATUM_TABLE = LDA_CSVS / 'stratum_table.csv'
+
+FUSED_PLOT = LDA_PLOTS / 'fused_plot.png'
+
 
 TOPIC_INFERENCE = LDA_DIR / 'topic_inference.json'
-CLASSIFIED_POSTS = LDA_DIR / 'classified_posts.csv'
 VALIDATION_SAMPLE = LDA_DIR / 'validation_sample.xlsx'
