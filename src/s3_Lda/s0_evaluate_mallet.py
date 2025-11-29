@@ -13,6 +13,7 @@ import gensim
 from gensim.corpora.dictionary import Dictionary
 from gensim.models.ldamodel import LdaModel
 from gensim.models.wrappers import LdaMallet
+from gensim.models.wrappers.ldamallet import malletmodel2ldamodel
 from gensim.models.coherencemodel import CoherenceModel
 import logging as _logging
 import pandas as pd
@@ -28,17 +29,19 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
+# ----------------------------------------------------------------------
+#   CREATE DICTIONARY + BOW
+# ----------------------------------------------------------------------
 def make_dct_bow(corpora: Iterable[List[str]], no_below: int = 5, no_above: float = 0.5) -> Tuple[Dictionary, List[List[tuple]]]:
-    """Create a gensim Dictionary and BOW corpus from tokenized texts.
-
-    Returns (dictionary, bow_corpus)
-    """
     dct = Dictionary(corpora)
     dct.filter_extremes(no_below=no_below, no_above=no_above)
     bow = [dct.doc2bow(doc) for doc in corpora]
     return dct, bow
 
 
+# ----------------------------------------------------------------------
+#   GRID SEARCH USING MALLET
+# ----------------------------------------------------------------------
 def find_best_model(
     texts: Iterable[List[str]],
     dictionary: Dictionary,
@@ -47,27 +50,12 @@ def find_best_model(
     iterations: int = 100,
     coherence: str = 'c_v'
 ) -> Tuple[LdaModel, dict]:
-    """Grid search for best LDA model based on coherence using LdaMallet.
 
-    Returns (best_model, best_config)
-    """
-    # Set the path to the Mallet binary.
-    # You must have Mallet installed and the MALLET_HOME environment variable set.
-    mallet_home = os.environ.get("MALLET_HOME")
-
-    if mallet_home is None:
-        # Fallback padrão para Linux
-        # (supondo instalação em /opt/mallet — ajuste caso necessário)
-        mallet_home = "/opt/mallet"
-
+    mallet_home = os.environ.get("MALLET_HOME", "/opt/mallet")
     mallet_path = os.path.join(mallet_home, "bin", "mallet")
 
     if not os.path.exists(mallet_path):
-        raise RuntimeError(
-            f"Mallet binary not found at {mallet_path}. "
-            "Set MALLET_HOME correctly or install Mallet."
-        )
-
+        raise RuntimeError(f"Mallet binary not found at {mallet_path}")
 
     best_score = float('-inf')
     best_model = None
@@ -76,6 +64,7 @@ def find_best_model(
     for num_topics in topic_range:
         logger.info(f"Testing num_topics={num_topics}")
         alpha = num_topics / 50.0
+
         try:
             mallet_model = LdaMallet(
                 mallet_path=mallet_path,
@@ -83,26 +72,24 @@ def find_best_model(
                 id2word=dictionary,
                 num_topics=num_topics,
                 alpha=alpha,
-
                 iterations=iterations,
             )
-                
-            # Convert to gensim model for coherence calculation
-            model = gensim.models.wrappers.ldamallet.malletmodel2ldamodel(mallet_model)
 
-            cm = CoherenceModel(model=model, texts=list(
-                texts), dictionary=dictionary, coherence=coherence)
+            # convert MALLET → Gensim LdaModel (correct!)
+            model = malletmodel2ldamodel(mallet_model)
+
+            cm = CoherenceModel(model=model, texts=list(texts), dictionary=dictionary, coherence=coherence)
             score = cm.get_coherence()
-            logger.info(
-                f"num_topics={num_topics} alpha={alpha} coherence={score:.4f}")
+
+            logger.info(f"num_topics={num_topics} | alpha={alpha} | coherence={score:.4f}")
+
             if score > best_score:
                 best_score = score
                 best_model = model
-                best_config = {"num_topics": num_topics,
-                                "alpha": alpha, "coherence": score}
+                best_config = {"num_topics": num_topics, "alpha": alpha, "coherence": score}
+
         except Exception as e:
-            logger.exception(
-                "Model training failed for configuration", exc_info=e)
+            logger.exception("Model training failed for configuration", exc_info=e)
 
     if best_model is None:
         raise RuntimeError("No model could be trained")
@@ -110,6 +97,9 @@ def find_best_model(
     return best_model, best_config
 
 
+# ----------------------------------------------------------------------
+#   MAIN TRAINING FUNCTION
+# ----------------------------------------------------------------------
 def evaluate_model(
     texts: Iterable[List[str]],
     no_below: int = 5,
@@ -123,19 +113,20 @@ def evaluate_model(
     lda_alpha: Optional[float] = None,
     lda_eta: Optional[float] = None,
 ):
-    """Train an LDA model using Mallet and return a converted Gensim model."""
-
-    # --- Resolve MALLET path ---
+    # resolve MALLET
     mallet_home = os.environ.get('MALLET_HOME', r'C:\mallet')
     mallet_path = os.path.join(mallet_home, "bin", "mallet")
+
     if not os.path.exists(mallet_path):
         raise RuntimeError(f"Mallet binary not found at: {mallet_path}")
 
-    # --- Create dictionary + BOW ---
     texts = list(texts)
+
     dictionary, bow_corpus = make_dct_bow(texts, no_below=no_below, no_above=no_above)
 
-    # Normalize topic_range in case it's a generator
+    logger.info(f"Dictionary size: {len(dictionary)}")
+    logger.info(f"Example BOW doc: {bow_corpus[0] if bow_corpus else 'EMPTY BOW'}")
+
     topic_range = list(topic_range)
 
     if use_search:
@@ -148,16 +139,9 @@ def evaluate_model(
         )
 
     else:
-        # Number of topics
-        num_topics = (
-            int(lda_num_topics)
-            if lda_num_topics is not None
-            else int(sum(topic_range) / len(topic_range))
-        )
-
+        num_topics = int(lda_num_topics or (sum(topic_range) / len(topic_range)))
         alpha = lda_alpha if lda_alpha is not None else (50 / num_topics)
 
-        # Train model MALLET
         mallet_model = LdaMallet(
             mallet_path=mallet_path,
             corpus=bow_corpus,
@@ -167,44 +151,51 @@ def evaluate_model(
             iterations=iterations,
         )
 
-        # Convert to gensim for inference
-        model = mallet_model.convert_to_gensim()
+        # convert ALWAYS
+        model = malletmodel2ldamodel(mallet_model)
 
         best_config = {"num_topics": num_topics, "alpha": alpha}
 
-    # --- Save results ---
+    # ------------------------------------------------------------------
+    # SAVE ARTIFACTS — FIXED (consistent formats, no more errors)
+    # ------------------------------------------------------------------
     try:
         lda_dir = Path(TRAINED_LDA).parent
         lda_dir.mkdir(parents=True, exist_ok=True)
 
-        # Save converted gensim model
+        # save Gensim LdaModel (correct!)
         model.save(str(TRAINED_LDA))
 
-        # Save dictionary and corpus
         dictionary.save(str(TRAINED_DCT))
         MmCorpus.serialize(str(TRAINED_BOW), bow_corpus)
 
-        # Save metadata
         meta_path = str(Path(TRAINED_LDA).with_suffix(".meta.json"))
         with open(meta_path, "w", encoding="utf-8") as mf:
-            json.dump(best_config or {}, mf, indent=2)
+            json.dump(best_config, mf, indent=2)
+
+        logger.info("✔ Model saved successfully")
 
     except Exception as e:
         logger.exception("Failed to save trained model artifacts", exc_info=e)
 
 
+# ----------------------------------------------------------------------
+#   RUN TRAINING
+# ----------------------------------------------------------------------
 if __name__ == '__main__':
     df = pd.read_csv(str(NORMALIZED_POSTS))
-    if 'normalized_text' not in df.columns:
-        # fallback: if normalized column exists as list-like in CSV, try to read
-        if 'normalized' in df.columns:
-            texts = df['normalized'].fillna('').map(lambda s: eval(s) if isinstance(
-                s, str) and s.startswith('[') else str(s).split()).tolist()
-        else:
-            raise RuntimeError(
-                'No normalized_text or normalized column found in normalized posts')
+
+    if 'normalized_text' in df.columns:
+        texts = df['normalized_text'].fillna('').map(lambda s: s.split()).tolist()
+
+    elif 'normalized' in df.columns:
+        # support for lists stored as strings
+        texts = df['normalized'].fillna('').map(
+            lambda s: eval(s) if isinstance(s, str) and s.startswith('[')
+            else str(s).split()
+        ).tolist()
+
     else:
-        texts = df['normalized_text'].fillna(
-            '').map(lambda s: s.split()).tolist()
+        raise RuntimeError("No normalized_text or normalized column found in CSV")
+
     evaluate_model(texts)
-    
