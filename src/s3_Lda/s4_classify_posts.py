@@ -1,13 +1,15 @@
-import json
-import pandas as pd
-from gensim.corpora.dictionary import Dictionary
-from gensim.models.ldamodel import LdaModel
-from paths import NORMALIZED_POSTS, TRAINED_LDA, TRAINED_DCT, TOPIC_INFERENCE, CLASSIFIED_POSTS
 import sys
 import os
 from pathlib import Path
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import json
+import pandas as pd
+from gensim.corpora.dictionary import Dictionary
+from gensim.models.ldamodel import LdaModel
+from paths import *
+
 
 
 def load_topic_mapping(topic_inference_path: Path) -> dict:
@@ -43,7 +45,6 @@ def load_topic_mapping(topic_inference_path: Path) -> dict:
         print(f"Warning: Could not find topic ID or name columns in {topic_inference_path}. Topic names will be unknown.")
         return {}
 
-    # Create the mapping
     topic_mapping = topics_df.set_index(id_col)[name_col].to_dict()
 
     return topic_mapping
@@ -51,52 +52,38 @@ def load_topic_mapping(topic_inference_path: Path) -> dict:
 
 def classify_posts(model: LdaModel, posts_df: pd.DataFrame, topic_mapping: dict) -> pd.DataFrame:
     """
-    Classifies post groups to their most probable topic and assigns it to the question post.
+    Classifies post groups to their most probable topic and stores:
+    - dominant topic
+    - dominant topic contribution percentage (Topic_Perc_Contrib)
     """
-    # Create a new 'topic' column, initialized to None
     result_df = posts_df.copy()
+    
+    # Initialize both new columns
     result_df['topic'] = pd.NA
+    result_df['topic_perc_contrib'] = pd.NA
 
-    # Group by site and question_id
     grouped = result_df.groupby(['site', 'question_id'])
 
     for name, group in grouped:
-        # Concatenate normalized_text of all posts in the group
-        # Filling na with empty string to avoid errors
-        # Also ensuring we only join non-empty strings
         texts_to_join = group['normalized_text'].dropna().astype(str)
         if texts_to_join.empty:
             continue
-        
+
         combined_text = ' '.join(texts_to_join)
-
-        if not combined_text.strip():
-            continue
-
         tokens = combined_text.split()
-        if not tokens:
-            continue
-
         bow = model.id2word.doc2bow(tokens)
-        if not bow:
-            continue
-
         doc_topics = model.get_document_topics(bow)
-        if not doc_topics:
-            continue
 
-        most_probable_topic_id = max(doc_topics, key=lambda x: x[1])[0]
+        most_probable_topic_id, most_probable_topic_percentage = max(doc_topics, key=lambda x: x[1])
         topic_name = topic_mapping.get(most_probable_topic_id, most_probable_topic_id)
 
-        # Find the index of the post with type 'question' in the original dataframe
         question_post_index = group[group['type'] == 'question'].index
-
         if not question_post_index.empty:
-            # Assign the topic to the question post(s) in the result_df
-            # Using .loc to ensure we are modifying the result_df
             result_df.loc[question_post_index, 'topic'] = topic_name
+            result_df.loc[question_post_index, 'topic_perc_contrib'] = most_probable_topic_percentage
 
     return result_df
+
 
 
 def main():
@@ -151,4 +138,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    print(load_topic_mapping(TOPIC_INFERENCE))
