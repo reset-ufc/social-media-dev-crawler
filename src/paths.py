@@ -104,7 +104,7 @@ TRAINED_BOW = MODEL / 'trained_corpus.mm'
 LDA_VISUALIZATION = MODEL / 'lda_visualization.html'
 LDA_CONFIG = MODEL / 'trained_lda.meta.json'
 
-FUSED_METRICS = LDA_DIR / 'fused_popularity.csv'
+FUSED_METADATA = LDA_DIR / 'fused_metadata.csv'
 
 TOPIC_INFERENCE = LDA_DIR / 'topic_inference.json'
 CLASSIFIED_POSTS = LDA_DIR / 'classified_posts.csv'
