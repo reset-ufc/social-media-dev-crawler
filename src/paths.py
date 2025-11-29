@@ -111,3 +111,4 @@ STRATUM_TABLE = LDA_DIR / 'stratum_table.csv'
 
 TOPIC_INFERENCE = LDA_DIR / 'topic_inference.json'
 CLASSIFIED_POSTS = LDA_DIR / 'classified_posts.csv'
+VALIDATION_SAMPLE = LDA_DIR / 'validation_sample.xlsx'
