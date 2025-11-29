@@ -7,7 +7,9 @@ from paths import *
 import pandas as pd
 
 
-def generate_stratum_table(df=CLASSIFIED_POSTS):
+def generate_stratum_table(classfication_path: str = CLASSIFIED_POSTS) -> None:
+
+    df = pd.read_csv(classfication_path)
 
     qdf = df[df['type'] == 'question'].copy()
     grouped = qdf.groupby('topic')
@@ -33,8 +35,7 @@ def generate_stratum_table(df=CLASSIFIED_POSTS):
 
     table = table.sort_values('topic').reset_index(drop=True)
 
-    output_path = f"{STRATUM_TABLE}/stratum_table.csv"
-    table.to_csv(output_path, index=False)
+    table.to_csv(STRATUM_TABLE, index=False)
 
 
 if __name__ == '__main__':
