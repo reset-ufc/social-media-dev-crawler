@@ -105,6 +105,7 @@ LDA_VISUALIZATION = MODEL / 'lda_visualization.html'
 LDA_CONFIG = MODEL / 'trained_lda.meta.json'
 
 FUSED_METADATA = LDA_DIR / 'fused_metadata.csv'
+STRATUM_TABLE = LDA_DIR / 'stratum_table.csv'
 
 TOPIC_INFERENCE = LDA_DIR / 'topic_inference.json'
 CLASSIFIED_POSTS = LDA_DIR / 'classified_posts.csv'
