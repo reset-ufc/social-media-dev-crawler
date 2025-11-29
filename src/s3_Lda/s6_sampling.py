@@ -90,16 +90,9 @@ def validation_sample():
     if out_path.suffix.lower() != '.xlsx':
         out_path = out_path.with_suffix('.xlsx')
 
-    # Determine site column name if present
-    site_col = None
-    if 'site' in result.columns:
-        site_col = 'site'
-    elif 'site_alias' in result.columns:
-        site_col = 'site_alias'
-
     def make_link(row):
-        qid = row.get('id')
-        site_alias = row.get(site_col) if site_col is not None else 'stackoverflow'
+        qid = row.get('question_id')
+        site_alias = row.get('site_alias')
         if pd.isna(qid):
             return ''
         try:
@@ -120,11 +113,9 @@ def validation_sample():
             result = result.rename(columns={'question_id': 'id'})
 
         out_df = pd.DataFrame()
-        out_df['id'] = result['id'] if 'id' in result.columns else pd.NA
-        if site_col:
-            out_df['site'] = result[site_col]
-        else:
-            out_df['site'] = 'stackoverflow' # default if not found
+        out_df['id'] = result['question_id'] if 'id' in result.columns else pd.NA
+        out_df['site'] = result['site_alias']
+        
         out_df['topic'] = result['topic'] if 'topic' in result.columns else pd.NA
         out_df['link'] = result.apply(make_link, axis=1)
         out_df['is_valid'] = None # Placeholder for dropdown
