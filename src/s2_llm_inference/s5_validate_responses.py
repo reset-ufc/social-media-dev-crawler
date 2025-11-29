@@ -10,17 +10,6 @@ import scipy.stats as st
 import numpy as np
 
 
-def calc_sample_size(population, error_margin=0.05, confidence=0.95, p=0.5):
-    """(Finite Population Correction - FPC)"""
-    Z = st.norm.ppf((1 + confidence) / 2)
-    
-    numerator = population * (Z**2) * p * (1 - p)
-    denominator = (population - 1) * (error_margin**2) + (Z**2) * p * (1 - p)
-    n = numerator / denominator
-
-    return math.ceil(n)
-
-
 def generate_validation_xlsx(n_samples: int):
     """
     Reads 'n' samples from the PREPROCESSED_POSTS file and places them in an xlsx spreadsheet.

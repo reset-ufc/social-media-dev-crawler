@@ -6,6 +6,11 @@ from datetime import datetime
 import logging
 from paths import DATA_MINING_S2, DUMP_MINING_LOG_FILE, LLM_CLASSIFICATION, LLM_SUMMARIZATION, RELEATED_TAGS_DIR
 
+import math
+import pandas as pd
+import scipy.stats as st
+import numpy as np
+
 
 def ensure_parent_dir(path):
     parent = os.path.dirname(path)
@@ -70,3 +75,22 @@ def make_data():
     os.makedirs(DATA_MINING_S2, exist_ok=True)
     os.makedirs(LLM_CLASSIFICATION, exist_ok=True)
     os.makedirs(LLM_SUMMARIZATION, exist_ok=True)
+
+
+def calc_sample_size(population, error_margin=0.05, confidence=0.95, p=0.5):
+    """Cochran + Finite Population Correction"""
+    Z = st.norm.ppf((1 + confidence) / 2)
+    
+    numerator = population * (Z**2) * p * (1 - p)
+    denominator = (population - 1) * (error_margin**2) + (Z**2) * p * (1 - p)
+    n = numerator / denominator
+
+    return math.ceil(n)
+
+
+def neyman_allocation(n, Nh_list, Sh_list):
+    Nh = np.array(Nh_list)
+    Sh = np.array(Sh_list)
+    weights = Nh * Sh
+    nh = n * (weights / weights.sum())
+    return np.round(nh).astype(int)
