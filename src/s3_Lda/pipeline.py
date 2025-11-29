@@ -12,6 +12,9 @@ import pyLDAvis
 import pyLDAvis.gensim_models as gensimvisualize
 import pandas as pd
 import s4_classify_posts
+
+
+from s5_fused_metrics import main as fused_metrics
 from s3_infer_topics import main as infer_topics
 from paths import NORMALIZED_POSTS, TRAINED_LDA, TRAINED_DCT, TRAINED_BOW, LDA_VISUALIZATION
 import multiprocessing
@@ -43,6 +46,7 @@ def run_pipeline(llm=None):
     # 6) Classify posts to topics based on LDA model and inferred topic names
     print('Classifying posts to topics...')
     s4_classify_posts.main()
+    fused_metrics()
 
 
 if __name__ == '__main__':
