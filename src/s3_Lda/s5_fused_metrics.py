@@ -1,10 +1,13 @@
-import pandas as pd
-import json
-from paths import *
 import sys
 import os
 from pathlib import Path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from paths import *
+import json
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
 
 
 def fused_dificulty(df: pd.DataFrame):
@@ -170,6 +173,93 @@ def calculate_popularity(df: pd.DataFrame, num_topics: int):
     return result_df
 
 
+def generate_fused_scatter(fused_metadata_path=FUSED_METADATA, fused_plot_path=None):
+    """
+    Generate a scatter plot styled similarly to the provided reference image.
+    """
+    import pandas as pd
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from pathlib import Path
+
+    fused_metadata_path = Path(fused_metadata_path)
+    if fused_plot_path is None:
+        fused_plot_path = fused_metadata_path.with_suffix('.png')
+    fused_plot_path = Path(fused_plot_path)
+
+    df = pd.read_csv(fused_metadata_path)
+    required = {'topic', 'fused_popularity', 'fused_dificulty'}
+    if not required.issubset(df.columns):
+        raise ValueError(f"Missing required columns: {required}")
+
+    x = df['fused_popularity']
+    y = df['fused_dificulty']
+    labels = df['topic']
+
+    # === CONFIGURAÇÃO DE CORES (similar ao gráfico de referência) ===
+    cmap = plt.get_cmap("tab10")
+    unique_topics = list(pd.unique(labels))
+    color_map = {t: cmap(i % 10) for i, t in enumerate(unique_topics)}
+    colors = [color_map[t] for t in labels]
+
+    # === FIGURA ===
+    plt.figure(figsize=(12, 7))
+
+    # Tamanho das bolhas (apenas estética)
+    sizes = np.full(len(df), 1800)
+
+    # === SCATTER ===
+    plt.scatter(
+        x, y,
+        s=sizes,
+        c=colors,
+        alpha=0.90,
+        edgecolor="black",
+        linewidth=1.2
+    )
+
+    # === Definir linhas centrais (quadrantes) ===
+    x_mid = 1.0
+    y_mid = 1.1
+
+    plt.axvline(x_mid, color="gray", linestyle="--", linewidth=1)
+    plt.axhline(y_mid, color="gray", linestyle="--", linewidth=1)
+
+    # === Títulos dos quadrantes ===
+    plt.text(x.min()*0.98, y.max()*0.98, "Niche & Difficult",
+             fontsize=12, ha="left", va="top", alpha=0.7)
+    plt.text(x.max()*0.98, y.max()*0.98, "Popular & Difficult",
+             fontsize=12, ha="right", va="top", alpha=0.7)
+    plt.text(x.min()*0.98, y.min()*0.98, "Niche & Easier",
+             fontsize=12, ha="left", va="bottom", alpha=0.7)
+    plt.text(x.max()*0.98, y.min()*0.98, "Popular & Easier",
+             fontsize=12, ha="right", va="bottom", alpha=0.7)
+
+    # === RÓTULOS DE CADA BOLHA ===
+    for xi, yi, lab, c in zip(x, y, labels, colors):
+        plt.annotate(
+            lab,
+            xy=(xi, yi),
+            xytext=(5, 5),
+            textcoords="offset points",
+            fontsize=11,
+            fontweight="bold",
+            bbox=dict(boxstyle="round,pad=0.3", fc="white", alpha=0.7),
+        )
+
+    # === LABELS ===
+    plt.xlabel("Fused Popularity (higher = more attention)", fontsize=13)
+    plt.ylabel("Fused Difficulty (higher = harder)", fontsize=13)
+
+    plt.tight_layout()
+    fused_plot_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(fused_plot_path, dpi=220, bbox_inches="tight")
+    plt.close()
+
+    return fused_plot_path
+
+
+
 def main():
     """
     Executa o pipeline de cálculo de popularidade e dificuldade fundida.
@@ -209,6 +299,13 @@ def main():
 
     print(f"Fused popularity and difficulty metrics saved to {FUSED_METADATA}")
     print(fused_metrics_df.to_string())
+
+    # Generate and save scatter plot
+    try:
+        plot_path = generate_fused_scatter(FUSED_METADATA, FUSED_PLOT)
+        print(f"Fused scatter plot saved to {plot_path}")
+    except Exception as e:
+        print(f"Failed to generate fused scatter plot: {e}")
 
 
 if __name__ == '__main__':

@@ -105,6 +105,8 @@ LDA_VISUALIZATION = MODEL / 'lda_visualization.html'
 LDA_CONFIG = MODEL / 'trained_lda.meta.json'
 
 FUSED_METADATA = LDA_DIR / 'fused_metadata.csv'
+FUSED_PLOT = LDA_DIR / 'fused_plot.png'
+
 STRATUM_TABLE = LDA_DIR / 'stratum_table.csv'
 
 TOPIC_INFERENCE = LDA_DIR / 'topic_inference.json'
