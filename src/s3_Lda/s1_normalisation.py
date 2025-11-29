@@ -1,34 +1,34 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
-import nltk
-import warnings
-from bs4 import MarkupResemblesLocatorWarning
-from bs4 import BeautifulSoup
-import pandas as pd
-from typing import List
-import re
-from paths import FILTRED_POSTS, NORMALIZED_POSTS
 
+from paths import FILTRED_POSTS, NORMALIZED_POSTS
+import re
+from typing import List
+import pandas as pd
+from bs4 import BeautifulSoup
+from bs4 import MarkupResemblesLocatorWarning
+import warnings
+import spacy
+from nltk.corpus import stopwords
 
 
 # Suppress BeautifulSoup warning when content resembles a URL
 warnings.filterwarnings("ignore", category=MarkupResemblesLocatorWarning)
 
 
-def _ensure_nltk_resources():
+def _ensure_spacy_model():
     try:
-        stopwords.words('english')
-        _ = WordNetLemmatizer()
-    except (LookupError, OSError):
-        nltk.download('stopwords')
-        nltk.download('wordnet')
+        spacy.load('en_core_web_sm')
+    except OSError:
+        import subprocess
+        subprocess.check_call(
+            [sys.executable, '-m', 'spacy', 'download', 'en_core_web_sm'])
 
 
-_ensure_nltk_resources()
+_ensure_spacy_model()
 
+_NLP = spacy.load('en_core_web_sm')
 _STOPWORDS = set(stopwords.words('english'))
 
 
@@ -76,12 +76,15 @@ def strip_html_and_remove_code(text: str) -> str:
 
 
 def normalize_tokens(tokens: List[str]) -> List[str]:
-    lemma = WordNetLemmatizer()
     processed = [t.replace('-', '_') for t in tokens]
     processed = [t for t in processed if not t.isdigit()]
     processed = [t for t in processed if re.match(r'^[A-Za-z0-9_]+$', t)]
-    processed = [lemma.lemmatize(t) for t in processed]
-    processed = [t for t in processed if t not in _STOPWORDS and len(t) > 1]
+    # Apply spacy lemmatization
+    lemmatized = []
+    for doc in _NLP.pipe(processed, batch_size=128):
+        for token in doc:
+            lemmatized.append(token.lemma_)
+    processed = [t for t in lemmatized if t not in _STOPWORDS and len(t) > 1]
     return processed
 
 
@@ -108,7 +111,7 @@ def main():
             f"Filtered posts not found at {FILTRED_POSTS}")
 
     df = pd.read_csv(str(FILTRED_POSTS))
-    
+
     # Combine title and body if title exists
     if 'title' in df.columns:
         df['title'] = df['title'].fillna('')
