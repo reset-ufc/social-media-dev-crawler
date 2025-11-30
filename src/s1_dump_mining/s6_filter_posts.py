@@ -21,6 +21,12 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
 
     try:
         df = pd.read_csv(input_csv, dtype=str)
+
+        before = df.shape[0]
+        df.drop_duplicates(inplace=True)
+        after = df.shape[0]
+        logger.info(f'{before - after} Duplicatas removidas')
+
     except FileNotFoundError:
         logger.error(f"Arquivo {input_csv} não encontrado.")
         return

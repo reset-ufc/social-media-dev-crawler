@@ -1,6 +1,9 @@
 from pathlib import Path
 
 
+# Using: https://archive.org/details/stackexchange_20250930
+
+
 def get_releated_tags_path(site_alias: str) -> Path:
     """Retorna o caminho para o arquivo de tags relacionadas de um site específico."""
     return RELEATED_TAGS_DIR / f"{site_alias}_releated_tags.csv"
