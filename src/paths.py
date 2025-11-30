@@ -98,11 +98,12 @@ VALIDATION_SHEET = LLM_INFERENCE / "validation_sheet.xlsx"
 # s3 LDA
 
 LDA_DIR = DATA / 'Lda'
-MODEL = LDA_DIR / 'model'
-TRAINED_LDA = MODEL / 'trained_lda.model'
-TRAINED_DCT = MODEL / 'trained_dictionary.dict'
-TRAINED_BOW = MODEL / 'trained_corpus.mm'
-LDA_CONFIG = MODEL / 'trained_lda.meta.json'
+MODELS = LDA_DIR / 'models'
+
+TRAINED_LDA = Path('trained_lda.model')
+TRAINED_DCT = Path('trained_dictionary.dict')
+TRAINED_BOW = Path('trained_corpus.mm')
+LDA_CONFIG = Path('trained_lda.meta.json')
 
 LDA_CSVS = LDA_DIR / 'csvs'
 LDA_PLOTS = LDA_TOPICS / 'plots'
@@ -115,7 +116,6 @@ NORMALIZED_POSTS = LDA_CSVS/'normalized_posts.csv'
 
 
 FUSED_PLOT = LDA_PLOTS / 'fused_plot.png'
-LDA_VISUALIZATION = LDA_PLOTS / 'lda_visualization.html'
 
 TOPIC_INFERENCE = LDA_DIR / 'topic_inference'
 TOPIC_INFERENCE_JSON = TOPIC_INFERENCE / 'topic_inference_gpt51-0.7.json'

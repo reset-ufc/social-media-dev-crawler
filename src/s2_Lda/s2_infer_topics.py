@@ -12,7 +12,7 @@ from langchain.prompts import PromptTemplate
 from langchain_ollama import ChatOllama
 import json
 from gensim.models.ldamodel import LdaModel
-from paths import TRAINED_LDA, LDA_TOPICS, TOPIC_INFERENCE_JSON
+from paths import *
 from langchain_openai import ChatOpenAI
 
 from dotenv import load_dotenv
@@ -103,33 +103,24 @@ def save_topic_inference(inference_result: dict, output_path: Path) -> None:
     print(f"Topic inference saved")
 
 
-def main(llm=None):
-    """
-    Main pipeline: load LDA model, infer topic names, save results.
-
-    Args:
-        llm: LangChain LLM instance (default: llama3.1:8b via Ollama)
-    """
-    # Use default llama3.1:8b via Ollama if no LLM provided
-    if llm is None:
-        llm = ChatOllama(model="llama3.1:8b", temperature=0.3)
-        print("Using default LLM: llama3.1:8b")
-
-    # Load trained LDA model
+def main(model_path, llm):
     if not Path(TRAINED_LDA).exists():
         raise FileNotFoundError(
             f"Trained LDA model not found at {TRAINED_LDA}")
 
     print(f"Loading trained LDA")
-    model = LdaModel.load(str(TRAINED_LDA))
+    model = LdaModel.load(str(model_path / TRAINED_LDA))
     print(f"Model loaded. Number of topics: {model.num_topics}")
 
     # Infer topic names via LLM
     inference_result = infer_topic_names(model, llm)
 
     # Save results
-    save_topic_inference(inference_result, Path(TOPIC_INFERENCE_JSON))
+    save_topic_inference(inference_result, Path(model_path / 'topic_inference.json'))
 
 
 if __name__ == '__main__':
-    main(llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7))
+    main(
+        MODELS / 'main',
+        llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
+        )
