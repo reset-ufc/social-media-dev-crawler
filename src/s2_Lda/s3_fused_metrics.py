@@ -252,11 +252,11 @@ def generate_fused_scatter(fused_metadata_path=FUSED_METADATA, fused_plot_path=N
     plt.ylabel("Fused Difficulty (higher = harder)", fontsize=13)
 
     plt.tight_layout()
-    fused_plot_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(fused_plot_path, dpi=220, bbox_inches="tight")
+
+    plt.savefig(FUSED_PLOT, dpi=220, bbox_inches="tight")
     plt.close()
 
-    return fused_plot_path
+    return FUSED_PLOT
 
 
 
@@ -292,10 +292,6 @@ def main():
     # Junta os resultados de popularidade e dificuldade
     fused_metrics_df = pd.merge(
         popularity_df, difficulty_df, on='topic', how='outer')
-
-    # Salva CSV final
-    FUSED_METADATA.parent.mkdir(parents=True, exist_ok=True)
-    fused_metrics_df.to_csv(FUSED_METADATA, index=False)
 
     print(f"Fused popularity and difficulty metrics saved to {FUSED_METADATA}")
     print(fused_metrics_df.to_string())

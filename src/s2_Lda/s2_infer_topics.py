@@ -12,7 +12,11 @@ from langchain.prompts import PromptTemplate
 from langchain_ollama import ChatOllama
 import json
 from gensim.models.ldamodel import LdaModel
-from paths import TRAINED_LDA, LDA_TOPICS, TOPIC_INFERENCE
+from paths import TRAINED_LDA, LDA_TOPICS, TOPIC_INFERENCE_JSON
+from langchain_openai import ChatOpenAI
+
+from dotenv import load_dotenv
+load_dotenv()
 
 
 class TopicInference(BaseModel):
@@ -124,8 +128,8 @@ def main(llm=None):
     inference_result = infer_topic_names(model, llm)
 
     # Save results
-    save_topic_inference(inference_result, Path(TOPIC_INFERENCE))
+    save_topic_inference(inference_result, Path(TOPIC_INFERENCE_JSON))
 
 
 if __name__ == '__main__':
-    main()
+    main(llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7))

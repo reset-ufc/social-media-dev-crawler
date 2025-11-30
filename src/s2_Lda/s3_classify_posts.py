@@ -11,7 +11,6 @@ from gensim.models.ldamodel import LdaModel
 from paths import *
 
 
-
 def load_topic_mapping(topic_inference_path: Path) -> dict:
     """Load topic names from TOPIC_INFERENCE JSON file using pandas.
 
@@ -85,7 +84,6 @@ def classify_posts(model: LdaModel, posts_df: pd.DataFrame, topic_mapping: dict)
     return result_df
 
 
-
 def main():
     """Main pipeline: load model, load posts, classify to topics, save results."""
 
@@ -104,8 +102,8 @@ def main():
     print(f"Model loaded. Number of topics: {model.num_topics}")
 
     # Load topic inference mapping
-    print(f"Loading topic names from {TOPIC_INFERENCE}")
-    topic_mapping = load_topic_mapping(Path(TOPIC_INFERENCE))
+    print(f"Loading topic names from {TOPIC_INFERENCE_JSON}")
+    topic_mapping = load_topic_mapping(Path(TOPIC_INFERENCE_JSON))
     print(f"Loaded {len(topic_mapping)} topic names")
 
     # Load normalized posts
@@ -138,4 +136,4 @@ def main():
 
 
 if __name__ == '__main__':
-    print(load_topic_mapping(TOPIC_INFERENCE))
+    main()
