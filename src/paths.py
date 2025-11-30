@@ -6,7 +6,7 @@ def get_releated_tags_path(site_alias: str) -> Path:
     return RELEATED_TAGS_DIR / f"{site_alias}_releated_tags.csv"
 
 
-QUESTION_TAG = "encryption"
+QUESTION_TAG = "data-protection"
 THRE1 = 0.2
 THRE2 = 0.01
 
