@@ -6,9 +6,11 @@ You will receive a list of LDA topics, each represented by its most relevant wor
 Your job is to:
 1. **Infer the underlying semantic theme** of each topic.  
 2. **Assign a short, clear, human-readable name** to every topic.  
-3. **Explain briefly** why this name fits (1–2 sentences max).  
+3. **Explain briefly** why this name fits (1-2 sentences max).  
 
 The LDA model was trained on **StackOverflow posts related to cryptography**, so the themes will likely involve concepts such as encryption, key management, authentication, secure communication, cryptographic primitives, vulnerabilities, attacks, and secure coding practices.
+
+For each word in LDA output, consider its weight to infer how significant it is within the set.
 
 LDA OUTPUT
 {model_output}
