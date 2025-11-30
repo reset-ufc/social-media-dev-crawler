@@ -18,6 +18,8 @@ from gensim.models.coherencemodel import CoherenceModel
 import logging as _logging
 import pandas as pd
 from dotenv import load_dotenv
+import subprocess
+import tempfile
 
 load_dotenv()
 
@@ -27,6 +29,71 @@ _logging.getLogger('gensim.models.ldamodel').setLevel(_logging.ERROR)
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+
+# ----------------------------------------------------------------------
+#   CUSTOM LdaMallet COM SUPORTE A BETA - ABORDAGEM SIMPLES
+# ----------------------------------------------------------------------
+def train_mallet_with_beta(
+    mallet_path,
+    corpus,
+    id2word,
+    num_topics,
+    alpha,
+    beta,
+    iterations,
+    random_seed,
+    workers=4,
+    prefix=None
+):
+    """
+    Treina modelo LDA Mallet com suporte ao parâmetro beta
+    Retorna um objeto LdaMallet treinado
+    """
+    # Criar instância básica sem treinar
+    model = LdaMallet(
+        mallet_path=mallet_path,
+        corpus=None,  # Não passar corpus para evitar treinamento automático
+        num_topics=num_topics,
+        alpha=alpha,
+        id2word=id2word,
+        workers=workers,
+        prefix=prefix,
+        iterations=iterations,
+        random_seed=random_seed
+    )
+    
+    # Converter corpus para formato Mallet
+    model.convert_input(corpus, infer=False)
+    
+    # Construir comando com BETA incluído
+    cmd = [
+        model.mallet_path,
+        'train-topics',
+        '--input', model.fcorpusmallet(),
+        '--num-topics', str(model.num_topics),
+        '--alpha', str(alpha),
+        '--beta', str(beta),  # BETA ADICIONADO AQUI
+        '--optimize-interval', str(model.optimize_interval),
+        '--num-threads', str(model.workers),
+        '--output-state', model.fstate(),
+        '--output-doc-topics', model.fdoctopics(),
+        '--output-topic-keys', model.ftopickeys(),
+        '--num-iterations', str(model.iterations),
+        '--doc-topics-threshold', str(model.topic_threshold),
+        '--random-seed', str(random_seed)
+    ]
+    
+    logger.info(f"Training MALLET LDA: topics={num_topics}, alpha={alpha}, beta={beta}, seed={random_seed}")
+    
+    # Executar treinamento
+    subprocess.check_call(cmd)
+    
+    # Carregar word-topics
+    model.word_topics = model.load_word_topics()
+    model.wordtopics = model.word_topics
+    
+    return model
 
 
 # ----------------------------------------------------------------------
@@ -40,7 +107,7 @@ def make_dct_bow(corpora: Iterable[List[str]], no_below: int = 5, no_above: floa
 
 
 # ----------------------------------------------------------------------
-#   GRID SEARCH USING MALLET
+#   GRID SEARCH USANDO MALLET COM BETA
 # ----------------------------------------------------------------------
 def find_best_model(
     texts: Iterable[List[str]],
@@ -48,7 +115,9 @@ def find_best_model(
     bow_corpus: List[List[tuple]],
     topic_range: Iterable[int] = range(2, 9),
     iterations: int = 100,
-    coherence: str = 'c_v'
+    coherence: str = 'c_v',
+    beta: float = 0.01,
+    random_seed: int = 7562
 ) -> Tuple[LdaModel, dict]:
 
     mallet_home = os.environ.get("MALLET_HOME", "/opt/mallet")
@@ -66,27 +135,35 @@ def find_best_model(
         alpha = num_topics / 50.0
 
         try:
-            mallet_model = LdaMallet(
+            mallet_model = train_mallet_with_beta(
                 mallet_path=mallet_path,
                 corpus=bow_corpus,
                 id2word=dictionary,
                 num_topics=num_topics,
                 alpha=alpha,
+                beta=beta,
                 iterations=iterations,
+                random_seed=random_seed
             )
 
-            # convert MALLET → Gensim LdaModel (correct!)
+            # convert MALLET → Gensim LdaModel
             model = malletmodel2ldamodel(mallet_model)
 
             cm = CoherenceModel(model=model, texts=list(texts), dictionary=dictionary, coherence=coherence)
             score = cm.get_coherence()
 
-            logger.info(f"num_topics={num_topics} | alpha={alpha} | coherence={score:.4f}")
+            logger.info(f"num_topics={num_topics} | alpha={alpha} | beta={beta} | seed={random_seed} | coherence={score:.4f}")
 
             if score > best_score:
                 best_score = score
                 best_model = model
-                best_config = {"num_topics": num_topics, "alpha": alpha, "coherence": score}
+                best_config = {
+                    "num_topics": num_topics, 
+                    "alpha": alpha, 
+                    "beta": beta,
+                    "random_seed": random_seed,
+                    "coherence": score
+                }
 
         except Exception as e:
             logger.exception("Model training failed for configuration", exc_info=e)
@@ -108,9 +185,10 @@ def evaluate_model(
     use_search: bool = True,
     passes: int = 100,
     iterations: int = 150,
-    random_state: Optional[int] = None,
+    random_state: int = 7562,  # VALOR FIXO ADICIONADO
     lda_num_topics: Optional[int] = None,
     lda_alpha: Optional[float] = None,
+    lda_beta: Optional[float] = 0.01,  # NOVO PARÂMETRO BETA
     lda_eta: Optional[float] = None,
 ):
     # resolve MALLET
@@ -136,34 +214,43 @@ def evaluate_model(
             bow_corpus,
             topic_range=topic_range,
             iterations=max(50, iterations // 2),
+            beta=lda_beta,  # BETA PASSADO PARA GRID SEARCH
+            random_seed=random_state  # SEED ADICIONADO
         )
 
     else:
         num_topics = int(lda_num_topics or (sum(topic_range) / len(topic_range)))
         alpha = lda_alpha if lda_alpha is not None else (50 / num_topics)
 
-        mallet_model = LdaMallet(
+        mallet_model = train_mallet_with_beta(
             mallet_path=mallet_path,
             corpus=bow_corpus,
             id2word=dictionary,
             num_topics=num_topics,
             alpha=alpha,
+            beta=lda_beta,
             iterations=iterations,
+            random_seed=random_state
         )
 
         # convert ALWAYS
         model = malletmodel2ldamodel(mallet_model)
 
-        best_config = {"num_topics": num_topics, "alpha": alpha}
+        best_config = {
+            "num_topics": num_topics, 
+            "alpha": alpha,
+            "beta": lda_beta,
+            "random_seed": random_state
+        }
 
     # ------------------------------------------------------------------
-    # SAVE ARTIFACTS — FIXED (consistent formats, no more errors)
+    # SAVE ARTIFACTS
     # ------------------------------------------------------------------
     try:
         lda_dir = Path(TRAINED_LDA).parent
         lda_dir.mkdir(parents=True, exist_ok=True)
 
-        # save Gensim LdaModel (correct!)
+        # save Gensim LdaModel
         model.save(str(TRAINED_LDA))
 
         dictionary.save(str(TRAINED_DCT))
@@ -174,6 +261,7 @@ def evaluate_model(
             json.dump(best_config, mf, indent=2)
 
         logger.info("✔ Model saved successfully")
+        logger.info(f"✔ Best configuration: {best_config}")
 
     except Exception as e:
         logger.exception("Failed to save trained model artifacts", exc_info=e)
@@ -198,4 +286,10 @@ if __name__ == '__main__':
     else:
         raise RuntimeError("No normalized_text or normalized column found in CSV")
 
-    evaluate_model(texts)
+    # EXEMPLO: Treinar com beta customizado
+    evaluate_model(
+        texts,
+        lda_beta=0.01,  # Configure o beta aqui
+        use_search=True,
+        topic_range=range(2, 9)
+    )
