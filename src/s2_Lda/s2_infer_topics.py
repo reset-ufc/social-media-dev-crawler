@@ -46,11 +46,9 @@ def format_topics_for_llm(model: LdaModel, num_words: int = 10) -> str:
         top_terms = model.show_topic(topic_id, topn=num_words)
         top_terms = sorted(top_terms, key=lambda x: x[1], reverse=True)
 
-        # Format: "Topic 0: [word1 (0.05), word2 (0.04), ...]"
         terms_str = ", ".join(
-            [f"{word} ({weight:.4f})" for word, weight in top_terms])
+            [f"word: {word} weight: ({weight:.6f})" for word, weight in top_terms])
         formatted_topics.append(f"Topic {topic_id}: [{terms_str}]")
-
     return "\n".join(formatted_topics)
 
 
