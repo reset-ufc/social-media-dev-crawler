@@ -6,7 +6,6 @@ from s2_calculate_tag_heuristics import main as run_2_calculate_tag_heuristics
 from s4_get_posts import main as run_4_get_posts
 from s5_get_connected_posts import main as run_5_get_connected_posts
 from s6_filter_posts import main as run_6_filter_posts
-from s7_preprocess_body import main as run_7_preprocess_body
 from utils_global import get_logger
 from paths import DUMP_MINING_LOG_FILE
 from utils_global import ensure_parent_dir
@@ -42,10 +41,6 @@ def run_full_pipeline():
 
     logger.info("\n=== ETAPA 6: Filtrando posts por popularidade ===")
     run_6_filter_posts()
-
-    logger.info(
-        "\n=== ETAPA 7: Limpando body e validando trexos de código ===")
-    run_7_preprocess_body()
 
     logger.info("\n##### PIPELINE DE MINERAÇÃO DE DADOS CONCLUÍDO #####")
 
