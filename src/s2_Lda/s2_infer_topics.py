@@ -12,7 +12,7 @@ from langchain.prompts import PromptTemplate
 from langchain_ollama import ChatOllama
 import json
 from gensim.models.ldamodel import LdaModel
-from paths import *
+from paths import TRAINED_LDA, LDA_TOPICS, TOPIC_INFERENCE_JSON
 from langchain_openai import ChatOpenAI
 
 from dotenv import load_dotenv
@@ -31,7 +31,7 @@ class TopicInferenceOutput(BaseModel):
         description="List of inferred topic names with explanations")
 
 
-def format_topics_for_llm(model: LdaModel, num_words: int = 20) -> str:
+def format_topics_for_llm(model: LdaModel, num_words: int = 10) -> str:
     """
     Extract topics from LDA model and format as readable text for LLM.
 
@@ -52,7 +52,7 @@ def format_topics_for_llm(model: LdaModel, num_words: int = 20) -> str:
     return "\n".join(formatted_topics)
 
 
-def infer_topic_names(model: LdaModel, llm, model_path) -> dict:
+def infer_topic_names(model: LdaModel, llm) -> dict:
     """
     Use LangChain + LLM to infer meaningful names for LDA topics.
 
@@ -63,10 +63,10 @@ def infer_topic_names(model: LdaModel, llm, model_path) -> dict:
     Returns a dictionary with inferred topic names and rationales.
     """
     # Load prompt template
-    if not Path(model_path / LDA_TOPICS).exists():
-        raise FileNotFoundError(f"Prompt file not found at {model_path / LDA_TOPICS}")
+    if not Path(LDA_TOPICS).exists():
+        raise FileNotFoundError(f"Prompt file not found at {LDA_TOPICS}")
 
-    with open(str(model_path / LDA_TOPICS), 'r', encoding='utf-8') as f:
+    with open(str(LDA_TOPICS), 'r', encoding='utf-8') as f:
         prompt_template = f.read()
 
     # Format topics for input
@@ -102,25 +102,33 @@ def save_topic_inference(inference_result: dict, output_path: Path) -> None:
     print(f"Topic inference saved")
 
 
-def main(model_path, llm):
-    if not Path(model_path / TRAINED_LDA).exists():
+def main(llm=None):
+    """
+    Main pipeline: load LDA model, infer topic names, save results.
+
+    Args:
+        llm: LangChain LLM instance (default: llama3.1:8b via Ollama)
+    """
+    # Use default llama3.1:8b via Ollama if no LLM provided
+    if llm is None:
+        llm = ChatOllama(model="llama3.1:8b", temperature=0.3)
+        print("Using default LLM: llama3.1:8b")
+
+    # Load trained LDA model
+    if not Path(TRAINED_LDA).exists():
         raise FileNotFoundError(
-            f"Trained LDA model not found at {model_path / TRAINED_LDA}")
+            f"Trained LDA model not found at {TRAINED_LDA}")
 
     print(f"Loading trained LDA")
-    model = LdaModel.load(str(model_path / TRAINED_LDA))
+    model = LdaModel.load(str(TRAINED_LDA))
     print(f"Model loaded. Number of topics: {model.num_topics}")
 
     # Infer topic names via LLM
-    inference_result = infer_topic_names(model, llm, model_path)
+    inference_result = infer_topic_names(model, llm)
 
     # Save results
-    save_topic_inference(inference_result, Path(model_path / 'topic_inference.json'))
+    save_topic_inference(inference_result, Path(TOPIC_INFERENCE_JSON))
 
 
 if __name__ == '__main__':
-    main(
-        MODELS / 'main',
-        #llm=ChatOllama(model_name='deepseek-r1:32b', temperature=0.7),
-        llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
-        )
+    main(llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7))

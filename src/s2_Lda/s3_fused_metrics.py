@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+
 def fused_dificulty(df: pd.DataFrame):
     """
     Calcula métricas de dificuldade e retorna:
@@ -202,10 +203,10 @@ def generate_fused_scatter(fused_metadata_path=FUSED_METADATA, fused_plot_path=N
     colors = [color_map[t] for t in labels]
 
     # === FIGURA ===
-    plt.figure(figsize=(15, 12))
+    plt.figure(figsize=(12, 7))
 
     # Tamanho das bolhas (apenas estética)
-    sizes = np.full(len(df), 1400)
+    sizes = np.full(len(df), 1800)
 
     # === SCATTER ===
     plt.scatter(
@@ -259,16 +260,16 @@ def generate_fused_scatter(fused_metadata_path=FUSED_METADATA, fused_plot_path=N
 
 
 
-def main(model_path):
+def main():
     """
     Executa o pipeline de cálculo de popularidade e dificuldade fundida.
     """
 
     # Carrega configuração LDA (de onde vem K)
-    if not Path(model_path / LDA_CONFIG).exists():
-        raise FileNotFoundError(f"LDA config file not found at {model_path / LDA_CONFIG}")
+    if not LDA_CONFIG.exists():
+        raise FileNotFoundError(f"LDA config file not found at {LDA_CONFIG}")
 
-    with open(model_path / LDA_CONFIG, 'r', encoding='utf-8') as f:
+    with open(LDA_CONFIG, 'r', encoding='utf-8') as f:
         lda_config = json.load(f)
 
     num_topics = lda_config.get('num_topics')
@@ -291,7 +292,6 @@ def main(model_path):
     # Junta os resultados de popularidade e dificuldade
     fused_metrics_df = pd.merge(
         popularity_df, difficulty_df, on='topic', how='outer')
-    fused_metrics_df.to_csv(FUSED_METADATA, index=False)
 
     print(f"Fused popularity and difficulty metrics saved to {FUSED_METADATA}")
     print(fused_metrics_df.to_string())
@@ -305,4 +305,4 @@ def main(model_path):
 
 
 if __name__ == '__main__':
-    main(MODELS / 'main')
+    main()
