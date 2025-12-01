@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-
 def fused_dificulty(df: pd.DataFrame):
     """
     Calcula métricas de dificuldade e retorna:
@@ -260,16 +259,16 @@ def generate_fused_scatter(fused_metadata_path=FUSED_METADATA, fused_plot_path=N
 
 
 
-def main():
+def main(model_path):
     """
     Executa o pipeline de cálculo de popularidade e dificuldade fundida.
     """
 
     # Carrega configuração LDA (de onde vem K)
-    if not LDA_CONFIG.exists():
-        raise FileNotFoundError(f"LDA config file not found at {LDA_CONFIG}")
+    if not model_path / LDA_CONFIG.exists():
+        raise FileNotFoundError(f"LDA config file not found at {model_path / LDA_CONFIG}")
 
-    with open(LDA_CONFIG, 'r', encoding='utf-8') as f:
+    with open(model_path / LDA_CONFIG, 'r', encoding='utf-8') as f:
         lda_config = json.load(f)
 
     num_topics = lda_config.get('num_topics')
