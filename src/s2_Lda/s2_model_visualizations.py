@@ -18,15 +18,16 @@ from paths import *
 
 def pldavis(model_path: Path): 
     try:
-        lda = LdaModel.load(str(TRAINED_LDA))
-        dictionary = Dictionary.load(str(TRAINED_DCT))
-        corpus = MmCorpus(str(TRAINED_BOW))
+        lda = LdaModel.load(str(model_path / TRAINED_LDA))
+        dictionary = Dictionary.load(str(model_path / TRAINED_DCT))
+        corpus = MmCorpus(str(model_path / TRAINED_BOW))
 
         # corpus may be an iterable of (id, count) pairs or an MmCorpus object; pyLDAvis accepts both
         vis = gensimvisualize.prepare(lda, corpus, dictionary, mds='mmds')
+        pyLDAvis.save_html(vis, str(model_path/ 'pyLDAvis.html'))
     except Exception as e:
         print(e)
-    pyLDAvis.save_html(vis, str(model_path/ 'pyLDAvis.html'))
+    
 
 
 def stat_plots(model_path: Path):
@@ -68,5 +69,6 @@ def stat_plots(model_path: Path):
 
 if __name__ == '__main__':
     path = MODELS / 'main'
-    pldavis(path)
+    #pldavis(path)
     stat_plots(path)
+
