@@ -16,21 +16,21 @@ import matplotlib.pyplot as plt
 from paths import *
 
 
-def pldavis(): 
+def pldavis(model_path: Path): 
     try:
-        lda = LdaModel.load(str(TRAINED_LDA))
-        dictionary = Dictionary.load(str(TRAINED_DCT))
-        corpus = MmCorpus(str(TRAINED_BOW))
+        lda = LdaModel.load(str(model_path / TRAINED_LDA))
+        dictionary = Dictionary.load(str(model_path / TRAINED_DCT))
+        corpus = MmCorpus(str(model_path / TRAINED_BOW))
 
         # corpus may be an iterable of (id, count) pairs or an MmCorpus object; pyLDAvis accepts both
         vis = gensimvisualize.prepare(lda, corpus, dictionary, mds='mmds')
+        pyLDAvis.save_html(vis, str(model_path/ 'pyLDAvis.html'))
     except Exception as e:
         print(e)
-    Path(LDA_VISUALIZATION).parent.mkdir(parents=True, exist_ok=True)
-    pyLDAvis.save_html(vis, str(LDA_VISUALIZATION))
+    
 
 
-def stat_plots():
+def stat_plots(model_path: Path):
     df = pd.read_csv(CLASSIFIED_POSTS)   
     df['topic'] = df['topic'].apply(
     lambda x: x[:15] + '...' if type(x) == str and len(x) > 15 else x)
@@ -45,6 +45,7 @@ def stat_plots():
     plt.title('Probability Distribution', fontsize=12)
     plt.xticks(rotation=45, ha='right', fontsize=9) 
     plt.tight_layout()
+    plt.savefig(str(model_path / 'prob_dist.png'))
 
 
     topic_counts = df['topic'].value_counts().sort_values(ascending=False)
@@ -62,8 +63,10 @@ def stat_plots():
         plt.text(value, index, f' {value}', va='center') # Adiciona o número ao lado da barra
 
     plt.tight_layout()
-
+    plt.savefig(str(model_path / 'topics_dist.png'))
 
 
 if __name__ == '__main__':
-    pldavis()
+    path = MODELS / 'main'
+    pldavis(path)
+    stat_plots(path)

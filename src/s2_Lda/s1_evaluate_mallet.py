@@ -9,7 +9,6 @@ import json
 from gensim.corpora import MmCorpus
 from paths import *
 
-import gensim
 from gensim.corpora.dictionary import Dictionary
 from gensim.models.ldamodel import LdaModel
 from gensim.models.wrappers import LdaMallet
@@ -19,7 +18,8 @@ import logging as _logging
 import pandas as pd
 from dotenv import load_dotenv
 import subprocess
-import tempfile
+import matplotlib.pyplot as plt
+
 
 load_dotenv()
 
@@ -31,9 +31,6 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-# ----------------------------------------------------------------------
-#   CUSTOM LdaMallet COM SUPORTE A BETA - ABORDAGEM SIMPLES
-# ----------------------------------------------------------------------
 def train_mallet_with_beta(
     mallet_path,
     corpus,
@@ -53,7 +50,7 @@ def train_mallet_with_beta(
     # Criar instância básica sem treinar
     model = LdaMallet(
         mallet_path=mallet_path,
-        corpus=None,  # Não passar corpus para evitar treinamento automático
+        corpus=None, 
         num_topics=num_topics,
         alpha=alpha,
         id2word=id2word,
@@ -66,14 +63,13 @@ def train_mallet_with_beta(
     # Converter corpus para formato Mallet
     model.convert_input(corpus, infer=False)
     
-    # Construir comando com BETA incluído
     cmd = [
         model.mallet_path,
         'train-topics',
         '--input', model.fcorpusmallet(),
         '--num-topics', str(model.num_topics),
         '--alpha', str(alpha),
-        '--beta', str(beta),  # BETA ADICIONADO AQUI
+        '--beta', str(beta), 
         '--optimize-interval', str(model.optimize_interval),
         '--num-threads', str(model.workers),
         '--output-state', model.fstate(),
@@ -96,9 +92,6 @@ def train_mallet_with_beta(
     return model
 
 
-# ----------------------------------------------------------------------
-#   CREATE DICTIONARY + BOW
-# ----------------------------------------------------------------------
 def make_dct_bow(corpora: Iterable[List[str]], no_below: int = 5, no_above: float = 0.5) -> Tuple[Dictionary, List[List[tuple]]]:
     dct = Dictionary(corpora)
     dct.filter_extremes(no_below=no_below, no_above=no_above)
@@ -106,13 +99,11 @@ def make_dct_bow(corpora: Iterable[List[str]], no_below: int = 5, no_above: floa
     return dct, bow
 
 
-# ----------------------------------------------------------------------
-#   GRID SEARCH USANDO MALLET COM BETA
-# ----------------------------------------------------------------------
 def find_best_model(
     texts: Iterable[List[str]],
     dictionary: Dictionary,
     bow_corpus: List[List[tuple]],
+    model_path,
     topic_range: Iterable[int] = range(2, 9),
     iterations: int = 100,
     coherence: str = 'c_v',
@@ -130,6 +121,9 @@ def find_best_model(
     best_model = None
     best_config = None
 
+    topic_range = list(topic_range) 
+    scores = []
+
     for num_topics in topic_range:
         logger.info(f"Testing num_topics={num_topics}")
         alpha = num_topics / 50.0
@@ -146,11 +140,11 @@ def find_best_model(
                 random_seed=random_seed
             )
 
-            # convert MALLET → Gensim LdaModel
             model = malletmodel2ldamodel(mallet_model)
 
             cm = CoherenceModel(model=model, texts=list(texts), dictionary=dictionary, coherence=coherence)
             score = cm.get_coherence()
+            scores.append(score)
 
             logger.info(f"num_topics={num_topics} | alpha={alpha} | beta={beta} | seed={random_seed} | coherence={score:.4f}")
 
@@ -170,30 +164,39 @@ def find_best_model(
 
     if best_model is None:
         raise RuntimeError("No model could be trained")
-
+    else:
+        plt.figure(figsize=(10, 6))
+        plt.plot(topic_range, scores, marker='o', linestyle='-', color='blue')
+        plt.title('Score de Coerência (C_V) por Número de Tópicos')
+        plt.xlabel('Número de Tópicos (K)')
+        plt.ylabel(f'Score de Coerência ({coherence})')
+        plt.xticks(topic_range)
+        plt.grid(True, linestyle='--', alpha=0.6)
+        plt.savefig(str(model_path/'coherence_plot.png'))
+        logger.info(f"Coherence plot saved")
+        
     return best_model, best_config
 
 
-# ----------------------------------------------------------------------
-#   MAIN TRAINING FUNCTION
-# ----------------------------------------------------------------------
 def evaluate_model(
     texts: Iterable[List[str]],
+    model_path: Path,
     no_below: int = 5,
     no_above: float = 0.5,
     topic_range: Iterable[int] = range(2, 9),
     use_search: bool = True,
-    passes: int = 100,
     iterations: int = 150,
-    random_state: int = 7562,  # VALOR FIXO ADICIONADO
+    random_state: int = 7562, 
     lda_num_topics: Optional[int] = None,
     lda_alpha: Optional[float] = None,
-    lda_beta: Optional[float] = 0.01,  # NOVO PARÂMETRO BETA
-    lda_eta: Optional[float] = None,
+    lda_beta: Optional[float] = 0.01, 
 ):
     # resolve MALLET
     mallet_home = os.environ.get('MALLET_HOME', r'C:\mallet')
     mallet_path = os.path.join(mallet_home, "bin", "mallet")
+
+    # Start model folder
+    model_path.mkdir(parents=True, exist_ok=True)
 
     if not os.path.exists(mallet_path):
         raise RuntimeError(f"Mallet binary not found at: {mallet_path}")
@@ -212,10 +215,11 @@ def evaluate_model(
             texts,
             dictionary,
             bow_corpus,
+            model_path=model_path,
             topic_range=topic_range,
             iterations=max(50, iterations // 2),
-            beta=lda_beta,  # BETA PASSADO PARA GRID SEARCH
-            random_seed=random_state  # SEED ADICIONADO
+            beta=lda_beta,
+            random_seed=random_state
         )
 
     else:
@@ -243,53 +247,51 @@ def evaluate_model(
             "random_seed": random_state
         }
 
-    # ------------------------------------------------------------------
     # SAVE ARTIFACTS
-    # ------------------------------------------------------------------
     try:
-        lda_dir = Path(TRAINED_LDA).parent
-        lda_dir.mkdir(parents=True, exist_ok=True)
+        model.save(str(model_path/TRAINED_LDA))
 
-        # save Gensim LdaModel
-        model.save(str(TRAINED_LDA))
+        dictionary.save(str(model_path/TRAINED_DCT))
+        MmCorpus.serialize(str(model_path/TRAINED_BOW), bow_corpus)
 
-        dictionary.save(str(TRAINED_DCT))
-        MmCorpus.serialize(str(TRAINED_BOW), bow_corpus)
-
-        meta_path = str(Path(TRAINED_LDA).with_suffix(".meta.json"))
+        meta_path = str(Path(model_path/TRAINED_LDA).with_suffix(".meta.json"))
         with open(meta_path, "w", encoding="utf-8") as mf:
             json.dump(best_config, mf, indent=2)
 
-        logger.info("✔ Model saved successfully")
-        logger.info(f"✔ Best configuration: {best_config}")
+        logger.info("Model saved successfully")
+        logger.info(f"Best configuration: {best_config}")
 
     except Exception as e:
         logger.exception("Failed to save trained model artifacts", exc_info=e)
 
 
-# ----------------------------------------------------------------------
-#   RUN TRAINING
-# ----------------------------------------------------------------------
-if __name__ == '__main__':
-    df = pd.read_csv(str(NORMALIZED_POSTS))
+def run(name: str, main_topic: str = None):
+    if main_topic:  # For get subtopics
+        df = pd.read_csv(str(CLASSIFIED_POSTS))
+        qids = df[df['topic'] == main_topic]['question_id']
+        df = df[df['question_id'].isin(qids)]
+    else:
+        df = pd.read_csv(str(NORMALIZED_POSTS))
+
 
     if 'normalized_text' in df.columns:
         texts = df['normalized_text'].fillna('').map(lambda s: s.split()).tolist()
-
     elif 'normalized' in df.columns:
         # support for lists stored as strings
         texts = df['normalized'].fillna('').map(
             lambda s: eval(s) if isinstance(s, str) and s.startswith('[')
             else str(s).split()
         ).tolist()
-
     else:
         raise RuntimeError("No normalized_text or normalized column found in CSV")
 
-    # EXEMPLO: Treinar com beta customizado
     evaluate_model(
         texts,
-        lda_beta=0.01,  # Configure o beta aqui
+        MODELS / name,
+        lda_beta=0.01, 
         use_search=True,
-        topic_range=range(2, 9)
+        topic_range=range(1, 20+1)
     )
+
+if __name__ == '__main__':
+    run('main')
