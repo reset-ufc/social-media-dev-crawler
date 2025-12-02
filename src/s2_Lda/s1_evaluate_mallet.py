@@ -294,4 +294,12 @@ def run(name: str, main_topic: str = None):
     )
 
 if __name__ == '__main__':
-    run('main')
+    #run('main')
+    kd = pd.read_json(Path(MODELS / 'main' / 'trained_lda.meta.json'), orient='index').T
+    ti = pd.read_json(Path(MODELS / 'main' / 'topic_inference.json'))
+
+    k = kd['num_topics'].item()
+    for c in range(int(k)):
+        topic = ti.loc[c]['topics']['topic_name']
+        run(f't{c}', main_topic=topic)
+    
