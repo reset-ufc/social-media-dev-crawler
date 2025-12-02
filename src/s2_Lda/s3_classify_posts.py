@@ -1,14 +1,13 @@
+import json
+import pandas as pd
+from gensim.corpora.dictionary import Dictionary
+from gensim.models.ldamodel import LdaModel
+from paths import *
 import sys
 import os
 from pathlib import Path
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from paths import *
-from gensim.models.ldamodel import LdaModel
-from gensim.corpora.dictionary import Dictionary
-import pandas as pd
-import json
 
 
 def load_topic_mapping(topic_inference_path: Path) -> dict:
@@ -92,12 +91,14 @@ def classify_posts_subtopic(model: LdaModel, posts_df: pd.DataFrame, topic_mappi
     """
     Classifies post groups within a specific main topic to subtopics.
     Only processes posts where 'topic' == main_topic.
-    Adds a 'subtopic' column with the inferred subtopic names.
+    Adds 'subtopic' column with the inferred subtopic names.
+    Adds 'subtopic_perc_contrib' column with the subtopic contribution percentage.
     """
     result_df = posts_df.copy()
 
-    # Initialize subtopic column
+    # Initialize subtopic columns
     result_df['subtopic'] = pd.NA
+    result_df['subtopic_perc_contrib'] = pd.NA
 
     # Filter only posts with the specified main topic
     main_topic_mask = result_df['topic'] == main_topic
@@ -125,6 +126,8 @@ def classify_posts_subtopic(model: LdaModel, posts_df: pd.DataFrame, topic_mappi
         question_post_index = group[group['type'] == 'question'].index
         if not question_post_index.empty:
             result_df.loc[question_post_index, 'subtopic'] = subtopic_name
+            result_df.loc[question_post_index,
+                          'subtopic_perc_contrib'] = most_probable_topic_percentage
 
     return result_df
 
@@ -261,8 +264,14 @@ def main_classify_subtopics(model_path: Path, main_topic: str):
 
 
 if __name__ == '__main__':
-    main_classify_main_topics(
-        MODELS / 'main'
-    )
-    # main_classify_subtopics(main_topic)
+    # main_classify_main_topics(MODELS / 'main')
 
+    kd = pd.read_json(
+        Path(MODELS / 'main' / 'trained_lda.meta.json'), orient='index').T
+    ti = pd.read_json(Path(MODELS / 'main' / 'topic_inference.json'))
+
+    k = kd['num_topics'].item()
+    for c in range(int(k)):
+        topic = ti.loc[c]['topics']['topic_name']
+        main_classify_subtopics(MODELS / f't{c}', main_topic=topic)
+        break
