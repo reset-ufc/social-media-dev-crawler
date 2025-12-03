@@ -4,71 +4,130 @@ from pathlib import Path
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from gensim.corpora import MmCorpus
-from gensim.corpora.dictionary import Dictionary
+
+from typing import List
+from pydantic import BaseModel, Field
+from langchain_core.output_parsers import JsonOutputParser
+from langchain.prompts import PromptTemplate
+from langchain_ollama import ChatOllama
+import json
 from gensim.models.ldamodel import LdaModel
-import pyLDAvis
-import pyLDAvis.gensim_models as gensimvisualize
-import pandas as pd 
-import seaborn as sns
-import matplotlib.pyplot as plt
-
 from paths import *
+from langchain_openai import ChatOpenAI
+
+from dotenv import load_dotenv
+load_dotenv()
 
 
-def pldavis(model_path: Path): 
-    try:
-        lda = LdaModel.load(str(model_path / TRAINED_LDA))
-        dictionary = Dictionary.load(str(model_path / TRAINED_DCT))
-        corpus = MmCorpus(str(model_path / TRAINED_BOW))
-
-        # corpus may be an iterable of (id, count) pairs or an MmCorpus object; pyLDAvis accepts both
-        vis = gensimvisualize.prepare(lda, corpus, dictionary, mds='mmds')
-        pyLDAvis.save_html(vis, str(model_path/ 'pyLDAvis.html'))
-    except Exception as e:
-        print(e)
-    
+class TopicInference(BaseModel):
+    topic_id: int = Field(description="Index/ID of the topic")
+    inferred_name: str = Field(
+        description="Short name for the topic (2-5 words)")
+    rationale: str = Field(description="Brief explanation of the topic name")
 
 
-def stat_plots(model_path: Path):
-    df = pd.read_csv(CLASSIFIED_POSTS)   
-    df['topic'] = df['topic'].apply(
-    lambda x: x[:15] + '...' if type(x) == str and len(x) > 15 else x)
+class TopicInferenceOutput(BaseModel):
+    topics: List[TopicInference] = Field(
+        description="List of inferred topic names with explanations")
 
-    plt.figure(figsize=(15, 7))
-    sns.boxplot(
-        x='topic',          # <-- Usando o novo rótulo curto
-        y='topic_perc_contrib', 
-        data=df,
-        palette='viridis'       
+
+def format_topics_for_llm(model: LdaModel, num_words: int = 20) -> str:
+    """
+    Extract topics from LDA model and format as readable text for LLM.
+
+    Returns a formatted string of topics with their keywords and weights.
+    This preprocessing improves LLM accuracy by presenting data clearly.
+    """
+    formatted_topics = []
+
+    # Get all topics from the model
+    for topic_id in range(model.num_topics):
+        # Get top words for this topic (word, weight) pairs
+        top_terms = model.show_topic(topic_id, topn=num_words)
+        top_terms = sorted(top_terms, key=lambda x: x[1], reverse=True)
+
+        terms_str = ", ".join(
+            [f"word: {word} weight: ({weight:.6f})" for word, weight in top_terms])
+        formatted_topics.append(f"Topic {topic_id}: [{terms_str}]")
+    return "\n".join(formatted_topics)
+
+
+def infer_topic_names(model: LdaModel, llm, model_path) -> dict:
+    """
+    Use LangChain + LLM to infer meaningful names for LDA topics.
+
+    Args:
+        model: Trained LDA model
+        llm: LangChain LLM instance (e.g., ChatOllama, ChatOpenAI)
+
+    Returns a dictionary with inferred topic names and rationales.
+    """
+    # Load prompt template
+    if not Path(model_path / LDA_TOPICS).exists():
+        raise FileNotFoundError(f"Prompt file not found at {model_path / LDA_TOPICS}")
+
+    with open(str(model_path / LDA_TOPICS), 'r', encoding='utf-8') as f:
+        prompt_template = f.read()
+
+    # Format topics for input
+    formatted_topics = format_topics_for_llm(model)
+    print(f"Formatted {model.num_topics} topics for LLM inference")
+
+    # Create LangChain prompt
+    prompt = PromptTemplate(
+        input_variables=["model_output"],
+        template=prompt_template
     )
-    plt.title('Probability Distribution', fontsize=12)
-    plt.xticks(rotation=45, ha='right', fontsize=9) 
-    plt.tight_layout()
-    plt.savefig(str(model_path / 'prob_dist.png'))
+
+    # Create output parser
+    parser = JsonOutputParser(pydantic_object=TopicInferenceOutput)
+
+    # Build chain
+    chain = prompt | llm | parser
+
+    # Invoke chain
+    print("Invoking LLM to infer topic names...")
+    result = chain.invoke({"model_output": formatted_topics})
+
+    return result
 
 
-    topic_counts = df['topic'].value_counts().sort_values(ascending=False)
-    plt.figure(figsize=(10, len(topic_counts) * 0.4)) # Ajusta a altura da figura dinamicamente
-    sns.barplot(
-        x=topic_counts.values,   # Os valores (Count) no eixo X
-        y=topic_counts.index,    # Os rótulos (Topics) no eixo Y
-        palette='Spectral'       # Escolhe uma paleta de cores atraente (ex: 'Spectral', 'viridis', 'pastel')
-    )
-    plt.title('Distribution of documents per topic', fontsize=16, fontweight='bold', pad=20)
-    plt.xlabel('Number of documents', fontsize=12)
-    plt.ylabel('Topic', fontsize=12)
-    sns.despine(trim=True, top=True, right=True)
-    for index, value in enumerate(topic_counts.values):
-        plt.text(value, index, f' {value}', va='center') # Adiciona o número ao lado da barra
+def save_topic_inference(inference_result: dict, output_path: Path) -> None:
+    """Save inferred topic names to JSON file."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    plt.tight_layout()
-    plt.savefig(str(model_path / 'topics_dist.png'))
+    with open(str(output_path), 'w', encoding='utf-8') as f:
+        json.dump(inference_result, f, indent=2, ensure_ascii=False)
 
+    print(f"Topic inference saved")
+
+
+def main(model_path, llm):
+    if not Path(model_path / TRAINED_LDA).exists():
+        raise FileNotFoundError(
+            f"Trained LDA model not found at {model_path / TRAINED_LDA}")
+
+    print(f"Loading trained LDA")
+    model = LdaModel.load(str(model_path / TRAINED_LDA))
+    print(f"Model loaded. Number of topics: {model.num_topics}")
+
+    # Infer topic names via LLM
+    inference_result = infer_topic_names(model, llm, model_path)
+
+    # Save results
+    save_topic_inference(inference_result, Path(model_path / 'topic_inference.json'))
 
 
 if __name__ == '__main__':
-    path = MODELS / 'main'
-    #pldavis(path)
-    stat_plots(path)
-
+    """    main(
+        MODELS / 'main',
+        #llm=ChatOllama(model_name='deepseek-r1:32b', temperature=0.7),
+        llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
+        )"""
+    for c in range(16):
+        topic = f't{c}'
+        print('evlauting topic', topic)
+        main(
+            MODELS / topic,
+            llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
+        )
