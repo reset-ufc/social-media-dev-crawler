@@ -1,24 +1,23 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import logging
-from typing import Iterable, Tuple, List, Optional
-import os
-from pathlib import Path
-import json
-from gensim.corpora import MmCorpus
-from paths import *
 
-from gensim.corpora.dictionary import Dictionary
-from gensim.models.ldamodel import LdaModel
-from gensim.models.wrappers import LdaMallet
-from gensim.models.wrappers.ldamallet import malletmodel2ldamodel
-from gensim.models.coherencemodel import CoherenceModel
-import logging as _logging
-import pandas as pd
-from dotenv import load_dotenv
-import subprocess
 import matplotlib.pyplot as plt
+import subprocess
+from dotenv import load_dotenv
+import pandas as pd
+import logging as _logging
+from gensim.models.coherencemodel import CoherenceModel
+from gensim.models.wrappers.ldamallet import malletmodel2ldamodel
+from gensim.models.wrappers import LdaMallet
+from gensim.models.ldamodel import LdaModel
+from gensim.corpora.dictionary import Dictionary
+from paths import *
+from gensim.corpora import MmCorpus
+import json
+from pathlib import Path
+from typing import Iterable, Tuple, List, Optional
+import logging
 
 
 load_dotenv()
@@ -29,6 +28,14 @@ _logging.getLogger('gensim.models.ldamodel').setLevel(_logging.ERROR)
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+
+def _default_mallet_home():
+    """Return a sensible default for MALLET_HOME depending on OS or environment."""
+    env = os.environ.get('MALLET_HOME')
+    if env:
+        return env
+    return r'C:\mallet' if os.name == 'nt' else '/opt/mallet'
 
 
 def train_mallet_with_beta(
@@ -50,7 +57,7 @@ def train_mallet_with_beta(
     # Criar instância básica sem treinar
     model = LdaMallet(
         mallet_path=mallet_path,
-        corpus=None, 
+        corpus=None,
         num_topics=num_topics,
         alpha=alpha,
         id2word=id2word,
@@ -59,17 +66,17 @@ def train_mallet_with_beta(
         iterations=iterations,
         random_seed=random_seed
     )
-    
+
     # Converter corpus para formato Mallet
     model.convert_input(corpus, infer=False)
-    
+
     cmd = [
         model.mallet_path,
         'train-topics',
         '--input', model.fcorpusmallet(),
         '--num-topics', str(model.num_topics),
         '--alpha', str(alpha),
-        '--beta', str(beta), 
+        '--beta', str(beta),
         '--optimize-interval', str(model.optimize_interval),
         '--num-threads', str(model.workers),
         '--output-state', model.fstate(),
@@ -79,16 +86,17 @@ def train_mallet_with_beta(
         '--doc-topics-threshold', str(model.topic_threshold),
         '--random-seed', str(random_seed)
     ]
-    
-    logger.info(f"Training MALLET LDA: topics={num_topics}, alpha={alpha}, beta={beta}, seed={random_seed}")
-    
+
+    logger.info(
+        f"Training MALLET LDA: topics={num_topics}, alpha={alpha}, beta={beta}, seed={random_seed}")
+
     # Executar treinamento
     subprocess.check_call(cmd)
-    
+
     # Carregar word-topics
     model.word_topics = model.load_word_topics()
     model.wordtopics = model.word_topics
-    
+
     return model
 
 
@@ -111,7 +119,7 @@ def find_best_model(
     random_seed: int = 7562
 ) -> Tuple[LdaModel, dict]:
 
-    mallet_home = os.environ.get("MALLET_HOME", "/opt/mallet")
+    mallet_home = _default_mallet_home()
     mallet_path = os.path.join(mallet_home, "bin", "mallet")
 
     if not os.path.exists(mallet_path):
@@ -121,7 +129,7 @@ def find_best_model(
     best_model = None
     best_config = None
 
-    topic_range = list(topic_range) 
+    topic_range = list(topic_range)
     scores = []
 
     for num_topics in topic_range:
@@ -142,25 +150,28 @@ def find_best_model(
 
             model = malletmodel2ldamodel(mallet_model)
 
-            cm = CoherenceModel(model=model, texts=list(texts), dictionary=dictionary, coherence=coherence)
+            cm = CoherenceModel(model=model, texts=list(
+                texts), dictionary=dictionary, coherence=coherence)
             score = cm.get_coherence()
             scores.append(score)
 
-            logger.info(f"num_topics={num_topics} | alpha={alpha} | beta={beta} | seed={random_seed} | coherence={score:.4f}")
+            logger.info(
+                f"num_topics={num_topics} | alpha={alpha} | beta={beta} | seed={random_seed} | coherence={score:.4f}")
 
             if score > best_score:
                 best_score = score
                 best_model = model
                 best_config = {
-                    "num_topics": num_topics, 
-                    "alpha": alpha, 
+                    "num_topics": num_topics,
+                    "alpha": alpha,
                     "beta": beta,
                     "random_seed": random_seed,
                     "coherence": score
                 }
 
         except Exception as e:
-            logger.exception("Model training failed for configuration", exc_info=e)
+            logger.exception(
+                "Model training failed for configuration", exc_info=e)
 
     if best_model is None:
         raise RuntimeError("No model could be trained")
@@ -174,7 +185,7 @@ def find_best_model(
         plt.grid(True, linestyle='--', alpha=0.6)
         plt.savefig(str(model_path/'coherence_plot.png'))
         logger.info(f"Coherence plot saved")
-        
+
     return best_model, best_config
 
 
@@ -185,14 +196,16 @@ def evaluate_model(
     no_above: float = 0.5,
     topic_range: Iterable[int] = range(2, 9),
     use_search: bool = True,
+    tuning: bool = False,
     iterations: int = 150,
-    random_state: int = 7562, 
+    random_state: int = 7562,
     lda_num_topics: Optional[int] = None,
     lda_alpha: Optional[float] = None,
-    lda_beta: Optional[float] = 0.01, 
+    lda_beta: Optional[float] = 0.01,
+    coherence: str = 'c_v',
 ):
     # resolve MALLET
-    mallet_home = os.environ.get('MALLET_HOME', r'C:\mallet')
+    mallet_home = _default_mallet_home()
     mallet_path = os.path.join(mallet_home, "bin", "mallet")
 
     # Start model folder
@@ -203,12 +216,29 @@ def evaluate_model(
 
     texts = list(texts)
 
-    dictionary, bow_corpus = make_dct_bow(texts, no_below=no_below, no_above=no_above)
+    dictionary, bow_corpus = make_dct_bow(
+        texts, no_below=no_below, no_above=no_above)
 
     logger.info(f"Dictionary size: {len(dictionary)}")
-    logger.info(f"Example BOW doc: {bow_corpus[0] if bow_corpus else 'EMPTY BOW'}")
+    logger.info(
+        f"Example BOW doc: {bow_corpus[0] if bow_corpus else 'EMPTY BOW'}")
 
     topic_range = list(topic_range)
+
+    # If tuning requested, use the grid-search tuner function and return early
+    if tuning:
+        model, best_config = find_best_model_tunning(
+            texts=texts,
+            model_path=model_path,
+            no_below=no_below,
+            no_above=no_above,
+            topic_range=topic_range,
+            iterations=iterations,
+            coherence=coherence,
+            random_state=random_state,
+        )
+
+        return model, best_config
 
     if use_search:
         model, best_config = find_best_model(
@@ -223,7 +253,8 @@ def evaluate_model(
         )
 
     else:
-        num_topics = int(lda_num_topics or (sum(topic_range) / len(topic_range)))
+        num_topics = int(lda_num_topics or (
+            sum(topic_range) / len(topic_range)))
         alpha = lda_alpha if lda_alpha is not None else (50 / num_topics)
 
         mallet_model = train_mallet_with_beta(
@@ -241,7 +272,7 @@ def evaluate_model(
         model = malletmodel2ldamodel(mallet_model)
 
         best_config = {
-            "num_topics": num_topics, 
+            "num_topics": num_topics,
             "alpha": alpha,
             "beta": lda_beta,
             "random_seed": random_state
@@ -265,7 +296,105 @@ def evaluate_model(
         logger.exception("Failed to save trained model artifacts", exc_info=e)
 
 
-def run(name: str, main_topic: str = None):
+def find_best_model_tunning(
+    texts: Iterable[List[str]],
+    model_path: Path,
+    no_below: int = 5,
+    no_above: float = 0.5,
+    topic_range: Iterable[int] = range(1, 21),
+    iterations: int = 150,
+    coherence: str = 'c_v',
+    random_state: int = 7562,
+    **kwargs
+):
+    """Grid search over alpha and beta for multiple K (topics).
+
+    alpha and beta take values in [0.001, 0.01, 0.1, 0.5, 1].
+    Does not plot results; returns best (model, config).
+    """
+    alphas = [0.001, 0.01, 0.1, 0.5, 1]
+    betas = [0.001, 0.01, 0.1, 0.5, 1]
+
+    model_path.mkdir(parents=True, exist_ok=True)
+
+    texts = list(texts)
+
+    dictionary, bow_corpus = make_dct_bow(
+        texts, no_below=no_below, no_above=no_above)
+
+    best_score = float('-inf')
+    best_model = None
+    best_config = None
+
+    for num_topics in topic_range:
+        alpha_default = num_topics / 50.0
+        for alpha in alphas:
+            for beta in betas:
+                try:
+                    mallet_home = _default_mallet_home()
+                    mallet_path = os.path.join(mallet_home, "bin", "mallet")
+                    if not os.path.exists(mallet_path):
+                        raise RuntimeError(
+                            f"Mallet binary not found at {mallet_path}")
+
+                    mallet_model = train_mallet_with_beta(
+                        mallet_path=mallet_path,
+                        corpus=bow_corpus,
+                        id2word=dictionary,
+                        num_topics=num_topics,
+                        alpha=alpha,
+                        beta=beta,
+                        iterations=iterations,
+                        random_seed=random_state
+                    )
+
+                    model = malletmodel2ldamodel(mallet_model)
+
+                    cm = CoherenceModel(model=model, texts=list(
+                        texts), dictionary=dictionary, coherence=coherence)
+                    score = cm.get_coherence()
+
+                    logger.info(
+                        f"K={num_topics} alpha={alpha} beta={beta} coherence={score:.4f}")
+
+                    if score > best_score:
+                        best_score = score
+                        best_model = model
+                        best_config = {
+                            "num_topics": num_topics,
+                            "alpha": alpha,
+                            "beta": beta,
+                            "random_seed": random_state,
+                            "coherence": score,
+                        }
+
+                except Exception as e:
+                    logger.exception(
+                        "Tuning failed for configuration", exc_info=e)
+
+    if best_model is None:
+        raise RuntimeError("No model could be trained in tuning")
+
+    # Save best artifacts
+    try:
+        best_model.save(str(model_path / TRAINED_LDA))
+        dictionary.save(str(model_path / TRAINED_DCT))
+        MmCorpus.serialize(str(model_path / TRAINED_BOW), bow_corpus)
+        meta_path = str(
+            Path(model_path / TRAINED_LDA).with_suffix(".meta.json"))
+        with open(meta_path, "w", encoding="utf-8") as mf:
+            json.dump(best_config, mf, indent=2)
+        logger.info("Best tuned model saved")
+    except Exception:
+        logger.exception("Failed to save best tuned model artifacts")
+
+    return best_model, best_config
+
+
+def run(name: str, main_topic: str = None, mode: str = None):
+    if mode is None:
+        mode = os.environ.get('LDA_MODE', 'search')
+
     if main_topic:  # For get subtopics
         df = pd.read_csv(str(CLASSIFIED_POSTS))
         qids = df[df['topic'] == main_topic]['question_id']
@@ -273,9 +402,9 @@ def run(name: str, main_topic: str = None):
     else:
         df = pd.read_csv(str(NORMALIZED_POSTS))
 
-
     if 'normalized_text' in df.columns:
-        texts = df['normalized_text'].fillna('').map(lambda s: s.split()).tolist()
+        texts = df['normalized_text'].fillna(
+            '').map(lambda s: s.split()).tolist()
     elif 'normalized' in df.columns:
         # support for lists stored as strings
         texts = df['normalized'].fillna('').map(
@@ -283,23 +412,31 @@ def run(name: str, main_topic: str = None):
             else str(s).split()
         ).tolist()
     else:
-        raise RuntimeError("No normalized_text or normalized column found in CSV")
+        raise RuntimeError(
+            "No normalized_text or normalized column found in CSV")
 
-    evaluate_model(
+    return evaluate_model(
         texts,
         MODELS / name,
-        lda_beta=0.01, 
-        use_search=True,
+        lda_beta=0.01,
+        use_search=(mode == 'search'),
+        tuning=(mode == 'tune'),
         topic_range=range(1, 20+1)
     )
 
-if __name__ == '__main__':
-    #run('main')
-    kd = pd.read_json(Path(MODELS / 'main' / 'trained_lda.meta.json'), orient='index').T
+
+def run_submodels():
+    kd = pd.read_json(
+        Path(MODELS / 'main' / 'trained_lda.meta.json'), orient='index').T
     ti = pd.read_json(Path(MODELS / 'main' / 'topic_inference.json'))
 
     k = kd['num_topics'].item()
     for c in range(int(k)):
         topic = ti.loc[c]['topics']['topic_name']
         run(f't{c}', main_topic=topic)
-    
+
+
+
+if __name__ == '__main__':
+    run('main1', mode='tune')
+
