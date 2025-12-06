@@ -53,6 +53,60 @@ def _default_mallet_home():
     return r'C:\mallet' if os.name == 'nt' else '/opt/mallet'
 
 
+def calculate_perplexity_from_mallet(model, bow_corpus):
+    """
+    Calcula a perplexidade usando as distribuições tópico-documento do Mallet.
+    Esta abordagem é mais robusta para modelos convertidos do Mallet.
+    """
+    try:
+        # Obter distribuições tópico-documento
+        doc_topics = [model.get_document_topics(doc, minimum_probability=0) for doc in bow_corpus]
+        
+        total_log_likelihood = 0
+        total_words = 0
+        
+        for doc_idx, doc in enumerate(bow_corpus):
+            doc_topic_dist = dict(doc_topics[doc_idx])
+            
+            for word_id, word_count in doc:
+                # P(word|doc) = sum_k P(word|topic_k) * P(topic_k|doc)
+                word_prob = 0
+                for topic_id in range(model.num_topics):
+                    topic_prob = doc_topic_dist.get(topic_id, 0)
+                    word_given_topic = model.expElogbeta[topic_id][word_id]
+                    word_prob += topic_prob * word_given_topic
+                
+                if word_prob > 0:
+                    total_log_likelihood += word_count * np.log(word_prob)
+                    total_words += word_count
+        
+        if total_words == 0:
+            return float('nan')
+        
+        # Perplexity = exp(-log_likelihood / total_words)
+        perplexity = np.exp(-total_log_likelihood / total_words)
+        return float(perplexity)
+        
+    except Exception as e:
+        logger.warning(f"Failed to calculate perplexity: {e}")
+        return float('nan')
+
+
+def calculate_perplexity_alternative(model, bow_corpus):
+    """
+    Método alternativo usando bound() diretamente.
+    Mais rápido mas pode ser menos preciso para modelos Mallet convertidos.
+    """
+    try:
+        # Tenta usar o método bound do gensim
+        per_word_bound = model.bound(bow_corpus) / sum(cnt for doc in bow_corpus for _, cnt in doc)
+        perplexity = np.exp2(-per_word_bound)
+        return float(perplexity)
+    except Exception as e:
+        logger.warning(f"Alternative perplexity calculation failed: {e}")
+        return float('nan')
+
+
 def train_mallet_with_beta(
     mallet_path,
     corpus,
@@ -171,16 +225,17 @@ def find_best_model(
             score = cm.get_coherence()
             scores.append(score)
 
-            # compute perplexity (per-word bound -> perplexity)
-            try:
-                per_word_bound = model.log_perplexity(bow_corpus)
-                perp = float(np.exp(-per_word_bound))
-            except Exception:
-                perp = float('nan')
+            # CORREÇÃO: Usar o método robusto para calcular perplexidade
+            perp = calculate_perplexity_from_mallet(model, bow_corpus)
+            
+            # Se falhar, tentar método alternativo
+            if np.isnan(perp):
+                perp = calculate_perplexity_alternative(model, bow_corpus)
+            
             perplexities.append(perp)
 
             logger.info(
-                f"num_topics={num_topics} | alpha={alpha} | beta={beta} | seed={random_seed} | coherence={score:.4f}")
+                f"num_topics={num_topics} | alpha={alpha} | beta={beta} | seed={random_seed} | coherence={score:.4f} | perplexity={perp:.4f}")
 
             if score > best_score:
                 best_score = score
@@ -213,16 +268,20 @@ def find_best_model(
         plt.grid(True, linestyle='--', alpha=0.6)
         plt.savefig(str(model_path/'coherence_plot.png'))
 
-        plt.figure(figsize=(10, 6))
-        plt.plot(topic_range, perplexities, marker='o',
-                    linestyle='-', color='green')
-        plt.title('Perplexity por Número de Tópicos')
-        plt.xlabel('Número de Tópicos (K)')
-        plt.ylabel('Perplexity')
-        plt.xticks(topic_range)
-        plt.grid(True, linestyle='--', alpha=0.6)
-        plt.savefig(str(model_path/'perplexity_plot.png'))
-
+        # Perplexity plot - filtrar NaN antes de plotar
+        valid_perplexities = [(k, p) for k, p in zip(topic_range, perplexities) if not np.isnan(p)]
+        if valid_perplexities:
+            valid_k, valid_p = zip(*valid_perplexities)
+            plt.figure(figsize=(10, 6))
+            plt.plot(valid_k, valid_p, marker='o', linestyle='-', color='green')
+            plt.title('Perplexity por Número de Tópicos')
+            plt.xlabel('Número de Tópicos (K)')
+            plt.ylabel('Perplexity')
+            plt.xticks(topic_range)
+            plt.grid(True, linestyle='--', alpha=0.6)
+            plt.savefig(str(model_path/'perplexity_plot.png'))
+        else:
+            logger.warning("No valid perplexity values to plot")
 
     return best_model, best_config
 
@@ -308,12 +367,13 @@ def evaluate_model(
 
         # convert ALWAYS
         model = malletmodel2ldamodel(mallet_model)
-        # compute perplexity for the single trained model
-        try:
-            per_word_bound = model.log_perplexity(bow_corpus)
-            perp = float(np.exp(-per_word_bound))
-        except Exception:
-            perp = float('nan')
+        
+        # CORREÇÃO: Usar o método robusto para calcular perplexidade
+        perp = calculate_perplexity_from_mallet(model, bow_corpus)
+        
+        # Se falhar, tentar método alternativo
+        if np.isnan(perp):
+            perp = calculate_perplexity_alternative(model, bow_corpus)
 
         best_config = {
             "num_topics": num_topics,
@@ -400,12 +460,12 @@ def find_best_model_tunning(
                         texts), dictionary=dictionary, coherence=coherence)
                     score = cm.get_coherence()
 
-                    # compute perplexity for this model
-                    try:
-                        per_word_bound = model.log_perplexity(bow_corpus)
-                        perp = float(np.exp(-per_word_bound))
-                    except Exception:
-                        perp = float('nan')
+                    # CORREÇÃO: Usar o método robusto para calcular perplexidade
+                    perp = calculate_perplexity_from_mallet(model, bow_corpus)
+                    
+                    # Se falhar, tentar método alternativo
+                    if np.isnan(perp):
+                        perp = calculate_perplexity_alternative(model, bow_corpus)
 
                     tuning_records.append({
                         'num_topics': int(num_topics),
