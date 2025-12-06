@@ -14,6 +14,7 @@ import pandas as pd
 from dotenv import load_dotenv
 import subprocess
 import matplotlib.pyplot as plt
+import numpy as np
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -145,6 +146,7 @@ def find_best_model(
 
     topic_range = list(topic_range)
     scores = []
+    perplexities = []
 
     for num_topics in topic_range:
         logger.info(f"Testing num_topics={num_topics}")
@@ -169,6 +171,14 @@ def find_best_model(
             score = cm.get_coherence()
             scores.append(score)
 
+            # compute perplexity (per-word bound -> perplexity)
+            try:
+                per_word_bound = model.log_perplexity(bow_corpus)
+                perp = float(np.exp(-per_word_bound))
+            except Exception:
+                perp = float('nan')
+            perplexities.append(perp)
+
             logger.info(
                 f"num_topics={num_topics} | alpha={alpha} | beta={beta} | seed={random_seed} | coherence={score:.4f}")
 
@@ -180,16 +190,20 @@ def find_best_model(
                     "alpha": alpha,
                     "beta": beta,
                     "random_seed": random_seed,
-                    "coherence": score
+                    "coherence": score,
+                    "perplexity": perp
                 }
 
         except Exception as e:
             logger.exception(
                 "Model training failed for configuration", exc_info=e)
+            # keep alignment for plotting when training fails
+            perplexities.append(float('nan'))
 
     if best_model is None:
         raise RuntimeError("No model could be trained")
     else:
+        # Coherence plot
         plt.figure(figsize=(10, 6))
         plt.plot(topic_range, scores, marker='o', linestyle='-', color='blue')
         plt.title('Score de Coerência (C_V) por Número de Tópicos')
@@ -198,7 +212,17 @@ def find_best_model(
         plt.xticks(topic_range)
         plt.grid(True, linestyle='--', alpha=0.6)
         plt.savefig(str(model_path/'coherence_plot.png'))
-        logger.info(f"Coherence plot saved")
+
+        plt.figure(figsize=(10, 6))
+        plt.plot(topic_range, perplexities, marker='o',
+                    linestyle='-', color='green')
+        plt.title('Perplexity por Número de Tópicos')
+        plt.xlabel('Número de Tópicos (K)')
+        plt.ylabel('Perplexity')
+        plt.xticks(topic_range)
+        plt.grid(True, linestyle='--', alpha=0.6)
+        plt.savefig(str(model_path/'perplexity_plot.png'))
+
 
     return best_model, best_config
 
@@ -284,12 +308,19 @@ def evaluate_model(
 
         # convert ALWAYS
         model = malletmodel2ldamodel(mallet_model)
+        # compute perplexity for the single trained model
+        try:
+            per_word_bound = model.log_perplexity(bow_corpus)
+            perp = float(np.exp(-per_word_bound))
+        except Exception:
+            perp = float('nan')
 
         best_config = {
             "num_topics": num_topics,
             "alpha": alpha,
             "beta": lda_beta,
-            "random_seed": random_state
+            "random_seed": random_state,
+            "perplexity": perp
         }
 
     # SAVE ARTIFACTS
@@ -315,7 +346,7 @@ def find_best_model_tunning(
     model_path: Path,
     no_below: int = DEFAULT_NO_BELOW,
     no_above: float = DEFAULT_NO_ABOVE,
-    topic_range: Iterable[int] = range(1, 21),
+    topic_range: Iterable[int] = DEFAULT_TOPIC_RANGE,
     iterations: int = DEFAULT_ITERATIONS,
     coherence: str = DEFAULT_COHERENCE,
     random_state: int = DEFAULT_RANDOM_STATE,
@@ -328,6 +359,7 @@ def find_best_model_tunning(
     """
     alphas = TUNING_ALPHAS
     betas = TUNING_BETAS
+    tuning_records = []
 
     model_path.mkdir(parents=True, exist_ok=True)
 
@@ -368,8 +400,23 @@ def find_best_model_tunning(
                         texts), dictionary=dictionary, coherence=coherence)
                     score = cm.get_coherence()
 
+                    # compute perplexity for this model
+                    try:
+                        per_word_bound = model.log_perplexity(bow_corpus)
+                        perp = float(np.exp(-per_word_bound))
+                    except Exception:
+                        perp = float('nan')
+
+                    tuning_records.append({
+                        'num_topics': int(num_topics),
+                        'alpha': float(alpha),
+                        'beta': float(beta),
+                        'coherence': float(score),
+                        'perplexity': perp
+                    })
+
                     logger.info(
-                        f"K={num_topics} alpha={alpha} beta={beta} coherence={score:.4f}")
+                        f"K={num_topics} alpha={alpha} beta={beta} coherence={score:.4f} perp={perp:.4f}")
 
                     if score > best_score:
                         best_score = score
@@ -380,6 +427,7 @@ def find_best_model_tunning(
                             "beta": beta,
                             "random_seed": random_state,
                             "coherence": score,
+                            "perplexity": perp,
                         }
 
                 except Exception as e:
@@ -435,7 +483,7 @@ def run(name: str, main_topic: str = None, mode: str = None):
         lda_beta=0.01,
         use_search=(mode == 'search'),
         tuning=(mode == 'tune'),
-        topic_range=range(1, 20+1)
+        topic_range=DEFAULT_TOPIC_RANGE
     )
 
 
