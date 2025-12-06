@@ -7,6 +7,9 @@ import json
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy as np
+from pathlib import Path
+
 
 
 def fused_dificulty(df: pd.DataFrame):
@@ -176,11 +179,6 @@ def generate_fused_scatter(fused_metadata_path=FUSED_METADATA, fused_plot_path=N
     """
     Generate a scatter plot styled similarly to the provided reference image.
     """
-    import pandas as pd
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from pathlib import Path
-
     fused_metadata_path = Path(fused_metadata_path)
     if fused_plot_path is None:
         fused_plot_path = fused_metadata_path.with_suffix('.png')
@@ -305,4 +303,4 @@ def main(model_path):
 
 
 if __name__ == '__main__':
-    main(MODELS / 'main')
+    main(MODELS / 'main1')

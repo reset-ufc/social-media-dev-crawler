@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import logging
 from typing import Iterable, Tuple, List, Optional
 from pathlib import Path
@@ -15,9 +19,7 @@ from dotenv import load_dotenv
 import subprocess
 import matplotlib.pyplot as plt
 import numpy as np
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 
 load_dotenv()
@@ -559,4 +561,4 @@ def run_submodels():
 
 
 if __name__ == '__main__':
-    run('main2')
+    run('main1')

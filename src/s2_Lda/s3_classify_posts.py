@@ -283,8 +283,5 @@ def classify_all_subtopics():
 
 
 if __name__ == '__main__':
-    # Run main topic classification first (if needed)
-    # main_classify_main_topics(MODELS / 'main')
-    
-    # Then run subtopic classification for ALL topics in a single pass
-    classify_all_subtopics()
+    classify_main_topics(MODELS / 'main1')
+    #classify_all_subtopics()

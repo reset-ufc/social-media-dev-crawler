@@ -118,12 +118,7 @@ def main(model_path, llm):
     save_topic_inference(inference_result, Path(model_path / 'topic_inference.json'))
 
 
-if __name__ == '__main__':
-    """    main(
-        MODELS / 'main',
-        #llm=ChatOllama(model_name='deepseek-r1:32b', temperature=0.7),
-        llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
-        )"""
+def run_for_sub():
     for c in range(16):
         topic = f't{c}'
         print('evlauting topic', topic)
@@ -131,3 +126,12 @@ if __name__ == '__main__':
             MODELS / topic,
             llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
         )
+
+
+if __name__ == '__main__':
+    main(
+        MODELS / 'main',
+        #llm=ChatOllama(model_name='deepseek-r1:32b', temperature=0.7),
+        llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
+        )
+

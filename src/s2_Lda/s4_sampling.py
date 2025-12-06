@@ -1,12 +1,11 @@
+from openpyxl.worksheet.datavalidation import DataValidation
+from pathlib import Path
+import pandas as pd
+from paths import *
+from utils_global import calc_sample_size, neyman_allocation
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from utils_global import calc_sample_size, neyman_allocation
-from paths import *
-import pandas as pd
-from pathlib import Path
-from openpyxl.worksheet.datavalidation import DataValidation
 
 
 def generate_stratum_table(classfication_path: str = CLASSIFIED_POSTS) -> None:
@@ -106,7 +105,8 @@ def validation_sample():
         return f"https://{domain}/questions/{qid_str}"
 
     if result.empty:
-        out_df = pd.DataFrame(columns=['id', 'site', 'topic', 'link', 'is_valid'])
+        out_df = pd.DataFrame(
+            columns=['id', 'site', 'topic', 'link', 'is_valid'])
     else:
         # Ensure id and topic exist in result; fall back to 'question_id' if needed
         if 'id' not in result.columns and 'question_id' in result.columns:
@@ -115,14 +115,13 @@ def validation_sample():
         out_df = pd.DataFrame()
         out_df['id'] = result['question_id'] if 'id' in result.columns else pd.NA
         out_df['site'] = result['site_alias']
-        
+
         out_df['topic'] = result['topic'] if 'topic' in result.columns else pd.NA
         out_df['link'] = result.apply(make_link, axis=1)
-        out_df['is_valid'] = None # Placeholder for dropdown
+        out_df['is_valid'] = None  # Placeholder for dropdown
 
         # Ensure correct column order
         out_df = out_df[['id', 'site', 'topic', 'link', 'is_valid']]
-
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     # Write to Excel
@@ -134,7 +133,8 @@ def validation_sample():
             # Add data validation for 'is_valid' column
             workbook = writer.book
             worksheet = writer.sheets['validation_sample']
-            dv = DataValidation(type="list", formula1='"True,False"', allow_blank=True)
+            dv = DataValidation(
+                type="list", formula1='"True,False"', allow_blank=True)
             worksheet.add_data_validation(dv)
             # Apply validation to all cells in the 'is_valid' column (column E)
             # from the second row to the last row of data.
@@ -147,6 +147,94 @@ def validation_sample():
         out_df.to_excel(out_path, index=False, sheet_name='validation_sample')
 
     return out_df
+
+
+def regenerate_validation(output_path: str = None):
+    """Regenerate validation sample keeping existing non-topic columns but
+    updating the `topic` column to the current topics from `CLASSIFIED_POSTS`.
+
+    Reads `VALIDATION_SAMPLE` (Excel), looks up each `id` (or `question_id`) in
+    `CLASSIFIED_POSTS` and replaces the `topic` column with the current value
+    when available. Writes the updated sheet to
+    `validation_sample_update.xlsx` (or `output_path` if provided).
+    Returns the updated DataFrame.
+    """
+    in_path = Path(VALIDATION_SAMPLE)
+    if not in_path.exists():
+        raise FileNotFoundError(f"Validation sample not found at {in_path}")
+
+    # read existing validation sample
+    df = pd.read_excel(in_path)
+
+    # determine id column
+    if 'id' in df.columns:
+        id_col = 'id'
+    elif 'question_id' in df.columns:
+        id_col = 'question_id'
+    else:
+        # fallback to first column
+        id_col = df.columns[0]
+
+    # normalize ids to string for safe matching
+    df[id_col] = df[id_col].astype(object).where(pd.notna(df[id_col]), None)
+    ids = [str(int(x)) if (x is not None and isinstance(x, float) and x.is_integer(
+    )) else str(x) for x in df[id_col].fillna('').tolist()]
+
+    # load current classified posts and build mapping
+    if not Path(CLASSIFIED_POSTS).exists():
+        raise FileNotFoundError(
+            f"Classified posts CSV not found at {CLASSIFIED_POSTS}")
+    classified = pd.read_csv(CLASSIFIED_POSTS, dtype={'question_id': object})
+    # ensure question_id as str
+    if 'question_id' in classified.columns:
+        classified['question_id'] = classified['question_id'].astype(
+            object).where(pd.notna(classified['question_id']), None)
+        classified['qid_str'] = classified['question_id'].apply(lambda x: str(int(x)) if (
+            x is not None and isinstance(x, float) and x.is_integer()) else str(x) if x is not None else '')
+        mapping = dict(zip(classified['qid_str'], classified.get(
+            'topic', pd.Series([''] * len(classified)))))
+    else:
+        mapping = {}
+
+    # create updated dataframe copying existing values, but updating topic when found
+    updated = df.copy()
+    # ensure there is a 'topic' column to update; if not, create it
+    if 'topic' not in updated.columns:
+        updated['topic'] = pd.NA
+
+    for idx, val in enumerate(df[id_col].fillna('')):
+        key = ids[idx]
+        if key and key in mapping and pd.notna(mapping[key]):
+            updated.at[idx, 'topic'] = mapping[key]
+        # else keep existing value (already present in updated)
+
+    # choose output path
+    if output_path:
+        out_path = Path(output_path)
+    else:
+        out_path = Path(VALIDATION_SAMPLE).with_name(
+            'validation_sample_update.xlsx')
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # write to Excel with data validation for is_valid if present
+    try:
+        with pd.ExcelWriter(out_path, engine='openpyxl') as writer:
+            updated.to_excel(writer, index=False,
+                             sheet_name='validation_sample')
+            workbook = writer.book
+            worksheet = writer.sheets['validation_sample']
+            if 'is_valid' in updated.columns:
+                from openpyxl.worksheet.datavalidation import DataValidation
+                dv = DataValidation(
+                    type="list", formula1='"True,False"', allow_blank=True)
+                worksheet.add_data_validation(dv)
+                dv.add(f'E2:E{len(updated)+1}')
+    except Exception as e:
+        # fallback: try to write without data validation
+        updated.to_excel(out_path, index=False, sheet_name='validation_sample')
+
+    return updated
 
 
 if __name__ == '__main__':

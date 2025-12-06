@@ -120,7 +120,7 @@ def main(model_path, llm):
 
 if __name__ == '__main__':
     main(
-        MODELS / 'main',
+        MODELS / 'main1',
         #llm=ChatOllama(model_name='deepseek-r1:32b', temperature=0.7),
         llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
         )
