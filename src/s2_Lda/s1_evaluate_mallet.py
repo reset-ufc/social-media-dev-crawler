@@ -1,23 +1,22 @@
+import logging
+from typing import Iterable, Tuple, List, Optional
+from pathlib import Path
+import json
+from gensim.corpora import MmCorpus
+from paths import *
+from gensim.corpora.dictionary import Dictionary
+from gensim.models.ldamodel import LdaModel
+from gensim.models.wrappers import LdaMallet
+from gensim.models.wrappers.ldamallet import malletmodel2ldamodel
+from gensim.models.coherencemodel import CoherenceModel
+import logging as _logging
+import pandas as pd
+from dotenv import load_dotenv
+import subprocess
+import matplotlib.pyplot as plt
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import matplotlib.pyplot as plt
-import subprocess
-from dotenv import load_dotenv
-import pandas as pd
-import logging as _logging
-from gensim.models.coherencemodel import CoherenceModel
-from gensim.models.wrappers.ldamallet import malletmodel2ldamodel
-from gensim.models.wrappers import LdaMallet
-from gensim.models.ldamodel import LdaModel
-from gensim.corpora.dictionary import Dictionary
-from paths import *
-from gensim.corpora import MmCorpus
-import json
-from pathlib import Path
-from typing import Iterable, Tuple, List, Optional
-import logging
 
 
 load_dotenv()
@@ -28,6 +27,21 @@ _logging.getLogger('gensim.models.ldamodel').setLevel(_logging.ERROR)
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+# ============ DEFAULT CONFIGURATION CONSTANTS ============
+DEFAULT_NO_BELOW = 5
+DEFAULT_NO_ABOVE = 0.5
+DEFAULT_TOPIC_RANGE = range(1, 50)
+DEFAULT_ITERATIONS = 2000
+DEFAULT_COHERENCE = 'c_v'
+DEFAULT_RANDOM_STATE = 7562
+DEFAULT_LDA_BETA = 0.01
+DEFAULT_WORKERS = 4
+
+# Tuning grid search parameters
+TUNING_ALPHAS = [0.001, 0.01, 0.1, 0.5, 1]
+TUNING_BETAS = [0.001, 0.01, 0.1, 0.5, 1]
+# =========================================================
 
 
 def _default_mallet_home():
@@ -47,7 +61,7 @@ def train_mallet_with_beta(
     beta,
     iterations,
     random_seed,
-    workers=4,
+    workers=DEFAULT_WORKERS,
     prefix=None
 ):
     """
@@ -112,11 +126,11 @@ def find_best_model(
     dictionary: Dictionary,
     bow_corpus: List[List[tuple]],
     model_path,
-    topic_range: Iterable[int] = range(2, 9),
-    iterations: int = 100,
-    coherence: str = 'c_v',
-    beta: float = 0.01,
-    random_seed: int = 7562
+    topic_range: Iterable[int] = DEFAULT_TOPIC_RANGE,
+    iterations: int = DEFAULT_ITERATIONS,
+    coherence: str = DEFAULT_COHERENCE,
+    beta: float = DEFAULT_LDA_BETA,
+    random_seed: int = DEFAULT_RANDOM_STATE
 ) -> Tuple[LdaModel, dict]:
 
     mallet_home = _default_mallet_home()
@@ -192,17 +206,17 @@ def find_best_model(
 def evaluate_model(
     texts: Iterable[List[str]],
     model_path: Path,
-    no_below: int = 5,
-    no_above: float = 0.5,
-    topic_range: Iterable[int] = range(2, 9),
+    no_below: int = DEFAULT_NO_BELOW,
+    no_above: float = DEFAULT_NO_ABOVE,
+    topic_range: Iterable[int] = DEFAULT_TOPIC_RANGE,
     use_search: bool = True,
     tuning: bool = False,
-    iterations: int = 150,
-    random_state: int = 7562,
+    iterations: int = DEFAULT_ITERATIONS,
+    random_state: int = DEFAULT_RANDOM_STATE,
     lda_num_topics: Optional[int] = None,
     lda_alpha: Optional[float] = None,
-    lda_beta: Optional[float] = 0.01,
-    coherence: str = 'c_v',
+    lda_beta: Optional[float] = DEFAULT_LDA_BETA,
+    coherence: str = DEFAULT_COHERENCE,
 ):
     # resolve MALLET
     mallet_home = _default_mallet_home()
@@ -247,7 +261,7 @@ def evaluate_model(
             bow_corpus,
             model_path=model_path,
             topic_range=topic_range,
-            iterations=max(50, iterations // 2),
+            iterations=iterations,
             beta=lda_beta,
             random_seed=random_state
         )
@@ -299,12 +313,12 @@ def evaluate_model(
 def find_best_model_tunning(
     texts: Iterable[List[str]],
     model_path: Path,
-    no_below: int = 5,
-    no_above: float = 0.5,
+    no_below: int = DEFAULT_NO_BELOW,
+    no_above: float = DEFAULT_NO_ABOVE,
     topic_range: Iterable[int] = range(1, 21),
-    iterations: int = 150,
-    coherence: str = 'c_v',
-    random_state: int = 7562,
+    iterations: int = DEFAULT_ITERATIONS,
+    coherence: str = DEFAULT_COHERENCE,
+    random_state: int = DEFAULT_RANDOM_STATE,
     **kwargs
 ):
     """Grid search over alpha and beta for multiple K (topics).
@@ -312,8 +326,8 @@ def find_best_model_tunning(
     alpha and beta take values in [0.001, 0.01, 0.1, 0.5, 1].
     Does not plot results; returns best (model, config).
     """
-    alphas = [0.001, 0.01, 0.1, 0.5, 1]
-    betas = [0.001, 0.01, 0.1, 0.5, 1]
+    alphas = TUNING_ALPHAS
+    betas = TUNING_BETAS
 
     model_path.mkdir(parents=True, exist_ok=True)
 
@@ -436,7 +450,5 @@ def run_submodels():
         run(f't{c}', main_topic=topic)
 
 
-
 if __name__ == '__main__':
-    run('main1', mode='tune')
-
+    run('main2')
