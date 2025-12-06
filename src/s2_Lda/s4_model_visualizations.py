@@ -71,7 +71,7 @@ def words_per_topic(model_path, num_words: int = 20) -> str:
         top_terms = model.show_topic(topic_id, topn=num_words)
         top_terms = sorted(top_terms, key=lambda x: x[1], reverse=True)
         terms_str = ", ".join(
-            [f"word: {word} weight: ({weight:.3f})" for word, weight in top_terms])
+            [f'word: "{word}" weight: ({weight:.3f})' for word, weight in top_terms])
         formatted_topics.append(f"Topic {topic_id}: [{terms_str}]")
     with open(model_path / f'topics.txt', 'w', encoding='utf-8') as f:
         f.write("\n".join(formatted_topics))
