@@ -2,40 +2,27 @@
 
 ## Descrição
 
-Este projeto é um pipeline de mineração e análise de dados projetado para processar dumps de plataformas de Q&A (como o Stack Exchange). O objetivo é extrair, filtrar e analisar posts para identificar potenciais maus usos de APIs criptográficas e outras práticas de segurança em trechos de código-fonte.
+Este projeto é um pipeline de mineração e análise de dados projetado para processar dumps de plataformas de Q&A (como o Stack Exchange). O objetivo é extrair, filtrar e analisar posts para modelar e entender os tópicos de discussão dentro de comunidades de desenvolvedores.
 
 O processo é dividido em duas grandes etapas:
 
-1.  **Mineração de Dados (`dump_mining`)**: Extrai e prepara os dados a partir de dumps brutos, filtrando posts relevantes e limpando seu conteúdo.
-2.  **Análise com LLM (`llm_inference`)**: Utiliza um Modelo de Linguagem Grande (LLM) para analisar os trechos de código extraídos, identificar e classificar os maus usos.
+1.  **Mineração de Dados (`s1_dump_mining`)**: Extrai e prepara os dados a partir de dumps brutos, filtrando posts relevantes e limpando seu conteúdo.
+2.  **Modelagem de Tópicos com LDA (`s2_Lda`)**: Aplica a modelagem de tópicos Latent Dirichlet Allocation (LDA) sobre os dados processados para descobrir os principais temas discutidos nos posts.
 
 ## Estrutura de Diretórios
 
 -   **`src/`**: Contém todo o código-fonte do projeto.
-    -   `dump_mining/`: Scripts para o pipeline de extração e processamento de dados.
-    -   `llm_inference/`: Scripts para o pipeline de análise com LLM.
+    -   `s1_dump_mining/`: Scripts para o pipeline de extração e processamento de dados.
+    -   `s2_Lda/`: Scripts para o pipeline de modelagem de tópicos com LDA.
     -   `paths.py`: Define todos os caminhos de arquivos e constantes importantes do projeto.
     -   `utils_global.py`: Funções utilitárias usadas em múltiplos scripts.
 
--   **`data/`**: Armazena todos os dados gerados e intermediários. A estrutura é fundamental para o funcionamento do pipeline.
+-   **`data/`**: Armazena todos os dados gerados e intermediários.
     -   `data_mining/`: Saídas do pipeline de mineração.
-        -   `data_mining.log`: Arquivo de log para esta etapa.
-        -   `s1/questions_dump.csv`: Perguntas brutas extraídas do dump com a tag principal.
-        -   `s1/releated_tags/`: Arquivos CSV com heurísticas de tags correlacionadas.
-        -   `s1/releated_posts.csv`: Posts que contêm as tags de interesse.
-        -   `s2/connected_posts.csv`: Posts conectados com suas respostas e comentários.
-        -   `s2/filtred_posts.csv`: Posts filtrados por métricas de popularidade.
-        -   `s2/preprocessed_full_posts.csv`: Versão final dos posts, com texto limpo e blocos de código extraídos e validados.
-        -   `s2/invalid_codes.csv`: Posts descartados por não conterem código válido.
-    -   `llm_inference/`: Saídas do pipeline de análise com LLM.
-        -   `classification/`: Resultados da classificação do LLM.
-            -   `flat/`: Saídas do pipeline "plano", que analisa e julga em duas etapas.
-            -   `hierarquical/`: Saídas do pipeline "hierárquico", que primeiro detecta e depois classifica os maus usos.
-        -   `summarization/`: Logs e resumos gerados a partir dos resultados do LLM.
+    -   `Lda/`: Saídas do pipeline de LDA (modelos, visualizações, etc.).
+    -   `llm_inference/`: Dados relacionados à inferência de nomes de tópicos via LLM.
 
--   **`prompts/`**: Contém os templates de prompts usados para consultar o LLM.
-    -   `flat/`: Prompts para o pipeline plano.
-    -   `hierarquical/`: Prompts para o pipeline hierárquico.
+-   **`prompts/`**: Contém os templates de prompts usados para consultar o LLM para nomear os tópicos do LDA.
 
 -   **`notebooks/`**: Jupyter Notebooks para análise, validação e visualização de dados.
 
@@ -43,43 +30,48 @@ O processo é dividido em duas grandes etapas:
 
 ## Pipelines de Execução
 
-### 1. Mineração de Dados (`src/dump_mining`)
+### 1. Mineração de Dados (`src/s1_dump_mining`)
 
-Este pipeline é orquestrado pelo script `src/dump_mining/pipeline.py` e executa as seguintes etapas em sequência:
+Este pipeline é orquestrado pelo script `src/s1_dump_mining/pipeline.py` e executa as seguintes etapas em sequência:
 
--   **`s1_get_main_tag.py`**: Lê os dumps (`.7z`) e extrai as perguntas que contêm a `QUESTION_TAG` principal (ex: "encryption").
--   **`s2_calculate_tag_heuristics.py`**: Analisa todas as tags dos dumps para calcular heurísticas (H1, H2) e encontrar tags que são fortemente correlacionadas com a tag principal.
+-   **`s1_get_main_tag.py`**: Lê os dumps (`.7z`) e extrai as perguntas que contêm a `QUESTION_TAG` principal (ex: "python").
+-   **`s2_calculate_tag_heuristics.py`**: Analisa todas as tags dos dumps para calcular heurísticas e encontrar tags que são fortemente correlacionadas com a tag principal.
 -   **`s4_get_posts.py`**: Usa as tags correlacionadas para buscar e salvar todos os posts (perguntas) relevantes dos dumps.
 -   **`s5_get_connected_posts.py`**: Expande os posts encontrados, buscando e conectando suas respectivas respostas e comentários.
--   **`s6_filter_posts.py`**: Filtra os posts com base em métricas de popularidade (score, visualizações, etc.) e remove auto-respostas para focar nos conteúdos mais relevantes.
--   **`s7_preprocess_body.py`**: Limpa o corpo HTML dos posts, extrai os blocos de código (`<code>...</code>`) e aplica uma primeira camada de validação baseada em heurísticas para separar código real de logs, comandos de terminal, etc.
--   **`s8_validate_code.py`**: (Disponível, mas não integrado ao pipeline principal) Realiza uma validação de código mais robusta usando `tree-sitter` para analisar a estrutura sintática do código em várias linguagens.
+-   **`s6_filter_posts.py`**: Filtra os posts com base em métricas de popularidade (score, visualizações, etc.).
 
-### 2. Análise com LLM (`src/llm_inference`)
+### 2. Modelagem de Tópicos com LDA (`src/s2_Lda`)
 
-Orquestrado por `src/llm_inference/pipeline.py`, este pipeline pode ser executado em duas variantes: `flat_pipeline` ou `hier_pipeline`.
+Após a mineração, os scripts neste diretório devem ser executados em sequência para realizar a modelagem de tópicos.
 
--   **`s1_make_llm_input.py`**: Prepara as entradas para o LLM, formatando os dados do post e os blocos de código em um prompt estruturado.
--   **`s2_llm_chain.py`**: Gerencia a comunicação com o LLM. Ele itera sobre os dados, formata o prompt final com as instruções do arquivo de prompt, envia para o modelo e salva a resposta JSON.
--   **`s3_summarization.py`**: Gera um resumo estatístico a partir dos resultados da análise do LLM, contando o número de maus usos, categorias e distribuição por site.
--   **`s4_merge_llm_results.py`**: Compara e consolida os resultados de diferentes etapas do LLM (ex: análise vs. julgamento), gerando um arquivo final com os dados validados.
+-   **`s0_normalisation.py`**: Prepara e normaliza o texto dos posts (tokenização, lematização, etc.) para criar um córpus para o modelo LDA.
+-   **`s1_evaluate_mallet.py`**: Treina e avalia múltiplos modelos LDA usando o wrapper Mallet para encontrar o número ótimo de tópicos.
+-   **`s2_infer_topics.py`**: Utiliza um Modelo de Linguagem Grande (LLM) para analisar as palavras-chave de cada tópico gerado pelo LDA e inferir um nome legível e coeso para ele.
+-   **`s2_model_visualizations.py`**: Gera visualizações interativas (como pyLDAvis) para ajudar na interpretação e análise dos tópicos.
+-   **`s3_classify_posts.py`**: Classifica cada post, atribuindo a ele o tópico mais provável.
+-   **`s3_fused_metrics.py`**: Calcula métricas de fusão para avaliar a qualidade e a distribuição dos tópicos.
+-   **`s4_sampling.py`**: Realiza amostragem de posts dentro de cada tópico para análise qualitativa.
 
 ## Como Executar
 
 1.  **Configuração Inicial**:
-    -   Instale as dependências: `pip install -r requirements.txt`
+    -   Instale as dependências. Note que há dois arquivos de requisitos.
+        ```bash
+        pip install -r requirements.txt
+        pip install -r requirements_lda.txt
+        ```
     -   Coloque os arquivos de dump (`.7z`) na pasta `Extraidos dump/`.
-    -   Verifique as constantes no arquivo `src/paths.py`, como `QUESTION_TAG`, `THRE1`, `THRE2`, e os nomes dos sites.
+    -   Verifique as constantes no arquivo `src/paths.py`, como `QUESTION_TAG` e os nomes dos sites.
 
 2.  **Executar o Pipeline de Mineração de Dados**:
     ```bash
-    python src/dump_mining/pipeline.py
+    python src/s1_dump_mining/pipeline.py
     ```
 
-3.  **Executar o Pipeline de Análise com LLM**:
-    -   Abra o arquivo `src/llm_inference/pipeline.py`.
-    -   No final do arquivo (`if __name__ == '__main__':`), escolha qual pipeline executar (ex: `hier_pipeline(limit=3)` para um teste em 3 posts).
-    -   Execute o script:
+3.  **Executar o Pipeline de Modelagem de Tópicos**:
+    -   Execute os scripts do diretório `src/s2_Lda/` na ordem numérica (de `s0` a `s4`).
     ```bash
-    python src/llm_inference/pipeline.py
+    python src/s2_Lda/s0_normalisation.py
+    python src/s2_Lda/s1_evaluate_mallet.py
+    # ... e assim por diante
     ```
