@@ -45,6 +45,7 @@ def stat_plots(model_path):
     plt.title('Probability Distribution', fontsize=12)
     plt.xticks(rotation=45, ha='right', fontsize=9) 
     plt.tight_layout()
+    plt.savefig(model_path / 'prob_distribution.png', dpi=300)
 
     topic_counts = df['topic'].value_counts().sort_values(ascending=False)
     plt.figure(figsize=(10, len(topic_counts) * 0.4)) # Ajusta a altura da figura dinamicamente

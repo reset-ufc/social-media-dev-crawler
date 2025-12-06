@@ -14,6 +14,7 @@ import json
 from gensim.models.ldamodel import LdaModel
 from paths import *
 from langchain_openai import ChatOpenAI
+import pandas as pd
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -116,6 +117,21 @@ def main(model_path, llm):
 
     # Save results
     save_topic_inference(inference_result, Path(model_path / 'topic_inference.json'))
+
+
+
+def run_submodels():
+    kd = pd.read_json(
+        Path(MODELS / 'main' / 'trained_lda.meta.json'), orient='index').T
+
+    k = kd['num_topics'].item()
+    for c in range(int(k)):
+        main(
+            MODELS / f't{c}',
+            llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7, json_dump_output=True),
+            )
+
+
 
 
 if __name__ == '__main__':
