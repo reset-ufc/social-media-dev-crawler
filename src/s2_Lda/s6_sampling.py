@@ -152,6 +152,8 @@ def validation_sample():
 def regenerate_validation(output_path: str = None):
     """Regenerate validation sample keeping existing non-topic columns but
     updating the `topic` column to the current topics from `CLASSIFIED_POSTS`.
+    Additionally, enforce stratum allocations: remove excess posts from over-allocated
+    topics and add missing posts from under-allocated topics.
 
     Reads `VALIDATION_SAMPLE` (Excel), looks up each `id` (or `question_id`) in
     `CLASSIFIED_POSTS` and replaces the `topic` column with the current value
@@ -162,6 +164,18 @@ def regenerate_validation(output_path: str = None):
     in_path = Path(VALIDATION_SAMPLE)
     if not in_path.exists():
         raise FileNotFoundError(f"Validation sample not found at {in_path}")
+
+    # Load stratum table for allocation targets
+    if not Path(STRATUM_TABLE).exists():
+        raise FileNotFoundError(f"Stratum table not found at {STRATUM_TABLE}")
+    stratum_df = pd.read_csv(STRATUM_TABLE)
+    if 'topic' not in stratum_df.columns or 'allocated_nh' not in stratum_df.columns:
+        raise ValueError(
+            "STRATUM_TABLE must contain 'topic' and 'allocated_nh' columns")
+
+    # build allocation target mapping
+    allocation_target = dict(
+        zip(stratum_df['topic'], stratum_df['allocated_nh']))
 
     # read existing validation sample
     df = pd.read_excel(in_path)
@@ -208,6 +222,90 @@ def regenerate_validation(output_path: str = None):
             updated.at[idx, 'topic'] = mapping[key]
         # else keep existing value (already present in updated)
 
+    # Now enforce allocations: count current topic distribution
+    topic_counts = updated['topic'].value_counts().to_dict()
+
+    # Identify topics with excess and deficit
+    excess_per_topic = {}
+    deficit_per_topic = {}
+
+    for topic, target in allocation_target.items():
+        current = topic_counts.get(topic, 0)
+        if current > target:
+            excess_per_topic[topic] = current - target
+        elif current < target:
+            deficit_per_topic[topic] = target - current
+
+    # Remove excess posts from over-allocated topics
+    for topic, excess_count in excess_per_topic.items():
+        indices_to_remove = updated[updated['topic'] == topic].index.tolist()
+        removed = 0
+        for idx in indices_to_remove:
+            if removed >= excess_count:
+                break
+            updated = updated.drop(idx)
+            removed += 1
+
+    updated = updated.reset_index(drop=True)
+
+    # Add missing posts from classified_df for under-allocated topics
+    if deficit_per_topic:
+        # Get current ids in validation sample (as set)
+        current_ids_set = set(ids)
+
+        for topic, deficit_count in deficit_per_topic.items():
+            # Find candidates from classified not yet in updated
+            candidates = classified[
+                (classified['topic'] == topic) &
+                (classified['type'] == 'question') &
+                (~classified['question_id'].astype(str).isin(current_ids_set))
+            ].copy()
+
+            if candidates.empty:
+                print(
+                    f"Warning: No additional candidates for topic '{topic}' (deficit={deficit_count})")
+                continue
+
+            # Sample up to deficit_count posts
+            sample_size = min(deficit_count, len(candidates))
+            sampled = candidates.sample(n=sample_size, replace=False)
+
+            # Build rows to append (matching column structure of updated)
+            new_rows = []
+            for _, row in sampled.iterrows():
+                new_row = {}
+                for col in updated.columns:
+                    if col == 'id' or col == 'question_id':
+                        new_row[col] = row.get('question_id', '')
+                    elif col == 'site':
+                        new_row[col] = row.get('site_alias', '')
+                    elif col == 'topic':
+                        new_row[col] = topic
+                    elif col == 'link':
+                        qid = row.get('question_id', '')
+                        site = row.get('site_alias', '')
+                        try:
+                            qid_str = str(int(qid))
+                        except Exception:
+                            qid_str = str(qid)
+                        if str(site) == 'stackoverflow':
+                            domain = 'stackoverflow.com'
+                        else:
+                            domain = f"{site}.stackexchange.com"
+                        new_row[col] = f"https://{domain}/questions/{qid_str}"
+                    elif col == 'is_valid':
+                        new_row[col] = None
+                    else:
+                        new_row[col] = row.get(col, '')
+                new_rows.append(new_row)
+
+            # Append rows
+            if new_rows:
+                new_df = pd.DataFrame(new_rows)
+                updated = pd.concat([updated, new_df], ignore_index=True)
+                current_ids_set.update(
+                    [str(x) for x in sampled['question_id'].tolist()])
+
     # choose output path
     if output_path:
         out_path = Path(output_path)
@@ -233,6 +331,15 @@ def regenerate_validation(output_path: str = None):
     except Exception as e:
         # fallback: try to write without data validation
         updated.to_excel(out_path, index=False, sheet_name='validation_sample')
+
+    # Log final allocation status
+    final_counts = updated['topic'].value_counts().to_dict()
+    print(f"\n=== Final Allocation Status ===")
+    for topic in sorted(allocation_target.keys()):
+        target = allocation_target[topic]
+        final = final_counts.get(topic, 0)
+        status = "✓" if final == target else "✗"
+        print(f"{status} {topic}: {final}/{target}")
 
     return updated
 

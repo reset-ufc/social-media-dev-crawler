@@ -189,7 +189,7 @@ def classify_main_topics(model_path):
     print(question_posts_df['topic'].value_counts())
 
 
-def classify_all_subtopics():
+def classify_all_subtopics(model_path):
     """Classify all main topics into subtopics in a single pass.
     
     Esta função carrega o arquivo UMA VEZ, processa todos os tópicos,
@@ -197,8 +197,8 @@ def classify_all_subtopics():
     """
     # Load main topic configuration
     kd = pd.read_json(
-        Path(MODELS / 'main' / 'trained_lda.meta.json'), orient='index').T
-    ti = pd.read_json(Path(MODELS / 'main' / 'topic_inference.json'))
+        Path(model_path / 'trained_lda.meta.json'), orient='index').T
+    ti = pd.read_json(Path(model_path / 'topic_inference.json'))
     
     k = int(kd['num_topics'].item())
     print(f"Found {k} main topics to process")
@@ -243,7 +243,7 @@ def classify_all_subtopics():
         inf_file = model_path / 'topic_inference.json'
         
         if not lda_file.exists() or not dct_file.exists():
-            print(f"  WARNING: Model files not found in {model_path}")
+            print(f"WARNING: Model files not found in {model_path}")
             continue
         
         # Load model and dictionary
@@ -284,4 +284,4 @@ def classify_all_subtopics():
 
 if __name__ == '__main__':
     classify_main_topics(MODELS / 'main1')
-    #classify_all_subtopics()
+    #classify_all_subtopics(MODELS / 'main1')

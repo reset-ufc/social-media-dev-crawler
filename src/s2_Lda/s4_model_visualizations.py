@@ -77,7 +77,6 @@ def words_per_topic(model_path, num_words: int = 20) -> str:
         f.write("\n".join(formatted_topics))
 
 
-
 if __name__ == '__main__':
     path = MODELS / 'main1'
     pldavis(path)
