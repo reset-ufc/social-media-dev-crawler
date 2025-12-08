@@ -40,9 +40,7 @@ def format_topics_for_llm(model: LdaModel, num_words: int = 20) -> str:
     """
     formatted_topics = []
 
-    # Get all topics from the model
     for topic_id in range(model.num_topics):
-        # Get top words for this topic (word, weight) pairs
         top_terms = model.show_topic(topic_id, topn=num_words)
         top_terms = sorted(top_terms, key=lambda x: x[1], reverse=True)
 
@@ -105,7 +103,7 @@ def infer_topic_names(model: LdaModel, llm, model_path: Path) -> dict:
     )
 
 
-def infer_subtopic_names(main_model_path: Path, llm, num_words: int = 20) -> dict:
+def subtopics_inference(main_model_path: Path, llm, num_words: int = 20) -> dict:
     """
     Infer names for subtopics of a main topic.
 
@@ -116,7 +114,6 @@ def infer_subtopic_names(main_model_path: Path, llm, num_words: int = 20) -> dic
 
     Returns a dict mapping submodel folder -> inference result.
     """
-    main_model_path = Path(main_model_path)
     models_root = main_model_path.parent
 
     ti_path = main_model_path / 'topic_inference.json'
@@ -178,7 +175,7 @@ def save_topic_inference(inference_result: dict, output_path: Path) -> None:
     print(f"Topic inference saved to {output_path}")
 
 
-def main(model_path, llm):
+def main_topic_inference(model_path, llm):
     model_path = Path(model_path)
     lda_model_path = model_path / TRAINED_LDA
     if not lda_model_path.exists():
@@ -193,32 +190,13 @@ def main(model_path, llm):
     save_topic_inference(inference_result, model_path / 'topic_inference.json')
 
 
-def run_submodels():
-    main_model_meta_path = Path(MODELS / 'main' / 'trained_lda.meta.json')
-    if not main_model_meta_path.exists():
-        raise FileNotFoundError(
-            f"Main model metadata not found at {main_model_meta_path}")
-
-    k = int(pd.read_json(main_model_meta_path,
-            orient='index').T['num_topics'].item())
-    llm = ChatOpenAI(model_name="gpt-4-turbo",
-                     temperature=0.7)
-
-    for c in range(k):
-        model_path = MODELS / f't{c}'
-        main(model_path, llm)
-
-
 if __name__ == '__main__':
     # Example usage for a main model
-    main(
+    main_topic_inference(
         MODELS / 'main1',
-        llm=ChatOpenAI(model_name="gpt-4-turbo", temperature=0.7),
+        llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
     )
-
-    # Example usage for submodels
-    # Ensure the main model's topic_inference.json exists before running this.
-    # infer_subtopic_names(
-    #     MODELS / 'main',
-    #     llm=ChatOpenAI(model_name="gpt-4-turbo", temperature=0.7),
-    # )
+    subtopics_inference(
+        MODELS / 'main1',
+        llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
+    )
