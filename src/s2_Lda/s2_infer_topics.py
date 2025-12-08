@@ -1,3 +1,14 @@
+from dotenv import load_dotenv
+import pandas as pd
+from langchain_openai import ChatOpenAI
+from paths import *
+from gensim.models.ldamodel import LdaModel
+import json
+from langchain_ollama import ChatOllama
+from langchain.prompts import PromptTemplate
+from langchain_core.output_parsers import JsonOutputParser
+from pydantic import BaseModel, Field
+from typing import List, Dict, Any
 import sys
 import os
 from pathlib import Path
@@ -5,18 +16,6 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-from typing import List
-from pydantic import BaseModel, Field
-from langchain_core.output_parsers import JsonOutputParser
-from langchain.prompts import PromptTemplate
-from langchain_ollama import ChatOllama
-import json
-from gensim.models.ldamodel import LdaModel
-from paths import *
-from langchain_openai import ChatOpenAI
-import pandas as pd
-
-from dotenv import load_dotenv
 load_dotenv()
 
 
@@ -48,95 +47,178 @@ def format_topics_for_llm(model: LdaModel, num_words: int = 20) -> str:
         top_terms = sorted(top_terms, key=lambda x: x[1], reverse=True)
 
         terms_str = ", ".join(
-            [f"word: {word} weight: ({weight:.6f})" for word, weight in top_terms])
+            [f'word: "{word}" weight: ({weight:.6f})' for word, weight in top_terms])
         formatted_topics.append(f"Topic {topic_id}: [{terms_str}]")
     return "\n".join(formatted_topics)
 
 
-def infer_topic_names(model: LdaModel, llm, model_path) -> dict:
+def _invoke_llm_inference(
+    llm,
+    prompt_template: str,
+    prompt_variables: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Generic function to invoke LLM inference for topic naming.
+
+    Args:
+        llm: LangChain LLM instance.
+        prompt_template: The prompt template string.
+        prompt_variables: A dictionary of variables to pass to the prompt.
+
+    Returns:
+        The parsed JSON output from the LLM.
+    """
+    prompt = PromptTemplate(
+        input_variables=list(prompt_variables.keys()),
+        template=prompt_template
+    )
+    parser = JsonOutputParser(pydantic_object=TopicInferenceOutput)
+    chain = prompt | llm | parser
+
+    print(f"Invoking LLM with variables: {list(prompt_variables.keys())}...")
+    return chain.invoke(prompt_variables)
+
+
+def infer_topic_names(model: LdaModel, llm, model_path: Path) -> dict:
     """
     Use LangChain + LLM to infer meaningful names for LDA topics.
 
     Args:
-        model: Trained LDA model
-        llm: LangChain LLM instance (e.g., ChatOllama, ChatOpenAI)
+        model: Trained LDA model.
+        llm: LangChain LLM instance.
+        model_path: Path to the model directory.
 
     Returns a dictionary with inferred topic names and rationales.
     """
-    # Load prompt template
-    if not Path(model_path / LDA_TOPICS).exists():
-        raise FileNotFoundError(f"Prompt file not found at {model_path / LDA_TOPICS}")
+    prompt_path = model_path / LDA_TOPICS
+    if not prompt_path.exists():
+        raise FileNotFoundError(f"Prompt file not found at {prompt_path}")
 
-    with open(str(model_path / LDA_TOPICS), 'r', encoding='utf-8') as f:
-        prompt_template = f.read()
-
-    # Format topics for input
+    prompt_template = prompt_path.read_text(encoding='utf-8')
     formatted_topics = format_topics_for_llm(model)
     print(f"Formatted {model.num_topics} topics for LLM inference")
 
-    # Create LangChain prompt
-    prompt = PromptTemplate(
-        input_variables=["model_output"],
-        template=prompt_template
+    return _invoke_llm_inference(
+        llm,
+        prompt_template,
+        {"model_output": formatted_topics}
     )
 
-    # Create output parser
-    parser = JsonOutputParser(pydantic_object=TopicInferenceOutput)
 
-    # Build chain
-    chain = prompt | llm | parser
+def infer_subtopic_names(main_model_path: Path, llm, num_words: int = 20) -> dict:
+    """
+    Infer names for subtopics of a main topic.
 
-    # Invoke chain
-    print("Invoking LLM to infer topic names...")
-    result = chain.invoke({"model_output": formatted_topics})
+    Args:
+        main_model_path: Path to the main model folder.
+        llm: LangChain LLM instance.
+        num_words: Number of words to extract per subtopic.
 
-    return result
+    Returns a dict mapping submodel folder -> inference result.
+    """
+    main_model_path = Path(main_model_path)
+    models_root = main_model_path.parent
+
+    ti_path = main_model_path / 'topic_inference.json'
+    if not ti_path.exists():
+        raise FileNotFoundError(f"topic_inference.json not found at {ti_path}")
+    ti = pd.read_json(ti_path)
+
+    meta_path = main_model_path / 'trained_lda.meta.json'
+    if not meta_path.exists():
+        raise FileNotFoundError(
+            f"trained_lda.meta.json not found at {meta_path}")
+    k = int(pd.read_json(meta_path, orient='index').T['num_topics'].item())
+
+    prompt_file = PROMPTS_DIR / 'lda_subtopics.txt'
+    if not prompt_file.exists():
+        raise FileNotFoundError(
+            f"Prompt file for subtopics not found at {prompt_file}")
+    prompt_template = prompt_file.read_text(encoding='utf-8')
+
+    results = {}
+    for idx in range(k):
+        submodel_folder = models_root / f't{idx}'
+        if not submodel_folder.exists():
+            print(f"Skipping missing submodel folder: {submodel_folder}")
+            continue
+
+        try:
+            main_topic_name = ti.loc[idx]['topics']['topic_name']
+        except Exception:
+            main_topic_name = f"topic_{idx}"
+
+        submodel = LdaModel.load(str(submodel_folder / 'trained_lda.model'))
+        formatted_topics = format_topics_for_llm(submodel, num_words=num_words)
+
+        print(
+            f"Invoking LLM for submodel t{idx} (main_topic='{main_topic_name}')...")
+        try:
+            out = _invoke_llm_inference(
+                llm,
+                prompt_template,
+                {"subtopic": main_topic_name, "model_output": formatted_topics}
+            )
+            results[f't{idx}'] = out
+
+            out_path = submodel_folder / 'subtopic_inference.json'
+            save_topic_inference(out, out_path)
+            print(f"Saved subtopic inference to {out_path}")
+        except Exception as e:
+            print(f"LLM call failed for t{idx}: {e}")
+
+    return results
 
 
 def save_topic_inference(inference_result: dict, output_path: Path) -> None:
     """Save inferred topic names to JSON file."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
-
     with open(str(output_path), 'w', encoding='utf-8') as f:
         json.dump(inference_result, f, indent=2, ensure_ascii=False)
-
-    print(f"Topic inference saved")
+    print(f"Topic inference saved to {output_path}")
 
 
 def main(model_path, llm):
-    if not Path(model_path / TRAINED_LDA).exists():
+    model_path = Path(model_path)
+    lda_model_path = model_path / TRAINED_LDA
+    if not lda_model_path.exists():
         raise FileNotFoundError(
-            f"Trained LDA model not found at {model_path / TRAINED_LDA}")
+            f"Trained LDA model not found at {lda_model_path}")
 
-    print(f"Loading trained LDA")
-    model = LdaModel.load(str(model_path / TRAINED_LDA))
+    print("Loading trained LDA")
+    model = LdaModel.load(str(lda_model_path))
     print(f"Model loaded. Number of topics: {model.num_topics}")
 
-    # Infer topic names via LLM
     inference_result = infer_topic_names(model, llm, model_path)
-
-    # Save results
-    save_topic_inference(inference_result, Path(model_path / 'topic_inference.json'))
-
+    save_topic_inference(inference_result, model_path / 'topic_inference.json')
 
 
 def run_submodels():
-    kd = pd.read_json(
-        Path(MODELS / 'main' / 'trained_lda.meta.json'), orient='index').T
+    main_model_meta_path = Path(MODELS / 'main' / 'trained_lda.meta.json')
+    if not main_model_meta_path.exists():
+        raise FileNotFoundError(
+            f"Main model metadata not found at {main_model_meta_path}")
 
-    k = kd['num_topics'].item()
-    for c in range(int(k)):
-        main(
-            MODELS / f't{c}',
-            llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7, json_dump_output=True),
-            )
+    k = int(pd.read_json(main_model_meta_path,
+            orient='index').T['num_topics'].item())
+    llm = ChatOpenAI(model_name="gpt-4-turbo",
+                     temperature=0.7)
 
-
+    for c in range(k):
+        model_path = MODELS / f't{c}'
+        main(model_path, llm)
 
 
 if __name__ == '__main__':
+    # Example usage for a main model
     main(
         MODELS / 'main1',
-        #llm=ChatOllama(model_name='deepseek-r1:32b', temperature=0.7),
-        llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
-        )
+        llm=ChatOpenAI(model_name="gpt-4-turbo", temperature=0.7),
+    )
+
+    # Example usage for submodels
+    # Ensure the main model's topic_inference.json exists before running this.
+    # infer_subtopic_names(
+    #     MODELS / 'main',
+    #     llm=ChatOpenAI(model_name="gpt-4-turbo", temperature=0.7),
+    # )

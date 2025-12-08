@@ -26,6 +26,7 @@ HIERARCHICAL_PROMPTS_DIR = PROMPTS_DIR / "hierarquical"
 FLAT_PROMPTS_DIR = PROMPTS_DIR / "flat"
 
 LDA_TOPICS = PROMPTS_DIR / 'lda_topics.txt'
+LDA_SUBTOPICS = PROMPTS_DIR / 'lda_subtopics.txt'
 
 
 DATA_MINING = DATA / "data_mining"
@@ -104,6 +105,8 @@ TRAINED_LDA = Path('trained_lda.model')
 TRAINED_DCT = Path('trained_dictionary.dict')
 TRAINED_BOW = Path('trained_corpus.mm')
 LDA_CONFIG = Path('trained_lda.meta.json')
+LDA_TOPIC_INFERENCE = Path('topic_inference.json')
+
 
 LDA_CSVS = LDA_DIR / 'csvs'
 LDA_PLOTS = LDA_DIR / 'plots'
