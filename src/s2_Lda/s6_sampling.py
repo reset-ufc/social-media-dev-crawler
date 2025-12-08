@@ -1,12 +1,11 @@
+from openpyxl.worksheet.datavalidation import DataValidation
+from pathlib import Path
+import pandas as pd
+from paths import *
+from utils_global import calc_sample_size, neyman_allocation
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from utils_global import calc_sample_size, neyman_allocation
-from paths import *
-import pandas as pd
-from pathlib import Path
-from openpyxl.worksheet.datavalidation import DataValidation
 
 
 def generate_stratum_table(classfication_path: str = CLASSIFIED_POSTS) -> None:
@@ -334,6 +333,104 @@ def regenarete_validation_sample(validation_path: str = VALIDATION_SAMPLE,
         vs_df.drop(columns=['_mapped_new_topic'], inplace=True)
 
     return out
+
+
+def add_subtopics(validation_path: str = VALIDATION_SAMPLE,
+                  classified_path: str = CLASSIFIED_POSTS) -> pd.DataFrame:
+    """Add a `subtopics` column to the validation sample file based on
+    `classified_path`. Matching is done by `id` (or `question_id`) and `site`.
+    The function writes the updated sheet back to `validation_path` and
+    returns the updated DataFrame.
+    """
+
+    # Read validation sheet
+    try:
+        vs_df = pd.read_excel(validation_path, sheet_name='validation_sample')
+    except Exception:
+        vs_df = pd.read_excel(validation_path)
+
+    # Identify id and site columns in validation sheet
+    id_col = 'id' if 'id' in vs_df.columns else (
+        'question_id' if 'question_id' in vs_df.columns else None)
+    if id_col is None:
+        raise ValueError(
+            'Validation sheet must contain an `id` or `question_id` column')
+
+    site_col_vs = 'site' if 'site' in vs_df.columns else (
+        'site_alias' if 'site_alias' in vs_df.columns else None)
+
+    # Read classified posts
+    classified = pd.read_csv(classified_path)
+
+    # Find a column that looks like a subtopic column
+    sub_col = next(
+        (c for c in classified.columns if 'subtopic' in c.lower()), None)
+    if sub_col is None:
+        # No subtopic info available: add empty column and write back
+        vs_df['subtopics'] = pd.NA
+        out_path = Path(validation_path)
+        if out_path.suffix.lower() != '.xlsx':
+            out_path = out_path.with_suffix('.xlsx')
+        with pd.ExcelWriter(out_path, engine='openpyxl') as writer:
+            vs_df.to_excel(writer, index=False, sheet_name='validation_sample')
+        return vs_df
+
+    # Normalize classified id and site columns
+    if 'question_id' not in classified.columns and 'id' in classified.columns:
+        classified = classified.rename(columns={'id': 'question_id'})
+
+    site_col_class = 'site_alias' if 'site_alias' in classified.columns else (
+        'site' if 'site' in classified.columns else None)
+
+    def id_to_str(x):
+        if pd.isna(x):
+            return ''
+        try:
+            return str(int(x))
+        except Exception:
+            return str(x)
+
+    classified['_qid_str'] = classified['question_id'].apply(
+        id_to_str) if 'question_id' in classified.columns else pd.Series(['']*len(classified))
+    if site_col_class:
+        classified['_site_str'] = classified[site_col_class].astype(str)
+    else:
+        classified['_site_str'] = ''
+
+    # Build mapping (qid_str, site_str) -> subtopic
+    mapping = {}
+    for _, r in classified.iterrows():
+        key = (r.get('_qid_str', ''), str(r.get('_site_str', '')))
+        if pd.notna(r.get(sub_col)):
+            mapping[key] = r.get(sub_col)
+
+    # Also build fallback mapping by id only
+    id_only_map = {k[0]: v for k, v in mapping.items() if k[0]}
+
+    # Populate subtopics column
+    subs = []
+    for _, row in vs_df.iterrows():
+        qid = row.get(id_col)
+        qid_s = id_to_str(qid)
+        site_vs = row.get(site_col_vs) if site_col_vs else ''
+        site_vs_s = '' if pd.isna(site_vs) else str(site_vs)
+        val = mapping.get((qid_s, site_vs_s))
+        if val is None:
+            val = id_only_map.get(qid_s)
+        subs.append(val if pd.notna(val) else pd.NA)
+
+    vs_df['subtopics'] = subs
+
+    # Write back to the same validation file (xlsx preferred)
+    out_path = Path(validation_path)
+    if out_path.suffix.lower() != '.xlsx':
+        out_path = out_path.with_suffix('.xlsx')
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with pd.ExcelWriter(out_path, engine='openpyxl') as writer:
+        vs_df.to_excel(writer, index=False, sheet_name='validation_sample')
+
+    return vs_df
+
 
 
 if __name__ == '__main__':
