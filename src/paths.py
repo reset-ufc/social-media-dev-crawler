@@ -101,15 +101,14 @@ VALIDATION_SHEET = LLM_INFERENCE / "validation_sheet.xlsx"
 LDA_DIR = DATA / 'Lda'
 MODELS = LDA_DIR / 'models'
 
+LDA_CSVS = LDA_DIR / 'csvs'
+LDA_PLOTS = LDA_DIR / 'plots'
+
 TRAINED_LDA = Path('trained_lda.model')
 TRAINED_DCT = Path('trained_dictionary.dict')
 TRAINED_BOW = Path('trained_corpus.mm')
 LDA_CONFIG = Path('trained_lda.meta.json')
 LDA_TOPIC_INFERENCE = Path('topic_inference.json')
-
-
-LDA_CSVS = LDA_DIR / 'csvs'
-LDA_PLOTS = LDA_DIR / 'plots'
 
 
 FUSED_METADATA = LDA_CSVS / 'fused_metadata.csv'
@@ -119,9 +118,5 @@ NORMALIZED_POSTS = LDA_CSVS/'normalized_posts.csv'
 
 
 FUSED_PLOT = LDA_PLOTS / 'fused_plot.png'
-
-TOPIC_INFERENCE = LDA_DIR / 'topic_inference'
-TOPIC_INFERENCE_JSON = TOPIC_INFERENCE / 'topic_inference_gpt51-0.7.json'
-
 
 VALIDATION_SAMPLE = LDA_DIR / 'validation_sample.xlsx'

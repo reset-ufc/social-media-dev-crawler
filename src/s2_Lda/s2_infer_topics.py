@@ -158,7 +158,7 @@ def subtopics_inference(main_model_path: Path, llm, num_words: int = 20) -> dict
             )
             results[f't{idx}'] = out
 
-            out_path = submodel_folder / 'subtopic_inference.json'
+            out_path = submodel_folder / LDA_TOPIC_INFERENCE
             save_topic_inference(out, out_path)
             print(f"Saved subtopic inference to {out_path}")
         except Exception as e:

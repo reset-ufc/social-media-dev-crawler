@@ -49,63 +49,17 @@ def load_topic_mapping(topic_inference_path: Path) -> dict:
     return topic_mapping
 
 
-def classify_posts(model: LdaModel, posts_df: pd.DataFrame, topic_mapping: dict, main_topic=None) -> pd.DataFrame:
-    """
-    Classifies post groups to their most probable topic and stores:
-    - dominant topic
-    - dominant topic contribution percentage (Topic_Perc_Contrib)
-    """
-    result_df = posts_df.copy()
+def _classify_post_groups(model: LdaModel, posts_df: pd.DataFrame, topic_mapping: dict, topic_col_name: str, perc_col_name: str, filter_col: str = None, filter_val: str = None) -> pd.DataFrame:
+    """Internal helper to classify post groups, modifying the DataFrame."""
+    df_to_process = posts_df
+    if filter_col and filter_val:
+        mask = posts_df[filter_col] == filter_val
+        df_to_process = posts_df[mask]
 
-    # Initialize both new columns
-    result_df['topic'] = pd.NA
-    result_df['topic_perc_contrib'] = pd.NA
-
-    grouped = result_df.groupby(['site', 'question_id'])
-
-    for name, group in grouped:
-        texts_to_join = group['normalized_text'].dropna().astype(str)
-        if texts_to_join.empty:
-            continue
-
-        combined_text = ' '.join(texts_to_join)
-        tokens = combined_text.split()
-        bow = model.id2word.doc2bow(tokens)
-        doc_topics = model.get_document_topics(bow)
-
-        most_probable_topic_id, most_probable_topic_percentage = max(
-            doc_topics, key=lambda x: x[1])
-        topic_name = topic_mapping.get(
-            most_probable_topic_id, most_probable_topic_id)
-
-        question_post_index = group[group['type'] == 'question'].index
-        if not question_post_index.empty:
-            result_df.loc[question_post_index, 'topic'] = topic_name
-            result_df.loc[question_post_index,
-                          'topic_perc_contrib'] = most_probable_topic_percentage
-
-    return result_df
-
-
-def classify_posts_subtopic(model: LdaModel, posts_df: pd.DataFrame, topic_mapping: dict, main_topic: str) -> pd.DataFrame:
-    """
-    Classifies post groups within a specific main topic to subtopics.
-    Only processes posts where 'topic' == main_topic.
-    Adds 'subtopic' column with the inferred subtopic names.
-    Adds 'subtopic_perc_contrib' column with the subtopic contribution percentage.
-    
-    IMPORTANTE: Esta função NÃO inicializa as colunas, apenas atualiza os valores
-    para o main_topic especificado.
-    """
-    result_df = posts_df.copy()
-
-    # Filter only posts with the specified main topic
-    main_topic_mask = result_df['topic'] == main_topic
-
-    grouped = result_df[main_topic_mask].groupby(['site', 'question_id'])
-
+    grouped = df_to_process.groupby(['site', 'question_id'])
     processed_count = 0
-    for name, group in grouped:
+
+    for _, group in grouped:
         texts_to_join = group['normalized_text'].dropna().astype(str)
         if texts_to_join.empty:
             continue
@@ -120,18 +74,64 @@ def classify_posts_subtopic(model: LdaModel, posts_df: pd.DataFrame, topic_mappi
 
         most_probable_topic_id, most_probable_topic_percentage = max(
             doc_topics, key=lambda x: x[1])
-        subtopic_name = topic_mapping.get(
+        topic_name = topic_mapping.get(
             most_probable_topic_id, most_probable_topic_id)
 
         question_post_index = group[group['type'] == 'question'].index
         if not question_post_index.empty:
-            result_df.loc[question_post_index, 'subtopic'] = subtopic_name
-            result_df.loc[question_post_index,
-                          'subtopic_perc_contrib'] = most_probable_topic_percentage
+            posts_df.loc[question_post_index, topic_col_name] = topic_name
+            posts_df.loc[question_post_index,
+                         perc_col_name] = most_probable_topic_percentage
             processed_count += 1
 
-    print(f"  Processed {processed_count} questions for topic '{main_topic}'")
-    return result_df
+    if filter_val:
+        print(f"  Processed {processed_count} questions for topic '{filter_val}'")
+
+    return posts_df
+
+
+def classify_posts(model: LdaModel, posts_df: pd.DataFrame, topic_mapping: dict) -> pd.DataFrame:
+    """
+    Classifies post groups to their most probable topic and stores:
+    - dominant topic
+    - dominant topic contribution percentage (Topic_Perc_Contrib)
+    """
+    result_df = posts_df.copy()
+
+    # Initialize both new columns
+    result_df['topic'] = pd.NA
+    result_df['topic_perc_contrib'] = pd.NA
+
+    return _classify_post_groups(
+        model=model,
+        posts_df=result_df,
+        topic_mapping=topic_mapping,
+        topic_col_name='topic',
+        perc_col_name='topic_perc_contrib'
+    )
+
+
+def classify_posts_subtopic(model: LdaModel, posts_df: pd.DataFrame, topic_mapping: dict, main_topic: str) -> pd.DataFrame:
+    """
+    Classifies post groups within a specific main topic to subtopics.
+    Only processes posts where 'topic' == main_topic.
+    Adds 'subtopic' column with the inferred subtopic names.
+    Adds 'subtopic_perc_contrib' column with the subtopic contribution percentage.
+    
+    IMPORTANTE: Esta função NÃO inicializa as colunas, apenas atualiza os valores
+    para o main_topic especificado.
+    """
+    result_df = posts_df.copy()
+    
+    return _classify_post_groups(
+        model=model,
+        posts_df=result_df,
+        topic_mapping=topic_mapping,
+        topic_col_name='subtopic',
+        perc_col_name='subtopic_perc_contrib',
+        filter_col='topic',
+        filter_val=main_topic
+    )
 
 
 def classify_main_topics(model_path):
@@ -153,7 +153,7 @@ def classify_main_topics(model_path):
     model = LdaModel.load(str(model_path / TRAINED_LDA))
     print(f"Model loaded. Number of topics: {model.num_topics}")
 
-    print(f"Loading topic names from {model_path / 'topic_inference.json'}")
+    print(f"Loading topic names from {model_path / LDA_TOPIC_INFERENCE}")
     topic_mapping = load_topic_mapping(
         Path(model_path / 'topic_inference.json'))
     print(f"Loaded {len(topic_mapping)} topic names")
@@ -198,7 +198,7 @@ def classify_all_subtopics(model_path):
     # Load main topic configuration
     kd = pd.read_json(
         Path(model_path / 'trained_lda.meta.json'), orient='index').T
-    ti = pd.read_json(Path(model_path / 'topic_inference.json'))
+    ti = pd.read_json(Path(model_path / LDA_TOPIC_INFERENCE))
     
     k = int(kd['num_topics'].item())
     print(f"Found {k} main topics to process")
@@ -246,7 +246,6 @@ def classify_all_subtopics(model_path):
             print(f"WARNING: Model files not found in {model_path}")
             continue
         
-        # Load model and dictionary
         print(f"  Loading model from {model_path}")
         model = LdaModel.load(str(lda_file))
         dictionary = Dictionary.load(str(dct_file))
@@ -260,11 +259,9 @@ def classify_all_subtopics(model_path):
         classified_df = classify_posts_subtopic(
             model, classified_df, topic_mapping, topic_name)
     
-    # Save ONCE at the end with all subtopics
     print(f"\nSaving all results to {CLASSIFIED_POSTS}")
     classified_df.to_csv(str(CLASSIFIED_POSTS), index=False)
     
-    # Print final summary
     question_posts = classified_df[classified_df['type'] == 'question']
     
     print("\n" + "="*60)
