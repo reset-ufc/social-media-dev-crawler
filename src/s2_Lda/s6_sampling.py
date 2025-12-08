@@ -152,14 +152,15 @@ def validation_sample():
 def regenerate_validation(output_path: str = None):
     """
     Regenerates the validation sample by updating topics for existing posts
-    and enforcing stratum allocations by removing or adding posts to meet
-    targets.
+    and enforcing stratum allocations.
 
-    - Updates `topic` for existing posts based on `CLASSIFIED_POSTS`.
+    - Updates `new_topic` for existing posts based on `CLASSIFIED_POSTS`.
     - Adds `old_topic` and `new_topic` columns to track changes.
-    - Removes posts from over-represented topics.
-    - Adds posts to under-represented topics. For these new posts, `is_valid_1`
-      and `is_valid_2` (if they exist) are cleared.
+    - Removes posts from over-represented topics (rows deleted).
+    - Reallocates posts from under-represented topics by moving excess posts
+      from over-represented topics (within the same dataframe, no added rows).
+    - For reallocated posts, clears is_valid_* columns and old_topic.
+    - Removes the `topic` column from output.
     - Saves the updated sample to a new Excel file.
     """
     in_path = Path(VALIDATION_SAMPLE)
@@ -175,113 +176,133 @@ def regenerate_validation(output_path: str = None):
     df = pd.read_excel(in_path)
     updated = df.copy()
 
-    # --- 1. Add new columns and update topics ---
-    updated['old_topic'] = updated['topic'] if 'topic' in updated.columns else pd.NA
-    updated['new_topic'] = updated['old_topic']
-
-    if 'question_id' in updated.columns:
+    # Determine ID column
+    if 'id' in updated.columns:
+        id_col = 'id'
+    elif 'question_id' in updated.columns:
         id_col = 'question_id'
     else:
-        id_col = 'id'
+        id_col = updated.columns[0]
 
-    updated[id_col] = updated[id_col].astype(
-        str).str.split('.').str[0]
+    # Normalize IDs (remove decimal part if present)
+    updated[id_col] = updated[id_col].astype(str).str.split('.').str[0]
 
+    # --- 1. Add old_topic and new_topic columns ---
+    if 'topic' not in updated.columns:
+        updated['topic'] = pd.NA
+    updated['old_topic'] = updated['topic'].copy()
+    updated['new_topic'] = updated['topic'].copy()
+
+    # Load classified posts and build topic mapping
     classified = pd.read_csv(CLASSIFIED_POSTS, dtype={'question_id': str})
     classified['question_id'] = classified['question_id'].str.split('.').str[0]
-    topic_mapping = dict(
-        zip(classified['question_id'], classified.get('topic')))
+    topic_mapping = dict(zip(classified['question_id'], classified['topic']))
 
-    # Update new_topic based on the mapping
-    updated['new_topic'] = updated[id_col].map(topic_mapping)
-    # If a post is not in the new classified posts, keep its old topic
-    updated['new_topic'].fillna(updated['old_topic'], inplace=True)
-    updated['topic'] = updated['new_topic']
+    # Update new_topic based on mapping (keep old if not found)
+    for idx, row_id in enumerate(updated[id_col]):
+        new_t = topic_mapping.get(str(row_id), updated.at[idx, 'new_topic'])
+        updated.at[idx, 'new_topic'] = new_t
 
-    # --- 2. Enforce stratum allocations ---
-    topic_counts = updated['topic'].value_counts().to_dict()
-    excess_per_topic = {t: topic_counts.get(
-        t, 0) - a for t, a in allocation_target.items() if topic_counts.get(t, 0) > a}
-    deficit_per_topic = {t: a - topic_counts.get(
-        t, 0) for t, a in allocation_target.items() if topic_counts.get(t, 0) < a}
+    # --- 2. Enforce stratum allocations by removing excess ---
+    topic_counts = updated['new_topic'].value_counts().to_dict()
+    indices_to_remove = []
 
-    # Remove excess posts
-    indices_to_drop = []
-    for topic, excess in excess_per_topic.items():
-        indices = updated[updated['topic'] == topic].index
-        indices_to_drop.extend(list(indices[:excess]))
-    updated.drop(indices_to_drop, inplace=True)
-    updated.reset_index(drop=True, inplace=True)
+    for topic, target in allocation_target.items():
+        current = topic_counts.get(topic, 0)
+        if current > target:
+            excess = current - target
+            topic_indices = updated[updated['new_topic']
+                                    == topic].index.tolist()
+            # Remove the first `excess` posts from this topic
+            indices_to_remove.extend(topic_indices[:excess])
 
-    # Add missing posts
-    current_ids = set(updated[id_col])
-    new_rows = []
-    for topic, deficit in deficit_per_topic.items():
-        candidates = classified[(classified['topic'] == topic) &
-                                (classified['type'] == 'question') &
-                                (~classified['question_id'].isin(current_ids))]
-        sample_size = min(deficit, len(candidates))
-        if sample_size > 0:
-            sampled = candidates.sample(n=sample_size, replace=False)
-            for _, row in sampled.iterrows():
-                new_row = {
-                    id_col: row['question_id'],
-                    'site': row.get('site_alias', ''),
-                    'topic': topic,
-                    'old_topic': None,
-                    'new_topic': topic,
-                    'is_valid_1': None,
-                    'is_valid_2': None,
-                    'link': f"https://{row.get('site_alias', '')}.stackexchange.com/questions/{row['question_id']}"
-                }
-                new_rows.append(new_row)
-            current_ids.update(sampled['question_id'].tolist())
+    updated = updated.drop(indices_to_remove).reset_index(drop=True)
 
-    if new_rows:
-        new_df = pd.DataFrame(new_rows)
-        updated = pd.concat([updated, new_df], ignore_index=True)
+    # --- 3. Reallocate posts from remaining excess to deficit topics ---
+    topic_counts = updated['new_topic'].value_counts().to_dict()
 
-    # --- 3. Finalize and save ---
+    # Identify remaining excess and deficit
+    excess_indices_by_topic = {}
+    deficit_topics = {}
+    for topic, target in allocation_target.items():
+        current = topic_counts.get(topic, 0)
+        if current > target:
+            excess = current - target
+            excess_indices = updated[updated['new_topic']
+                                     == topic].index.tolist()
+            # Last excess posts
+            excess_indices_by_topic[topic] = excess_indices[-excess:]
+        elif current < target:
+            deficit = target - current
+            deficit_topics[topic] = deficit
+
+    # Reallocate excess posts to deficit topics
+    for deficit_topic, deficit_count in deficit_topics.items():
+        reallocated = 0
+        for excess_topic, excess_indices in excess_indices_by_topic.items():
+            if reallocated >= deficit_count:
+                break
+            for idx in excess_indices:
+                if reallocated >= deficit_count:
+                    break
+                # Change this post's new_topic to deficit_topic
+                updated.at[idx, 'new_topic'] = deficit_topic
+                # Clear is_valid columns and old_topic for reallocated posts
+                for col in updated.columns:
+                    if 'is_valid' in col:
+                        updated.at[idx, col] = None
+                updated.at[idx, 'old_topic'] = None
+                reallocated += 1
+
+    # --- 4. Remove topic column and finalize ---
+    if 'topic' in updated.columns:
+        updated = updated.drop(columns=['topic'])
+
+    # Reorder columns: old_topic and new_topic after id/link
+    cols = list(updated.columns)
+    if 'old_topic' in cols:
+        cols.remove('old_topic')
+    if 'new_topic' in cols:
+        cols.remove('new_topic')
+
+    # Insert after 'link' if it exists, else at the end
+    if 'link' in cols:
+        link_idx = cols.index('link')
+        cols.insert(link_idx + 1, 'old_topic')
+        cols.insert(link_idx + 2, 'new_topic')
+    else:
+        cols.extend(['old_topic', 'new_topic'])
+
+    updated = updated[cols]
+
+    # --- 5. Save to Excel ---
     out_path = Path(output_path) if output_path else Path(
         VALIDATION_SAMPLE).with_name('validation_sample_update.xlsx')
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Ensure validation columns exist
-    if 'is_valid_1' not in updated.columns:
-        updated['is_valid_1'] = None
-    if 'is_valid_2' not in updated.columns:
-        updated['is_valid_2'] = None
-
-    # Reorder columns to have old/new topic next to topic
-    cols = list(df.columns)
-    if 'topic' in cols:
-        topic_idx = cols.index('topic')
-        cols.insert(topic_idx + 1, 'old_topic')
-        cols.insert(topic_idx + 2, 'new_topic')
-    else:
-        cols.extend(['topic', 'old_topic', 'new_topic'])
-    
-    # Add any columns from the new_df that are not in the original df
-    final_cols = list(dict.fromkeys(cols + list(updated.columns)))
-    updated = updated.reindex(columns=final_cols)
-
-
     with pd.ExcelWriter(out_path, engine='openpyxl') as writer:
         updated.to_excel(writer, index=False, sheet_name='validation_sample')
         worksheet = writer.sheets['validation_sample']
-        # Add data validation for is_valid columns if they exist
-        for col_letter in ['E', 'F', 'G']: # Assuming is_valid_1/2 are F,G
-            try:
-                col_name = worksheet[f'{col_letter}1'].value
-                if 'is_valid' in col_name:
-                    dv = DataValidation(
-                        type="list", formula1='"True,False"', allow_blank=True)
-                    worksheet.add_data_validation(dv)
-                    dv.add(f'{col_letter}2:{col_letter}{len(updated)+1}')
-            except IndexError:
-                continue # Column doesn't exist
+
+        # Add data validation for is_valid columns
+        for idx, col in enumerate(updated.columns, start=1):
+            if 'is_valid' in col:
+                dv = DataValidation(
+                    type="list", formula1='"True,False"', allow_blank=True)
+                worksheet.add_data_validation(dv)
+                # Convert 1-indexed to Excel column letter
+                col_letter = chr(64 + idx)
+                dv.add(f'{col_letter}2:{col_letter}{len(updated)+1}')
 
     print(f"Validation sample regenerated and saved to {out_path}")
+    print(f"Total rows: {len(updated)}")
+    final_counts = updated['new_topic'].value_counts().to_dict()
+    for topic in sorted(allocation_target.keys()):
+        target = allocation_target[topic]
+        final = final_counts.get(topic, 0)
+        status = "✓" if final == target else "✗"
+        print(f"  {status} {topic}: {final}/{target}")
+
     return updated
 
 
