@@ -150,197 +150,138 @@ def validation_sample():
 
 
 def regenerate_validation(output_path: str = None):
-    """Regenerate validation sample keeping existing non-topic columns but
-    updating the `topic` column to the current topics from `CLASSIFIED_POSTS`.
-    Additionally, enforce stratum allocations: remove excess posts from over-allocated
-    topics and add missing posts from under-allocated topics.
+    """
+    Regenerates the validation sample by updating topics for existing posts
+    and enforcing stratum allocations by removing or adding posts to meet
+    targets.
 
-    Reads `VALIDATION_SAMPLE` (Excel), looks up each `id` (or `question_id`) in
-    `CLASSIFIED_POSTS` and replaces the `topic` column with the current value
-    when available. Writes the updated sheet to
-    `validation_sample_update.xlsx` (or `output_path` if provided).
-    Returns the updated DataFrame.
+    - Updates `topic` for existing posts based on `CLASSIFIED_POSTS`.
+    - Adds `old_topic` and `new_topic` columns to track changes.
+    - Removes posts from over-represented topics.
+    - Adds posts to under-represented topics. For these new posts, `is_valid_1`
+      and `is_valid_2` (if they exist) are cleared.
+    - Saves the updated sample to a new Excel file.
     """
     in_path = Path(VALIDATION_SAMPLE)
     if not in_path.exists():
         raise FileNotFoundError(f"Validation sample not found at {in_path}")
 
-    # Load stratum table for allocation targets
     if not Path(STRATUM_TABLE).exists():
         raise FileNotFoundError(f"Stratum table not found at {STRATUM_TABLE}")
     stratum_df = pd.read_csv(STRATUM_TABLE)
-    if 'topic' not in stratum_df.columns or 'allocated_nh' not in stratum_df.columns:
-        raise ValueError(
-            "STRATUM_TABLE must contain 'topic' and 'allocated_nh' columns")
-
-    # build allocation target mapping
     allocation_target = dict(
         zip(stratum_df['topic'], stratum_df['allocated_nh']))
 
-    # read existing validation sample
     df = pd.read_excel(in_path)
+    updated = df.copy()
 
-    # determine id column
-    if 'id' in df.columns:
-        id_col = 'id'
-    elif 'question_id' in df.columns:
+    # --- 1. Add new columns and update topics ---
+    updated['old_topic'] = updated['topic'] if 'topic' in updated.columns else pd.NA
+    updated['new_topic'] = updated['old_topic']
+
+    if 'question_id' in updated.columns:
         id_col = 'question_id'
     else:
-        # fallback to first column
-        id_col = df.columns[0]
+        id_col = 'id'
 
-    # normalize ids to string for safe matching
-    df[id_col] = df[id_col].astype(object).where(pd.notna(df[id_col]), None)
-    ids = [str(int(x)) if (x is not None and isinstance(x, float) and x.is_integer(
-    )) else str(x) for x in df[id_col].fillna('').tolist()]
+    updated[id_col] = updated[id_col].astype(
+        str).str.split('.').str[0]
 
-    # load current classified posts and build mapping
-    if not Path(CLASSIFIED_POSTS).exists():
-        raise FileNotFoundError(
-            f"Classified posts CSV not found at {CLASSIFIED_POSTS}")
-    classified = pd.read_csv(CLASSIFIED_POSTS, dtype={'question_id': object})
-    # ensure question_id as str
-    if 'question_id' in classified.columns:
-        classified['question_id'] = classified['question_id'].astype(
-            object).where(pd.notna(classified['question_id']), None)
-        classified['qid_str'] = classified['question_id'].apply(lambda x: str(int(x)) if (
-            x is not None and isinstance(x, float) and x.is_integer()) else str(x) if x is not None else '')
-        mapping = dict(zip(classified['qid_str'], classified.get(
-            'topic', pd.Series([''] * len(classified)))))
-    else:
-        mapping = {}
+    classified = pd.read_csv(CLASSIFIED_POSTS, dtype={'question_id': str})
+    classified['question_id'] = classified['question_id'].str.split('.').str[0]
+    topic_mapping = dict(
+        zip(classified['question_id'], classified.get('topic')))
 
-    # create updated dataframe copying existing values, but updating topic when found
-    updated = df.copy()
-    # ensure there is a 'topic' column to update; if not, create it
-    if 'topic' not in updated.columns:
-        updated['topic'] = pd.NA
+    # Update new_topic based on the mapping
+    updated['new_topic'] = updated[id_col].map(topic_mapping)
+    # If a post is not in the new classified posts, keep its old topic
+    updated['new_topic'].fillna(updated['old_topic'], inplace=True)
+    updated['topic'] = updated['new_topic']
 
-    for idx, val in enumerate(df[id_col].fillna('')):
-        key = ids[idx]
-        if key and key in mapping and pd.notna(mapping[key]):
-            updated.at[idx, 'topic'] = mapping[key]
-        # else keep existing value (already present in updated)
-
-    # Now enforce allocations: count current topic distribution
+    # --- 2. Enforce stratum allocations ---
     topic_counts = updated['topic'].value_counts().to_dict()
+    excess_per_topic = {t: topic_counts.get(
+        t, 0) - a for t, a in allocation_target.items() if topic_counts.get(t, 0) > a}
+    deficit_per_topic = {t: a - topic_counts.get(
+        t, 0) for t, a in allocation_target.items() if topic_counts.get(t, 0) < a}
 
-    # Identify topics with excess and deficit
-    excess_per_topic = {}
-    deficit_per_topic = {}
+    # Remove excess posts
+    indices_to_drop = []
+    for topic, excess in excess_per_topic.items():
+        indices = updated[updated['topic'] == topic].index
+        indices_to_drop.extend(list(indices[:excess]))
+    updated.drop(indices_to_drop, inplace=True)
+    updated.reset_index(drop=True, inplace=True)
 
-    for topic, target in allocation_target.items():
-        current = topic_counts.get(topic, 0)
-        if current > target:
-            excess_per_topic[topic] = current - target
-        elif current < target:
-            deficit_per_topic[topic] = target - current
-
-    # Remove excess posts from over-allocated topics
-    for topic, excess_count in excess_per_topic.items():
-        indices_to_remove = updated[updated['topic'] == topic].index.tolist()
-        removed = 0
-        for idx in indices_to_remove:
-            if removed >= excess_count:
-                break
-            updated = updated.drop(idx)
-            removed += 1
-
-    updated = updated.reset_index(drop=True)
-
-    # Add missing posts from classified_df for under-allocated topics
-    if deficit_per_topic:
-        # Get current ids in validation sample (as set)
-        current_ids_set = set(ids)
-
-        for topic, deficit_count in deficit_per_topic.items():
-            # Find candidates from classified not yet in updated
-            candidates = classified[
-                (classified['topic'] == topic) &
-                (classified['type'] == 'question') &
-                (~classified['question_id'].astype(str).isin(current_ids_set))
-            ].copy()
-
-            if candidates.empty:
-                print(
-                    f"Warning: No additional candidates for topic '{topic}' (deficit={deficit_count})")
-                continue
-
-            # Sample up to deficit_count posts
-            sample_size = min(deficit_count, len(candidates))
+    # Add missing posts
+    current_ids = set(updated[id_col])
+    new_rows = []
+    for topic, deficit in deficit_per_topic.items():
+        candidates = classified[(classified['topic'] == topic) &
+                                (classified['type'] == 'question') &
+                                (~classified['question_id'].isin(current_ids))]
+        sample_size = min(deficit, len(candidates))
+        if sample_size > 0:
             sampled = candidates.sample(n=sample_size, replace=False)
-
-            # Build rows to append (matching column structure of updated)
-            new_rows = []
             for _, row in sampled.iterrows():
-                new_row = {}
-                for col in updated.columns:
-                    if col == 'id' or col == 'question_id':
-                        new_row[col] = row.get('question_id', '')
-                    elif col == 'site':
-                        new_row[col] = row.get('site_alias', '')
-                    elif col == 'topic':
-                        new_row[col] = topic
-                    elif col == 'link':
-                        qid = row.get('question_id', '')
-                        site = row.get('site_alias', '')
-                        try:
-                            qid_str = str(int(qid))
-                        except Exception:
-                            qid_str = str(qid)
-                        if str(site) == 'stackoverflow':
-                            domain = 'stackoverflow.com'
-                        else:
-                            domain = f"{site}.stackexchange.com"
-                        new_row[col] = f"https://{domain}/questions/{qid_str}"
-                    elif col == 'is_valid':
-                        new_row[col] = None
-                    else:
-                        new_row[col] = row.get(col, '')
+                new_row = {
+                    id_col: row['question_id'],
+                    'site': row.get('site_alias', ''),
+                    'topic': topic,
+                    'old_topic': None,
+                    'new_topic': topic,
+                    'is_valid_1': None,
+                    'is_valid_2': None,
+                    'link': f"https://{row.get('site_alias', '')}.stackexchange.com/questions/{row['question_id']}"
+                }
                 new_rows.append(new_row)
+            current_ids.update(sampled['question_id'].tolist())
 
-            # Append rows
-            if new_rows:
-                new_df = pd.DataFrame(new_rows)
-                updated = pd.concat([updated, new_df], ignore_index=True)
-                current_ids_set.update(
-                    [str(x) for x in sampled['question_id'].tolist()])
+    if new_rows:
+        new_df = pd.DataFrame(new_rows)
+        updated = pd.concat([updated, new_df], ignore_index=True)
 
-    # choose output path
-    if output_path:
-        out_path = Path(output_path)
-    else:
-        out_path = Path(VALIDATION_SAMPLE).with_name(
-            'validation_sample_update.xlsx')
-
+    # --- 3. Finalize and save ---
+    out_path = Path(output_path) if output_path else Path(
+        VALIDATION_SAMPLE).with_name('validation_sample_update.xlsx')
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # write to Excel with data validation for is_valid if present
-    try:
-        with pd.ExcelWriter(out_path, engine='openpyxl') as writer:
-            updated.to_excel(writer, index=False,
-                             sheet_name='validation_sample')
-            workbook = writer.book
-            worksheet = writer.sheets['validation_sample']
-            if 'is_valid' in updated.columns:
-                from openpyxl.worksheet.datavalidation import DataValidation
-                dv = DataValidation(
-                    type="list", formula1='"True,False"', allow_blank=True)
-                worksheet.add_data_validation(dv)
-                dv.add(f'E2:E{len(updated)+1}')
-    except Exception as e:
-        # fallback: try to write without data validation
-        updated.to_excel(out_path, index=False, sheet_name='validation_sample')
+    # Ensure validation columns exist
+    if 'is_valid_1' not in updated.columns:
+        updated['is_valid_1'] = None
+    if 'is_valid_2' not in updated.columns:
+        updated['is_valid_2'] = None
 
-    # Log final allocation status
-    final_counts = updated['topic'].value_counts().to_dict()
-    print(f"\n=== Final Allocation Status ===")
-    for topic in sorted(allocation_target.keys()):
-        target = allocation_target[topic]
-        final = final_counts.get(topic, 0)
-        status = "✓" if final == target else "✗"
-        print(f"{status} {topic}: {final}/{target}")
+    # Reorder columns to have old/new topic next to topic
+    cols = list(df.columns)
+    if 'topic' in cols:
+        topic_idx = cols.index('topic')
+        cols.insert(topic_idx + 1, 'old_topic')
+        cols.insert(topic_idx + 2, 'new_topic')
+    else:
+        cols.extend(['topic', 'old_topic', 'new_topic'])
+    
+    # Add any columns from the new_df that are not in the original df
+    final_cols = list(dict.fromkeys(cols + list(updated.columns)))
+    updated = updated.reindex(columns=final_cols)
 
+
+    with pd.ExcelWriter(out_path, engine='openpyxl') as writer:
+        updated.to_excel(writer, index=False, sheet_name='validation_sample')
+        worksheet = writer.sheets['validation_sample']
+        # Add data validation for is_valid columns if they exist
+        for col_letter in ['E', 'F', 'G']: # Assuming is_valid_1/2 are F,G
+            try:
+                col_name = worksheet[f'{col_letter}1'].value
+                if 'is_valid' in col_name:
+                    dv = DataValidation(
+                        type="list", formula1='"True,False"', allow_blank=True)
+                    worksheet.add_data_validation(dv)
+                    dv.add(f'{col_letter}2:{col_letter}{len(updated)+1}')
+            except IndexError:
+                continue # Column doesn't exist
+
+    print(f"Validation sample regenerated and saved to {out_path}")
     return updated
 
 
