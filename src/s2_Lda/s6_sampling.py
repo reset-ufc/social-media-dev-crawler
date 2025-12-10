@@ -1,41 +1,85 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from openpyxl.worksheet.datavalidation import DataValidation
 from pathlib import Path
 import pandas as pd
 from paths import *
 from utils_global import calc_sample_size, neyman_allocation
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import numpy as np
+from math import ceil
 
 
 def generate_stratum_table(classfication_path: str = CLASSIFIED_POSTS) -> None:
-
     df = pd.read_csv(classfication_path)
-
     qdf = df[df['type'] == 'question'].copy()
     grouped = qdf.groupby('topic')
-
     Nh = grouped.size()
     Sh = grouped['topic_perc_contrib'].std()
-
     N = len(qdf)
-    n = calc_sample_size(N)
+    
+    z = 1.96  # nível de confiança 95%
+    p = 0.5   # proporção estimada
+    e = 0.05  # margem de erro
+    n0 = (z**2 * p * (1 - p)) / (e**2)
 
+    print(f"População total (N): {N}")
+    print(f"Tamanho da amostra inicial (n₀): {n0}")
+    
+    # 1. CÁLCULO DE 'n' COM FPC
+    n_fpc_float = n0 / (1 + (n0 - 1) / N) # Valor float sem arredondamento
+    
+    # O tamanho da amostra final desejado é o arredondamento superior deste float
+    n_target = int(np.ceil(n_fpc_float)) 
+
+    print(f"Tamanho da amostra ajustado FPC (n_alvo): {n_target}")
+    
+    # 2. ALOCAÇÃO DE NEYMAN (nh é um array de floats)
     nh = neyman_allocation(
-        n=n,
+        n=n_fpc_float, # Usa o valor float para a proporção correta
         Nh_list=Nh.values,
         Sh_list=Sh.values
     )
+    print(f"Alocação de Neyman (floats): {nh}")
+    
+    # 3. ARREDONDAMENTO INICIAL
+    nh_rounded = np.ceil(nh).astype(int)
+    total_allocated = nh_rounded.sum()
+    
+    print(f"Total alocado após arredondamento inicial: {total_allocated}")
+    
+    # 4. PROCESSO DE AJUSTE DE EXCESSO
+    # O objetivo é garantir que total_allocated <= n_target (idealmente, = n_target)
+    
+    excess = total_allocated - n_target
+    
+    if excess > 0:
+        print(f"⚠️ Detectado excesso de {excess} unidade(s). Iniciando ajuste.")
+        
+        # 4a. Calcula a "sobra" (a parte decimal que causou o arredondamento)
+        # Queremos ajustar (subtrair 1) os estratos onde a sobra é menor.
+        sobra = nh_rounded - nh # Quanto o arredondamento adicionou (Ex: 11 - 10.9 = 0.1)
+        
+        # 4b. Encontra os índices dos 'excess' estratos com a menor sobra (menor benefício do arredondamento)
+        # argsort(sobra) ordena os índices pela menor sobra (crescente)
+        indices_a_ajustar = np.argsort(sobra)[0:excess]
+        
+        # 4c. Subtrai 1 unidade de cada um desses estratos para corrigir o excesso
+        nh_rounded[indices_a_ajustar] -= 1
+        
+        # Atualiza o total após o ajuste
+        total_allocated = nh_rounded.sum()
+        print(f"✅ Ajuste concluído. Novo total alocado: {total_allocated}")
 
+    print(nh_rounded)
+    # 5. MONTAGEM DA TABELA
     table = pd.DataFrame({
         'topic': Nh.index,
         'stratum_size (Nh)': Nh.values,
         'within_sd (Sh)': Sh.values,
-        'allocated_nh': nh
+        'allocated_nh': nh_rounded
     })
-
     table = table.sort_values('topic').reset_index(drop=True)
-
     table.to_csv(STRATUM_TABLE, index=False)
 
 
@@ -434,4 +478,4 @@ def add_subtopics(validation_path: str = VALIDATION_SAMPLE,
 
 
 if __name__ == '__main__':
-    regenarete_validation_sample()
+    generate_stratum_table()

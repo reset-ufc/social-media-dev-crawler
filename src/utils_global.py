@@ -93,4 +93,4 @@ def neyman_allocation(n, Nh_list, Sh_list):
     Sh = np.array(Sh_list)
     weights = Nh * Sh
     nh = n * (weights / weights.sum())
-    return np.round(nh).astype(int)
+    return nh
