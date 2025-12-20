@@ -78,8 +78,7 @@ def words_per_topic(model_path, num_words: int = 20) -> str:
 
 
 if __name__ == '__main__':
-    path = MODELS / 'main1'
-    pldavis(path)
-    stat_plots(path)
-    words_per_topic(path)
+    for c in range(15):
+        path = MODELS / f'main1'
+        words_per_topic(path)
     

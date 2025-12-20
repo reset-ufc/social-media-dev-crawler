@@ -240,7 +240,7 @@ def classify_all_subtopics(model_path):
         
         lda_file = model_path / TRAINED_LDA
         dct_file = model_path / TRAINED_DCT
-        inf_file = model_path / 'topic_inference.json'
+        inf_file = model_path / 'subtopic_inference.json'
         
         if not lda_file.exists() or not dct_file.exists():
             print(f"WARNING: Model files not found in {model_path}")
@@ -280,5 +280,5 @@ def classify_all_subtopics(model_path):
 
 
 if __name__ == '__main__':
-    classify_main_topics(MODELS / 'main1')
-    #classify_all_subtopics(MODELS / 'main1')
+    #classify_main_topics(MODELS / 'main1')
+    classify_all_subtopics(MODELS / 'main1')
