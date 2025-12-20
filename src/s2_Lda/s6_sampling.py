@@ -47,6 +47,7 @@ def generate_stratum_table(classfication_path: str = CLASSIFIED_POSTS) -> None:
     total_allocated = nh_rounded.sum()
     
     print(f"Total alocado após arredondamento inicial: {total_allocated}")
+    print(nh_rounded)
     
     # 4. PROCESSO DE AJUSTE DE EXCESSO
     # O objetivo é garantir que total_allocated <= n_target (idealmente, = n_target)
@@ -471,11 +472,10 @@ def add_subtopics(validation_path: str = VALIDATION_SAMPLE,
         out_path = out_path.with_suffix('.xlsx')
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with pd.ExcelWriter(out_path, engine='openpyxl') as writer:
-        vs_df.to_excel(writer, index=False, sheet_name='validation_sample')
+        vs_df.to_excel(writer, index=False, sheet_name='validation_sample_sub')
 
     return vs_df
 
 
-
 if __name__ == '__main__':
-    generate_stratum_table()
+    add_subtopics()
