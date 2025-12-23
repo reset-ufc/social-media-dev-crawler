@@ -26,12 +26,11 @@ O fluxo principal é composto por duas etapas:
 - Python (recomenda-se gerenciar versões com `pyenv` ou virtualenv).
 - Dependências listadas em `requirements.txt` e `requirements_lda.txt`.
 
-Observação: algumas etapas (por exemplo, avaliação do Mallet) podem exigir Java e dependências específicas.
-
 ## Instalação rápida (exemplo com pyenv)
 
 1. Instale e configure `pyenv` (ou use `venv`/`virtualenv`).
-2. Crie os ambientes recomendados:
+
+2. Crie os ambientes virtuais:
 
 ```bash
 pyenv virtualenv 3.12.3 venv-main
@@ -43,7 +42,7 @@ pyenv virtualenv 3.8.10 venv-lda
 ```bash
 pyenv activate venv-main
 pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r requirements_main.txt
 pyenv deactivate
 
 pyenv activate venv-lda
@@ -51,8 +50,6 @@ pip install --upgrade pip
 pip install -r requirements_lda.txt
 pyenv deactivate
 ```
-
-Se você não usa `pyenv`, crie um `venv` e instale os requerimentos com `pip`.
 
 Adicione sua chave de API do Chat-GPT 5.1 em um arquivo `.env`, que deverá ser criado em `src\s2_Lda`
 
@@ -95,7 +92,9 @@ python src/s2_Lda/s2_infer_topics.py
 python src/s2_Lda/s3_classify_posts.py
 ```
 
-7. Com os posts classificados em seus tópicos treino os modelos referentes aos subtópicos. Edite o arquivo `src/s2_Lda/s1_evaluate_mallet.py`, para iniciar o treinamento dos submodelos.
+7. Com os posts classificados em seus tópicos, treine os modelos referentes aos subtópicos. 
+
+Edite o arquivo `src/s2_Lda/s1_evaluate_mallet.py`, para iniciar o treinamento dos submodelos.
 
 Comente a linha
 ```python
@@ -106,10 +105,11 @@ e descomente a linha
 ```python
 #run_submodels(MODELS / 'main1')
 ```
+Em seguida execute-o usando o `venv-lda`
 
 8. Realize as seguintes edições ao final dos arquivos:
 
-**src/s2_Lda/s2_infer_topics.py**
+ - **src/s2_Lda/s2_infer_topics.py**
 
 Comente
 ```python
@@ -127,7 +127,7 @@ E descomente
 )"""
 ```
 
-**src/s2_Lda/s3_classify_posts.py**
+- **src/s2_Lda/s3_classify_posts.py**
 
 Comente
 ```python
