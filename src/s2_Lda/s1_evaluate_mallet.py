@@ -548,10 +548,10 @@ def run(name: str, main_topic: str = None, mode: str = None):
     )
 
 
-def run_submodels():
+def run_submodels(main_path):
     kd = pd.read_json(
-        Path(MODELS / 'main' / 'trained_lda.meta.json'), orient='index').T
-    ti = pd.read_json(Path(MODELS / 'main' / 'topic_inference.json'))
+        Path(main_path / 'trained_lda.meta.json'), orient='index').T
+    ti = pd.read_json(main_path / 'topic_inference.json')
 
     k = kd['num_topics'].item()
     for c in range(int(k)):
@@ -561,4 +561,4 @@ def run_submodels():
 
 if __name__ == '__main__':
     run('main1')
-    # run_submodels()
+    # run_submodels(MODELS / 'main1')

@@ -334,9 +334,9 @@ def make_dir_structure():
         base_dir / 'Extraidos dump',
         base_dir / "data" / "data_mining" / "s1" / "related_tags",
         base_dir / "data" / "data_mining" / "s2",
-        base_dir / "Lda" / "csvs",
-        base_dir / "Lda" / "plots",
-        base_dir / "Lda" / "models",
+        base_dir / "data" / "Lda" / "csvs",
+        base_dir / "data" / "Lda" / "plots",
+        base_dir / "data" / "Lda" / "models",
     ]
 
     for d in dirs:
