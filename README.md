@@ -54,25 +54,25 @@ pyenv deactivate
 
 Se você não usa `pyenv`, crie um `venv` e instale os requerimentos com `pip`.
 
-Adicione sua chave de API do Chat-GPT 5.1 em um arquivo .env, que deverá ser criado em src\s2_Lda
+Adicione sua chave de API do Chat-GPT 5.1 em um arquivo `.env`, que deverá ser criado em `src\s2_Lda`
 
 ## Execução
 
-1. Gere a estrutura de diretórios (script utilitário):
+1. Gere a estrutura de diretórios:
 
 ```bash
 pyenv activate venv-main
 python src/utils_global.py
 ```
 
-2. Coloque os dumps baixados de https://archive.org/details/stackexchange_20250930 em `Extraidos dump/` (arquivos `.7z`).
+2. Realize o download dos dumps completos dos sites: StackOverflow, Crypto e Security por meio do site https://archive.org/details/stackexchange_20250930 e adicione-os na pasta `Extraidos dump/` (arquivos `.7z`).
 
 3. Execute a pipeline de mineração:
 
 ```bash
 python src/s1_dump_mining/pipeline.py
 ```
-Todos os resultados serão salvos em data/data_mining
+Todos os resultados serão salvos em `data/data_mining`
 
 4. Normalize os dados para LDA:
 
@@ -95,7 +95,7 @@ python src/s2_Lda/s2_infer_topics.py
 python src/s2_Lda/s3_classify_posts.py
 ```
 
-7. Com os posts classificados em seus tópicos treino os modelos referentes aos subtópicos. Edite o arquivo src/s2_Lda/s1_evaluate_mallet.py, para iniciar o treinamento dos submodelos.
+7. Com os posts classificados em seus tópicos treino os modelos referentes aos subtópicos. Edite o arquivo `src/s2_Lda/s1_evaluate_mallet.py`, para iniciar o treinamento dos submodelos.
 
 Comente a linha
 ```python
