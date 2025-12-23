@@ -2,76 +2,151 @@
 
 ## Descrição
 
-Este projeto é um pipeline de mineração e análise de dados projetado para processar dumps de plataformas de Q&A (como o Stack Exchange). O objetivo é extrair, filtrar e analisar posts para modelar e entender os tópicos de discussão dentro de comunidades de desenvolvedores.
+Projeto para extrair, processar e analisar posts de plataformas Q&A (por exemplo, Stack Exchange). O pipeline extrai dados brutos, filtra e pré-processa posts relevantes e, em seguida, aplica modelagem de tópicos (LDA) para identificar temas predominantes nas discussões.
 
-O processo é dividido em duas grandes etapas:
+O fluxo principal é composto por duas etapas:
 
-1.  **Mineração de Dados (`s1_dump_mining`)**: Extrai e prepara os dados a partir de dumps brutos, filtrando posts relevantes e limpando seu conteúdo.
-2.  **Modelagem de Tópicos com LDA (`s2_Lda`)**: Aplica a modelagem de tópicos Latent Dirichlet Allocation (LDA) sobre os dados processados para descobrir os principais temas discutidos nos posts.
+- **Mineração de dados (`s1_dump_mining`)**: extração e limpeza dos dumps brutos.
+- **Modelagem de tópicos (`s2_Lda`)**: pré-processamento e treinamento/avaliação de modelos LDA.
 
-## Estrutura de Diretórios
+## Estrutura do repositório
 
--   **`src/`**: Contém todo o código-fonte do projeto.
-    -   `s1_dump_mining/`: Scripts para o pipeline de extração e processamento de dados.
-    -   `s2_Lda/`: Scripts para o pipeline de modelagem de tópicos com LDA.
-    -   `paths.py`: Define todos os caminhos de arquivos e constantes importantes do projeto.
-    -   `utils_global.py`: Funções utilitárias usadas em múltiplos scripts.
+- `src/` — código-fonte e scripts (inclui `paths.py` e `utils_global.py`).
+  - `s1_dump_mining/` — pipeline de extração e preparação de dados.
+  - `s2_Lda/` — scripts para normalização, treinamento e inferência LDA.
+- `data/` — dados gerados pelo pipeline:
+  - `data_mining/` — saídas da mineração (s1 e s2).
+  - `Lda/` — modelos, CSVs e plots relacionados ao LDA.
+- `prompts/` — templates de prompts usados com LLMs para rotular tópicos.
+- `notebooks/` — notebooks para análise, validação e visualização.
+- `Extraidos dump/` — local para colocar os arquivos .7z dos dumps fornecidos pelo Archive.org.
 
--   **`data/`**: Armazena todos os dados gerados e intermediários.
-    -   `data_mining/`: Saídas do pipeline de mineração.
-    -   `Lda/`: Saídas do pipeline de LDA (modelos, visualizações, etc.).
-    -   `llm_inference/`: Dados relacionados à inferência de nomes de tópicos via LLM.
+## Requisitos
 
--   **`prompts/`**: Contém os templates de prompts usados para consultar o LLM para nomear os tópicos do LDA.
+- Python (recomenda-se gerenciar versões com `pyenv` ou virtualenv).
+- Dependências listadas em `requirements.txt` e `requirements_lda.txt`.
 
--   **`notebooks/`**: Jupyter Notebooks para análise, validação e visualização de dados.
+Observação: algumas etapas (por exemplo, avaliação do Mallet) podem exigir Java e dependências específicas.
 
--   **`Extraidos dump/`**: Local onde os dumps de dados brutos (arquivos `.7z`) devem ser colocados.
+## Instalação rápida (exemplo com pyenv)
 
-## Pipelines de Execução
+1. Instale e configure `pyenv` (ou use `venv`/`virtualenv`).
+2. Crie os ambientes recomendados:
 
-### 1. Mineração de Dados (`src/s1_dump_mining`)
+```bash
+pyenv virtualenv 3.12.3 venv-main
+pyenv virtualenv 3.8.10 venv-lda
+```
 
-Este pipeline é orquestrado pelo script `src/s1_dump_mining/pipeline.py` e executa as seguintes etapas em sequência:
+3. Instale dependências:
 
--   **`s1_get_main_tag.py`**: Lê os dumps (`.7z`) e extrai as perguntas que contêm a `QUESTION_TAG` principal (ex: "python").
--   **`s2_calculate_tag_heuristics.py`**: Analisa todas as tags dos dumps para calcular heurísticas e encontrar tags que são fortemente correlacionadas com a tag principal.
--   **`s4_get_posts.py`**: Usa as tags correlacionadas para buscar e salvar todos os posts (perguntas) relevantes dos dumps.
--   **`s5_get_connected_posts.py`**: Expande os posts encontrados, buscando e conectando suas respectivas respostas e comentários.
--   **`s6_filter_posts.py`**: Filtra os posts com base em métricas de popularidade (score, visualizações, etc.).
+```bash
+pyenv activate venv-main
+pip install --upgrade pip
+pip install -r requirements.txt
+pyenv deactivate
 
-### 2. Modelagem de Tópicos com LDA (`src/s2_Lda`)
+pyenv activate venv-lda
+pip install --upgrade pip
+pip install -r requirements_lda.txt
+pyenv deactivate
+```
 
-Após a mineração, os scripts neste diretório devem ser executados em sequência para realizar a modelagem de tópicos.
+Se você não usa `pyenv`, crie um `venv` e instale os requerimentos com `pip`.
 
--   **`s0_normalisation.py`**: Prepara e normaliza o texto dos posts (tokenização, lematização, etc.) para criar um córpus para o modelo LDA.
--   **`s1_evaluate_mallet.py`**: Treina e avalia múltiplos modelos LDA usando o wrapper Mallet para encontrar o número ótimo de tópicos.
--   **`s2_infer_topics.py`**: Utiliza um Modelo de Linguagem Grande (LLM) para analisar as palavras-chave de cada tópico gerado pelo LDA e inferir um nome legível e coeso para ele.
--   **`s2_model_visualizations.py`**: Gera visualizações interativas (como pyLDAvis) para ajudar na interpretação e análise dos tópicos.
--   **`s3_classify_posts.py`**: Classifica cada post, atribuindo a ele o tópico mais provável.
--   **`s3_fused_metrics.py`**: Calcula métricas de fusão para avaliar a qualidade e a distribuição dos tópicos.
--   **`s4_sampling.py`**: Realiza amostragem de posts dentro de cada tópico para análise qualitativa.
+Adicione sua chave de API do Chat-GPT 5.1 em um arquivo .env, que deverá ser criado em src\s2_Lda
 
-## Como Executar
+## Execução
 
-1.  **Configuração Inicial**:
-    -   Instale as dependências. Note que há dois arquivos de requisitos.
-        ```bash
-        pip install -r requirements.txt
-        pip install -r requirements_lda.txt
-        ```
-    -   Coloque os arquivos de dump (`.7z`) na pasta `Extraidos dump/`.
-    -   Verifique as constantes no arquivo `src/paths.py`, como `QUESTION_TAG` e os nomes dos sites.
+1. Gere a estrutura de diretórios (script utilitário):
 
-2.  **Executar o Pipeline de Mineração de Dados**:
-    ```bash
-    python src/s1_dump_mining/pipeline.py
-    ```
+```bash
+pyenv activate venv-main
+python src/utils_global.py
+```
 
-3.  **Executar o Pipeline de Modelagem de Tópicos**:
-    -   Execute os scripts do diretório `src/s2_Lda/` na ordem numérica (de `s0` a `s4`).
-    ```bash
-    python src/s2_Lda/s0_normalisation.py
-    python src/s2_Lda/s1_evaluate_mallet.py
-    # ... e assim por diante
-    ```
+2. Coloque os dumps baixados de https://archive.org/details/stackexchange_20250930 em `Extraidos dump/` (arquivos `.7z`).
+
+3. Execute a pipeline de mineração:
+
+```bash
+python src/s1_dump_mining/pipeline.py
+```
+Todos os resultados serão salvos em data/data_mining
+
+4. Normalize os dados para LDA:
+
+```bash
+python src/s2_Lda/s0_normalisation.py
+```
+
+5. Para treinar modelos Mallet use `venv-lda`
+
+```bash
+pyenv activate venv-lda
+python src/s2_Lda/s1_evaluate_mallet.py
+```
+
+6. Troque novamente para o venv-main e execute os passos 2 e 3, para inferir o nome dos tópicos por meio do Chat-GPT 5.1 e classificar os posts por meio do modelo treinado e das labels geradas pelo LLM.
+
+```bash
+pyenv activate venv-main
+python src/s2_Lda/s2_infer_topics.py
+python src/s2_Lda/s3_classify_posts.py
+```
+
+7. Com os posts classificados em seus tópicos treino os modelos referentes aos subtópicos. Edite o arquivo src/s2_Lda/s1_evaluate_mallet.py, para iniciar o treinamento dos submodelos.
+
+Comente a linha
+```python
+run('main1')
+```
+
+e descomente a linha
+```python
+#run_submodels(MODELS / 'main1')
+```
+
+8. Realize as seguintes edições ao final dos arquivos:
+
+**src/s2_Lda/s2_infer_topics.py**
+
+Comente
+```python
+main_topic_inference(
+    MODELS / 'main1',
+    llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
+)
+```
+
+E descomente 
+```python
+"""subtopics_inference(
+    MODELS / 'main1',
+    llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
+)"""
+```
+
+**src/s2_Lda/s3_classify_posts.py**
+
+Comente
+```python
+classify_main_topics(MODELS / 'main1')
+```
+
+E descomente 
+```python
+#classify_all_subtopics(MODELS / 'main1')
+```
+
+9. Execute ambos usando o venv-main
+```bash
+python src/s2_Lda/s2_infer_topics.py
+python src/s2_Lda/s3_classify_posts.py
+```
+
+10. Opcionalmente, execute ```src/s2_Lda/s4_model_visualizations.py```, para gerar um arquivo topics.txt dentro da pasta de cada modelo, com as palavras agrupadas pelo LDA pertencentes a cada tópico.
+
+11. Execute ```src/s2_Lda/s5_sampling.py```e gere a tabela de validação manual, que será salva em `data/Lda/validation_sample.xlsx`. Esta tabela deverá ser devidamente preenchida conforme foi descrito no artigo, na seção de validação manual. Tendo realizado a validação, mantenha o arquivo no mesmo local em que ele foi criado.
+
+12. Na pasta notebooks, execute por completo os três arquivos presentes. Após isso toda a pipeline estará concluída.
