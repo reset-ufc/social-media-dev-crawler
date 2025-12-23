@@ -153,8 +153,6 @@ def calculate_popularity(df: pd.DataFrame, num_topics: int):
         .rename(columns=metric_cols)
     )
 
-    # ======== NORMALIZAÇÃO EXATA DO ARTIGO ========
-    # média_global(V), média_global(S), média_global(C)
     global_means = topic_metrics.mean()
 
     topic_metrics['V_hat'] = topic_metrics['avg_views'] / \
@@ -164,12 +162,10 @@ def calculate_popularity(df: pd.DataFrame, num_topics: int):
     topic_metrics['C_hat'] = topic_metrics['avg_comments'] / \
         global_means['avg_comments']
 
-    # ======== FUSED POPULARITY ========
     topic_metrics['fused_popularity'] = (
         topic_metrics[['V_hat', 'S_hat', 'C_hat']].mean(axis=1)
     )
 
-    # Resultado final conforme esperado
     result_df = topic_metrics.reset_index()
 
     return result_df
@@ -193,7 +189,6 @@ def generate_fused_scatter(fused_metadata_path=FUSED_METADATA, fused_plot_path=N
     y = df['fused_dificulty']
     labels = df['topic']
 
-    # === CONFIGURAÇÃO DE CORES (similar ao gráfico de referência) ===
     cmap = plt.get_cmap("tab10")
     unique_topics = list(pd.unique(labels))
     color_map = {t: cmap(i % 10) for i, t in enumerate(unique_topics)}
@@ -202,7 +197,6 @@ def generate_fused_scatter(fused_metadata_path=FUSED_METADATA, fused_plot_path=N
     # === FIGURA ===
     plt.figure(figsize=(15, 12))
 
-    # Tamanho das bolhas (apenas estética)
     sizes = np.full(len(df), 1400)
 
     # === SCATTER ===
@@ -215,14 +209,12 @@ def generate_fused_scatter(fused_metadata_path=FUSED_METADATA, fused_plot_path=N
         linewidth=1.2
     )
 
-    # === Definir linhas centrais (quadrantes) ===
     x_mid = 1.0
     y_mid = 1.1
 
     plt.axvline(x_mid, color="gray", linestyle="--", linewidth=1)
     plt.axhline(y_mid, color="gray", linestyle="--", linewidth=1)
 
-    # === Títulos dos quadrantes ===
     plt.text(x.min()*0.98, y.max()*0.98, "Niche & Difficult",
              fontsize=12, ha="left", va="top", alpha=0.7)
     plt.text(x.max()*0.98, y.max()*0.98, "Popular & Difficult",
@@ -232,7 +224,6 @@ def generate_fused_scatter(fused_metadata_path=FUSED_METADATA, fused_plot_path=N
     plt.text(x.max()*0.98, y.min()*0.98, "Popular & Easier",
              fontsize=12, ha="right", va="bottom", alpha=0.7)
 
-    # === RÓTULOS DE CADA BOLHA ===
     for xi, yi, lab, c in zip(x, y, labels, colors):
         plt.annotate(
             lab,
@@ -244,7 +235,6 @@ def generate_fused_scatter(fused_metadata_path=FUSED_METADATA, fused_plot_path=N
             bbox=dict(boxstyle="round,pad=0.3", fc="white", alpha=0.7),
         )
 
-    # === LABELS ===
     plt.xlabel("Fused Popularity (higher = more attention)", fontsize=13)
     plt.ylabel("Fused Difficulty (higher = harder)", fontsize=13)
 
@@ -256,13 +246,11 @@ def generate_fused_scatter(fused_metadata_path=FUSED_METADATA, fused_plot_path=N
     return FUSED_PLOT
 
 
-
 def main(model_path):
     """
     Executa o pipeline de cálculo de popularidade e dificuldade fundida.
     """
 
-    # Carrega configuração LDA (de onde vem K)
     if not Path(model_path / LDA_CONFIG).exists():
         raise FileNotFoundError(f"LDA config file not found at {model_path / LDA_CONFIG}")
 
@@ -273,20 +261,18 @@ def main(model_path):
     if num_topics is None:
         raise ValueError("'num_topics' (K) missing in LDA config")
 
-    # Carrega dataset de posts classificados
     if not CLASSIFIED_POSTS.exists():
         raise FileNotFoundError(
             f"Classified posts file not found at {CLASSIFIED_POSTS}")
 
     df = pd.read_csv(CLASSIFIED_POSTS)
 
-    # Calcula métricas de popularidade
     popularity_df = calculate_popularity(df, num_topics)
 
-    # Calcula métricas de dificuldade
+
     difficulty_df = fused_dificulty(df)
 
-    # Junta os resultados de popularidade e dificuldade
+  
     fused_metrics_df = pd.merge(
         popularity_df, difficulty_df, on='topic', how='outer')
     fused_metrics_df.to_csv(FUSED_METADATA, index=False)

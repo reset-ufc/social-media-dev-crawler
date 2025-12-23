@@ -8,7 +8,7 @@ from s5_get_connected_posts import main as run_5_get_connected_posts
 from s6_filter_posts import main as run_6_filter_posts
 from utils_global import get_logger
 from paths import DUMP_MINING_LOG_FILE
-from utils_global import ensure_parent_dir
+from utils_global import ensure_parent_dir, count_posts_comments_in_dumps
 
 
 logger = get_logger('dump_mining_pipeline')
@@ -23,6 +23,9 @@ def clear_log_file():
 def run_full_pipeline():
     clear_log_file()
     logger.info("##### INICIANDO PIPELINE DE MINERAÇÃO DE DADOS #####")
+
+    logger.info('Contando total de posts nos dumps')
+    count_posts_comments_in_dumps()
 
     logger.info("\n=== ETAPA 1: Extraindo perguntas com a tag principal ===")
     run_1_get_main_tag()

@@ -99,6 +99,7 @@ def neyman_allocation(n, Nh_list, Sh_list):
     nh = n * (weights / weights.sum())
     return nh
 
+
 def count_posts_comments_in_dumps(dump_dir: str = None, sites_mapping: dict = None):
     """Count questions (PostTypeId=1), answers (PostTypeId=2) and comments
     for each site dump. Reads Posts.xml and Comments.xml files using iterparse.
@@ -318,7 +319,30 @@ def count_posts_comments_in_dumps(dump_dir: str = None, sites_mapping: dict = No
     }
     df = pd.concat([df, pd.DataFrame([totals_row])], ignore_index=True)
 
-    df.to_csv('posts_comments_count.csv', index=False)
+    df.to_csv(DATA_MINING_S1 / 'posts_comments_count.csv', index=False)
     print(df.to_string(index=False))
     return df
 
+
+from pathlib import Path
+
+def make_dir_structure():
+    current_file_dir = Path(__file__).resolve().parent
+    
+    base_dir = current_file_dir.parent
+    dirs = [
+        base_dir / 'Extraidos dump',
+        base_dir / "data" / "data_mining" / "s1" / "related_tags",
+        base_dir / "data" / "data_mining" / "s2",
+        base_dir / "Lda" / "csvs",
+        base_dir / "Lda" / "plots",
+        base_dir / "Lda" / "models",
+    ]
+
+    for d in dirs:
+        d.mkdir(parents=True, exist_ok=True)
+
+
+if __name__ == '__main__':
+    make_dir_structure()
+    

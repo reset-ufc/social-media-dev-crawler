@@ -191,12 +191,11 @@ def main_topic_inference(model_path, llm):
 
 
 if __name__ == '__main__':
-    # Example usage for a main model
     main_topic_inference(
         MODELS / 'main1',
         llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
     )
-    subtopics_inference(
+    """subtopics_inference(
         MODELS / 'main1',
         llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
-    )
+    )"""
