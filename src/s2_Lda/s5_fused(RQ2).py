@@ -288,5 +288,47 @@ def main(model_path):
         print(f"Failed to generate fused scatter plot: {e}")
 
 
+from scipy.stats import kendalltau
+
+
+def gerar_csv_correlacao_kendall(input_path=FUSED_METADATA, output_path=LDA_CSVS/'tabela_correlacao_kendall.csv'):
+   # 1. Carregar o DataFrame já processado
+    df = pd.read_csv(input_path)
+    
+    # 2. Definir as métricas de entrada (Popularidade vs Dificuldade)
+    pop_metrics = ['avg_views', 'avg_comments', 'avg_score'] # Métricas de popularidade
+    diff_metrics = ['avg_no_acpt_answer', 'avg_hours']     # Métricas de dificuldade
+    
+    results = []
+
+    # 3. Calcular correlação para cada par individual
+    for pop in pop_metrics:
+        row = {'Pop/Diff metrics': f"{pop.replace('avg_', '').capitalize()} (avg)"}
+        for diff in diff_metrics:
+            # Cálculo de Kendall's tau (coeficiente e p-valor)
+            tau, p_val = kendalltau(df[pop], df[diff])
+            
+            # Formatação: Coeficiente [P-Valor]
+            col_name = diff.replace('avg_', '').replace('_', ' ')
+            row[col_name] = f"{tau:.3f} [{p_val:.3f}]"
+        results.append(row)
+    
+    # 4. Calcular a correlação final: Fused Popularity vs Fused Difficulty
+    tau_f, p_f = kendalltau(df['fused_popularity'], df['fused_dificulty'])
+    
+    fused_row = {
+        'Pop/Diff metrics': 'Fused Popularity vs Fused Difficulty',
+        'no acpt answer': f"{tau_f:.3f} [{p_f:.3f}]",
+        'hours': '' # Espaço vazio conforme o layout da imagem
+    }
+    results.append(fused_row)
+    
+    # 5. Salvar o resultado
+    df_final = pd.DataFrame(results)
+    df_final.to_csv(output_path, index=False, encoding='utf-8')
+    print(f"Tabela de correlação salva em: {output_path}")
+
+
 if __name__ == '__main__':
     main(MODELS / 'main1')
+    gerar_csv_correlacao_kendall()
