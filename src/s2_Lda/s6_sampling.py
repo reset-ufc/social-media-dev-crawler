@@ -91,6 +91,9 @@ def validation_sample():
     Samples are drawn without replacement per topic. If `allocated_nh` is larger than the
     number of available questions for a topic, all available questions are returned for
     that topic.
+    
+    Adds subtopics information from CLASSIFIED_POSTS.
+    Outputs columns: id, site, topic, subtopics, link, topic_validation, subtopic_validation, technologies
     """
     # Read stratum table
     stratum_df = pd.read_csv(STRATUM_TABLE)
@@ -151,22 +154,36 @@ def validation_sample():
 
     if result.empty:
         out_df = pd.DataFrame(
-            columns=['id', 'site', 'topic', 'link', 'is_valid'])
+            columns=['id', 'site', 'topic', 'subtopics', 'link', 
+                    'topic_validation', 'subtopic_validation', 'technologies'])
     else:
-        # Ensure id and topic exist in result; fall back to 'question_id' if needed
+        # Ensure id and topic exist in result
         if 'id' not in result.columns and 'question_id' in result.columns:
             result = result.rename(columns={'question_id': 'id'})
 
         out_df = pd.DataFrame()
-        out_df['id'] = result['question_id'] if 'id' in result.columns else pd.NA
+        out_df['id'] = result['question_id'] if 'question_id' in result.columns else pd.NA
         out_df['site'] = result['site_alias']
-
         out_df['topic'] = result['topic'] if 'topic' in result.columns else pd.NA
+        
+        # Add subtopics from classified data
+        sub_col = next(
+            (c for c in result.columns if 'subtopic' in c.lower()), None)
+        if sub_col:
+            out_df['subtopics'] = result[sub_col]
+        else:
+            out_df['subtopics'] = pd.NA
+            
         out_df['link'] = result.apply(make_link, axis=1)
-        out_df['is_valid'] = None  # Placeholder for dropdown
+        
+        # Add new validation columns (empty placeholders)
+        out_df['topic_validation'] = None
+        out_df['subtopic_validation'] = None
+        out_df['technologies'] = None
 
         # Ensure correct column order
-        out_df = out_df[['id', 'site', 'topic', 'link', 'is_valid']]
+        out_df = out_df[['id', 'site', 'topic', 'subtopics', 'link', 
+                        'topic_validation', 'subtopic_validation', 'technologies']]
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     # Write to Excel
@@ -175,20 +192,9 @@ def validation_sample():
             out_df.to_excel(writer, index=False,
                             sheet_name='validation_sample')
 
-            # Add data validation for 'is_valid' column
-            workbook = writer.book
-            worksheet = writer.sheets['validation_sample']
-            dv = DataValidation(
-                type="list", formula1='"True,False"', allow_blank=True)
-            worksheet.add_data_validation(dv)
-            # Apply validation to all cells in the 'is_valid' column (column E)
-            # from the second row to the last row of data.
-            if not out_df.empty:
-                dv.add(f'E2:E{len(out_df)+1}')
-
     except Exception as e:
-        print(f"Failed to write with openpyxl and data validation, error: {e}")
-        # Fallback: try default engine without data validation
+        print(f"Failed to write with openpyxl, error: {e}")
+        # Fallback: try default engine
         out_df.to_excel(out_path, index=False, sheet_name='validation_sample')
 
     return out_df
@@ -203,7 +209,7 @@ def regenarete_validation_sample(validation_path: str = VALIDATION_SAMPLE,
     match `stratum_path` (`allocated_nh`). The function updates rows in-place
     (no new rows are created). If substitutions are needed to meet the
     allocation, existing rows are replaced with candidates from
-    `classified_path`; replaced rows have `old_topic` and `is_valid*` left blank.
+    `classified_path`; replaced rows have `old_topic` and validation columns left blank.
     Returns the resulting DataFrame and writes it to `LDA_DIR / out_filename`.
     """
 
@@ -213,15 +219,14 @@ def regenarete_validation_sample(validation_path: str = VALIDATION_SAMPLE,
     except Exception:
         vs_df = pd.read_excel(validation_path)
 
-    # Detect id column and is_valid columns
+    # Detect id column and validation columns
     id_col = 'id' if 'id' in vs_df.columns else (
         'question_id' if 'question_id' in vs_df.columns else None)
     if id_col is None:
         raise ValueError(
             'Validation sheet must contain an `id` or `question_id` column')
 
-    is_valid_cols = [c for c in vs_df.columns if str(
-        c).lower().startswith('is_valid')]
+    validation_cols = ['topic_validation', 'subtopic_validation', 'technologies']
 
     # Capture old topic column if present
     old_topic_col_in_sheet = 'topic' if 'topic' in vs_df.columns else None
@@ -239,6 +244,14 @@ def regenarete_validation_sample(validation_path: str = VALIDATION_SAMPLE,
         'topic') for _, r in questions.iterrows() if pd.notna(r.get('question_id'))}
     id_to_site = {str(int(r['question_id'])): r.get('site_alias')
                   for _, r in questions.iterrows() if pd.notna(r.get('question_id'))}
+
+    # Get subtopic column
+    sub_col = next(
+        (c for c in classified.columns if 'subtopic' in c.lower()), None)
+    id_to_subtopic = {}
+    if sub_col:
+        id_to_subtopic = {str(int(r['question_id'])): r.get(sub_col) 
+                         for _, r in questions.iterrows() if pd.notna(r.get('question_id'))}
 
     stratum = pd.read_csv(stratum_path)
     # target counts per topic
@@ -294,7 +307,7 @@ def regenarete_validation_sample(validation_path: str = VALIDATION_SAMPLE,
         if cnt <= 0:
             continue
         candidates = list(candidates_by_topic.get(topic, []))
-        # remove candidates that are already present in the sheet (either kept or elsewhere)
+        # remove candidates that are already present in the sheet
         existing_sheet_ids = set()
         for v in vs_df[id_col].fillna('').tolist():
             try:
@@ -305,7 +318,6 @@ def regenarete_validation_sample(validation_path: str = VALIDATION_SAMPLE,
 
         for _ in range(cnt):
             if rep_ptr >= len(replaceable_indices):
-                # No more rows to replace; stop trying
                 break
             if not candidates:
                 break
@@ -319,7 +331,6 @@ def regenarete_validation_sample(validation_path: str = VALIDATION_SAMPLE,
             vs_df.at[idx, 'site'] = id_to_site.get(
                 pick_id, vs_df.at[idx, 'site'] if 'site' in vs_df.columns else pd.NA)
             kept_ids.add(pick_id)
-            # Mark as replaced (not in kept)
 
     # Build output DataFrame keeping the same number of rows
     out = pd.DataFrame(index=vs_df.index)
@@ -334,10 +345,14 @@ def regenarete_validation_sample(validation_path: str = VALIDATION_SAMPLE,
 
     out['new_topic'] = assigned_new_topic
 
-    # id and site and link
+    # id and site
     out['id'] = vs_df[id_col]
     out['site'] = vs_df['site'] if 'site' in vs_df.columns else out['id'].apply(
         lambda x: pd.NA)
+
+    # Add subtopics
+    out['subtopics'] = out['id'].apply(
+        lambda x: id_to_subtopic.get(str(int(x)) if pd.notna(x) else '', pd.NA))
 
     def make_link_row(val, site_alias):
         if pd.isna(val):
@@ -357,10 +372,12 @@ def regenarete_validation_sample(validation_path: str = VALIDATION_SAMPLE,
     out['link'] = [make_link_row(i, s) for i, s in zip(
         out['id'].tolist(), out['site'].tolist())]
 
-    # Preserve is_valid columns only for kept rows; cleared for replaced rows
-    for col in is_valid_cols:
+    # Preserve validation columns only for kept rows; cleared for replaced rows
+    for col in validation_cols:
         if col in vs_df.columns:
             out[col] = vs_df[col].where(vs_df.index.isin(kept), other=pd.NA)
+        else:
+            out[col] = pd.NA
 
     # Ensure no new rows have been created; write to Excel
     out_path = Path(VALIDATION_SAMPLE).parent / out_filename
@@ -380,104 +397,6 @@ def regenarete_validation_sample(validation_path: str = VALIDATION_SAMPLE,
     return out
 
 
-def add_subtopics(validation_path: str = VALIDATION_SAMPLE,
-                  classified_path: str = CLASSIFIED_POSTS) -> pd.DataFrame:
-    """Add a `subtopics` column to the validation sample file based on
-    `classified_path`. Matching is done by `id` (or `question_id`) and `site`.
-    The function writes the updated sheet back to `validation_path` and
-    returns the updated DataFrame.
-    """
-
-    # Read validation sheet
-    try:
-        vs_df = pd.read_excel(validation_path, sheet_name='validation_sample')
-    except Exception:
-        vs_df = pd.read_excel(validation_path)
-
-    # Identify id and site columns in validation sheet
-    id_col = 'id' if 'id' in vs_df.columns else (
-        'question_id' if 'question_id' in vs_df.columns else None)
-    if id_col is None:
-        raise ValueError(
-            'Validation sheet must contain an `id` or `question_id` column')
-
-    site_col_vs = 'site' if 'site' in vs_df.columns else (
-        'site_alias' if 'site_alias' in vs_df.columns else None)
-
-    # Read classified posts
-    classified = pd.read_csv(classified_path)
-
-    # Find a column that looks like a subtopic column
-    sub_col = next(
-        (c for c in classified.columns if 'subtopic' in c.lower()), None)
-    if sub_col is None:
-        # No subtopic info available: add empty column and write back
-        vs_df['subtopics'] = pd.NA
-        out_path = Path(validation_path)
-        if out_path.suffix.lower() != '.xlsx':
-            out_path = out_path.with_suffix('.xlsx')
-        with pd.ExcelWriter(out_path, engine='openpyxl') as writer:
-            vs_df.to_excel(writer, index=False, sheet_name='validation_sample')
-        return vs_df
-
-    # Normalize classified id and site columns
-    if 'question_id' not in classified.columns and 'id' in classified.columns:
-        classified = classified.rename(columns={'id': 'question_id'})
-
-    site_col_class = 'site_alias' if 'site_alias' in classified.columns else (
-        'site' if 'site' in classified.columns else None)
-
-    def id_to_str(x):
-        if pd.isna(x):
-            return ''
-        try:
-            return str(int(x))
-        except Exception:
-            return str(x)
-
-    classified['_qid_str'] = classified['question_id'].apply(
-        id_to_str) if 'question_id' in classified.columns else pd.Series(['']*len(classified))
-    if site_col_class:
-        classified['_site_str'] = classified[site_col_class].astype(str)
-    else:
-        classified['_site_str'] = ''
-
-    # Build mapping (qid_str, site_str) -> subtopic
-    mapping = {}
-    for _, r in classified.iterrows():
-        key = (r.get('_qid_str', ''), str(r.get('_site_str', '')))
-        if pd.notna(r.get(sub_col)):
-            mapping[key] = r.get(sub_col)
-
-    # Also build fallback mapping by id only
-    id_only_map = {k[0]: v for k, v in mapping.items() if k[0]}
-
-    # Populate subtopics column
-    subs = []
-    for _, row in vs_df.iterrows():
-        qid = row.get(id_col)
-        qid_s = id_to_str(qid)
-        site_vs = row.get(site_col_vs) if site_col_vs else ''
-        site_vs_s = '' if pd.isna(site_vs) else str(site_vs)
-        val = mapping.get((qid_s, site_vs_s))
-        if val is None:
-            val = id_only_map.get(qid_s)
-        subs.append(val if pd.notna(val) else pd.NA)
-
-    vs_df['subtopics'] = subs
-
-    # Write back to the same validation file (xlsx preferred)
-    out_path = Path(validation_path)
-    if out_path.suffix.lower() != '.xlsx':
-        out_path = out_path.with_suffix('.xlsx')
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    with pd.ExcelWriter(out_path, engine='openpyxl') as writer:
-        vs_df.to_excel(writer, index=False, sheet_name='validation_sample_sub')
-
-    return vs_df
-
-
 if __name__ == '__main__':
     generate_stratum_table()
     validation_sample()
-    add_subtopics()

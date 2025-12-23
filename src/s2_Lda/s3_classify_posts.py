@@ -281,4 +281,4 @@ def classify_all_subtopics(model_path):
 
 if __name__ == '__main__':
     classify_main_topics(MODELS / 'main1')
-    #classify_all_subtopics(MODELS / 'main1')
+    classify_all_subtopics(MODELS / 'main1')
