@@ -10,11 +10,13 @@ def get_releated_tags_path(site_alias: str) -> Path:
 
 
 QUESTION_TAG = "encryption"
+
+#QUESTION_TAG = "cryptography"
+
 THRE1 = 0.2
 THRE2 = 0.01
 
 DIF_CONFIDENCE_THRESHOLD = 0.5
-
 
 PROJECT_ROOT = Path(__file__).parent.parent
 
@@ -53,8 +55,9 @@ DUMP_POST_PATH = DUMP / "Posts.xml"
 COARSE_QUESTIONS = DATA_MINING_S1 / "questions_dump.csv"
 
 RELEATED_TAGS_DIR = DATA_MINING_S1 / "releated_tags"
-RELEATED_TAGS = RELEATED_TAGS_DIR / \
-    "all_releated_tags.csv"  # Consolidado (opcional)
+RELEATED_TAGS = RELEATED_TAGS_DIR / "releated_tags.csv"  
+
+R_TAGS = DATA_MINING_S1 / "releated_tags.csv"
 
 
 RELEATED_POSTS = DATA_MINING_S1 / "releated_posts.csv"
