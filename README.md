@@ -51,6 +51,18 @@ pip install -r requirements_lda.txt
 pyenv deactivate
 ```
 
+4. Instale o Mallet 2.0.8
+
+```bash
+cd /tmp
+wget http://mallet.cs.umass.edu/dist/mallet-2.0.8.tar.gz
+sudo mkdir -p /opt/mallet
+sudo tar -xzf mallet-2.0.8.tar.gz -C /opt/mallet --strip-components=1
+sudo chmod -R 755 /opt/mallet
+sudo chown -R $USER:$USER /opt/mallet
+```
+
+
 Adicione sua chave de API do Chat-GPT 5.1 em um arquivo `.env`, que deverá ser criado em `src\s2_Lda`
 
 ## Execução
