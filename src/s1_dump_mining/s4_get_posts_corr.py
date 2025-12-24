@@ -1,17 +1,14 @@
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import shutil
-import tempfile
-import py7zr
-import re
+import subprocess
 import xml.etree.ElementTree as ET
 import pandas as pd
 import csv
 from paths import *
 from utils_global import *
 
+# Garante acesso aos módulos de diretórios superiores
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 logger = get_logger(__name__)
 
@@ -22,7 +19,6 @@ POST_FEATURES = [
     'local_id', 'site'
 ]
 
-
 def get_all_related_tags():
     """Lê todas as tags relacionadas do arquivo consolidado R_TAGS."""
     try:
@@ -30,13 +26,9 @@ def get_all_related_tags():
         related_tags = set(df['tag'])
         logger.info(f"Total de tags relacionadas carregadas: {len(related_tags)}")
         return related_tags
-    except FileNotFoundError:
-        logger.error(f"Arquivo de tags relacionadas não encontrado: {R_TAGS}")
-        return set()
     except Exception as e:
         logger.error(f"Erro ao ler arquivo de tags relacionadas: {e}")
         return set()
-
 
 def initialize_csv(path):
     """Cria o CSV com cabeçalho, se ainda não existir."""
@@ -45,120 +37,121 @@ def initialize_csv(path):
         with open(path, "w", encoding="utf-8", newline="") as f:
             csv.writer(f).writerow(POST_FEATURES)
 
-
 def find_and_save_related_posts():
-    """Procura e salva posts que tenham ao menos uma das tags relacionadas."""
+    """Procura e salva posts via Streaming para evitar lotar o disco."""
 
-    # Carrega todas as tags relacionadas uma única vez
     related_tags = get_all_related_tags()
-    
     if not related_tags:
-        logger.error("Nenhuma tag relacionada encontrada. Abortando processamento.")
+        logger.error("Nenhuma tag relacionada encontrada. Abortando.")
         return
 
+    # Usamos um set para evitar duplicatas se necessário, mas mantendo a lógica original
     processed_posts = set()
     site_post_counts = {}
 
     initialize_csv(RELEATED_POSTS)
 
     for site_alias, site_name in SITES.items():
-        logger.info(f"\n--- Processando site: {site_alias} ---")
+        logger.info(f"\n--- Processando site: {site_alias} (Streaming) ---")
 
         site_archive = os.path.join(DUMP, f"{site_name}")
         site_count = 0
 
         if not os.path.exists(site_archive):
-            logger.warning(
-                f"Arquivo compactado não encontrado para '{site_alias}' em: {site_archive}")
+            logger.warning(f"Arquivo não encontrado: {site_archive}")
             continue
 
-        logger.info(f"Processando: {site_archive}")
-
         try:
-            with py7zr.SevenZipFile(site_archive, mode='r') as archive:
-                posts_xml_path = "Posts.xml"
-                if posts_xml_path not in archive.getnames():
-                    logger.warning(f"  Posts.xml não encontrado em {site_archive}")
+            # Comando 7z para extrair direto para o stdout (Pipe)
+            # 'e' extrai, '-so' envia para o buffer de saída
+            posts_xml_path = "Posts.xml"
+            cmd = ["7z", "e", site_archive, posts_xml_path, "-so"]
+            
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            # iterparse processa o stream do XML sem salvar o arquivo no disco
+            context = ET.iterparse(process.stdout, events=("end",))
+            
+            batch = []
+            batch_size = 500  # Otimiza a escrita no HD
+
+            for _, elem in context:
+                if elem.tag != "row":
                     continue
 
-                # Extrai para um diretório temporário
-                temp_dir = tempfile.mkdtemp()
-                try:
-                    archive.extract(path=temp_dir, targets=[posts_xml_path])
-                    xml_path = os.path.join(temp_dir, posts_xml_path)
+                # Processa apenas perguntas (PostTypeId = 1)
+                if elem.attrib.get("PostTypeId") != "1":
+                    elem.clear()
+                    continue
 
-                    context = ET.iterparse(xml_path, events=("start",))
-                    for _, elem in context:
-                        if elem.tag != "row":
-                            continue
+                post_id = elem.attrib.get("Id")
+                if post_id in processed_posts:
+                    elem.clear()
+                    continue
 
-                        # Processa apenas perguntas (PostTypeId = 1)
-                        if elem.attrib.get("PostTypeId") != "1":
-                            elem.clear()
-                            continue
+                tags_field = elem.attrib.get("Tags", "")
+                if tags_field:
+                    post_tags = set(extract_tag_list(tags_field))
+                    
+                    # Interseção eficiente entre sets
+                    if not related_tags.isdisjoint(post_tags):
+                        row = [
+                            site_alias,
+                            ";".join(post_tags),
+                            post_id,
+                            elem.attrib.get("AcceptedAnswerId", ""),
+                            elem.attrib.get("AnswerCount", "0"),
+                            safe_date(elem.attrib.get("CreationDate", "")),
+                            safe_date(elem.attrib.get("LastActivityDate", "")),
+                            safe_date(elem.attrib.get("LastEditDate", "")),
+                            elem.attrib.get("OwnerUserId", ""),
+                            elem.attrib.get("Score", "0"),
+                            elem.attrib.get("ViewCount", "0"),
+                            elem.attrib.get("Title", ""),
+                            elem.attrib.get("Body", ""),
+                            post_id,
+                            site_name
+                        ]
+                        batch.append(row)
+                        processed_posts.add(post_id)
+                        site_count += 1
 
-                        post_id = elem.attrib.get("Id")
-                        if post_id in processed_posts:
-                            elem.clear()
-                            continue
+                # Escrita em lote para performance
+                if len(batch) >= batch_size:
+                    with open(RELEATED_POSTS, "a", encoding="utf-8", newline="") as f_csv:
+                        csv.writer(f_csv).writerows(batch)
+                    batch = []
 
-                        tags_field = elem.attrib.get("Tags", "")
-                        if tags_field:
-                            # Extrai tags do formato <tag1><tag2>
-                            post_tags = set(extract_tag_list(tags_field))
-                            
-                            # Verifica se há interseção entre as tags do post e as tags relacionadas
-                            if not related_tags.isdisjoint(post_tags):
-                                row = [
-                                    site_alias,
-                                    ";".join(post_tags),
-                                    post_id,
-                                    elem.attrib.get("AcceptedAnswerId", ""),
-                                    elem.attrib.get("AnswerCount", "0"),
-                                    safe_date(elem.attrib.get("CreationDate", "")),
-                                    safe_date(elem.attrib.get("LastActivityDate", "")),
-                                    safe_date(elem.attrib.get("LastEditDate", "")),
-                                    elem.attrib.get("OwnerUserId", ""),
-                                    elem.attrib.get("Score", "0"),
-                                    elem.attrib.get("ViewCount", "0"),
-                                    elem.attrib.get("Title", ""),
-                                    elem.attrib.get("Body", ""),
-                                    post_id,
-                                    site_name
-                                ]
+                # Crucial: limpa o elemento da RAM
+                elem.clear()
 
-                                with open(RELEATED_POSTS, "a", encoding="utf-8", newline="") as f_csv:
-                                    csv.writer(f_csv).writerow(row)
+            # Escreve o restante do lote
+            if batch:
+                with open(RELEATED_POSTS, "a", encoding="utf-8", newline="") as f_csv:
+                    csv.writer(f_csv).writerows(batch)
 
-                                processed_posts.add(post_id)
-                                site_count += 1
-
-                        elem.clear()
-                    del context
-                finally:
-                    shutil.rmtree(temp_dir)
+            process.stdout.close()
+            process.wait()
 
         except Exception as e:
-            logger.error(f"Erro ao processar {site_archive}: {e}", exc_info=True)
+            logger.error(f"Erro ao processar {site_alias}: {e}", exc_info=True)
             continue
 
         site_post_counts[site_alias] = site_count
-        logger.info(f"  Posts encontrados com tags relacionadas: {site_count}")
+        logger.info(f"  Posts encontrados: {site_count}")
 
+    # Log de Resumo Final
     logger.info("\n##### RESUMO FINAL #####")
-    total_posts = 0
+    total_posts = sum(site_post_counts.values())
     for site, count in site_post_counts.items():
-        logger.info(f"  - {site}: {count} posts válidos")
-        total_posts += count
-    logger.info(f"  - TOTAL DE POSTS ENCONTRADOS: {total_posts}")
+        logger.info(f"  - {site}: {count} posts")
+    logger.info(f"  - TOTAL GERAL: {total_posts}")
     logger.info("##### FIM DO RESUMO #####\n")
 
-
 def main():
-    logger.info("Iniciando busca de posts relacionados...")
+    logger.info("Iniciando busca otimizada (Zero-Disk-Extra)...")
     find_and_save_related_posts()
-    logger.info("Processamento concluído!")
-
+    logger.info("Concluído!")
 
 if __name__ == "__main__":
     main()
