@@ -61,7 +61,7 @@ sudo tar -xzf mallet-2.0.8.tar.gz -C /opt/mallet --strip-components=1
 sudo chmod -R 755 /opt/mallet
 sudo chown -R $USER:$USER /opt/mallet
 ```
-
+Ou instale o modelo na pasta `C:\mallet` caso use Windows
 
 Adicione sua chave de API do Chat-GPT 5.1 em um arquivo `.env`, que deverá ser criado em `src\s2_Lda`
 
