@@ -84,7 +84,6 @@ def generate_stratum_table(classfication_path: str = CLASSIFIED_POSTS) -> None:
     table.to_csv(STRATUM_TABLE, index=False)
 
 
-def validation_sample():
     """Read `STRATUM_TABLE`, sample `allocated_nh` questions per topic from `CLASSIFIED_POSTS`,
     and save the resulting rows to `VALIDATION_SAMPLE`.
 
@@ -195,6 +194,131 @@ def validation_sample():
     except Exception as e:
         print(f"Failed to write with openpyxl, error: {e}")
         # Fallback: try default engine
+        out_df.to_excel(out_path, index=False, sheet_name='validation_sample')
+
+    return out_df
+
+
+def validation_sample():
+    """Read `STRATUM_TABLE`, sample `allocated_nh` questions per topic from `CLASSIFIED_POSTS`,
+    and save the resulting rows to `VALIDATION_SAMPLE`.
+
+    Samples are drawn using Probability Proportional to Size (PPS) sampling, where the size
+    measure is `topic_perc_contrib`. This ensures that documents with higher semantic relevance
+    to the topic have a higher probability of being included in the final sample.
+    
+    If `allocated_nh` is larger than the number of available questions for a topic, 
+    all available questions are returned for that topic.
+    
+    Adds subtopics information from CLASSIFIED_POSTS.
+    Outputs columns: id, site, topic, subtopics, link, topic_validation, subtopic_validation, technologies
+    """
+    stratum_df = pd.read_csv(STRATUM_TABLE)
+    if 'topic' not in stratum_df.columns or 'allocated_nh' not in stratum_df.columns:
+        raise ValueError(
+            "STRATUM_TABLE must contain 'topic' and 'allocated_nh' columns")
+
+    classified_df = pd.read_csv(CLASSIFIED_POSTS)
+    questions_df = classified_df[classified_df['type'] == 'question'].copy()
+    
+    # Check if topic_perc_contrib exists
+    if 'topic_perc_contrib' not in questions_df.columns:
+        raise ValueError(
+            "CLASSIFIED_POSTS must contain 'topic_perc_contrib' column for PPS sampling")
+
+    samples = []
+    for _, row in stratum_df.iterrows():
+        topic = row['topic']
+        try:
+            nh = int(row['allocated_nh'])
+        except Exception:
+            nh = 0
+        if nh <= 0:
+            continue
+
+        candidates = questions_df[questions_df['topic'] == topic].copy()
+        if candidates.empty:
+            continue
+
+        # Handle missing or invalid topic_perc_contrib values
+        candidates = candidates[candidates['topic_perc_contrib'].notna()].copy()
+        candidates = candidates[candidates['topic_perc_contrib'] > 0].copy()
+        
+        if candidates.empty:
+            continue
+
+        if nh >= len(candidates):
+            sampled = candidates.copy()
+        else:
+            weights = candidates['topic_perc_contrib'].values
+            weights = weights / weights.sum()
+            
+            sampled = candidates.sample(n=nh, replace=False, weights=weights)
+
+        samples.append(sampled)
+
+    if samples:
+        result = pd.concat(
+            samples, ignore_index=True).drop_duplicates().reset_index(drop=True)
+    else:
+        result = pd.DataFrame(columns=classified_df.columns)
+
+    out_path = Path(VALIDATION_SAMPLE)
+    if out_path.suffix.lower() != '.xlsx':
+        out_path = out_path.with_suffix('.xlsx')
+
+    def make_link(row):
+        qid = row.get('question_id')
+        site_alias = row.get('site_alias')
+        if pd.isna(qid):
+            return ''
+        try:
+            qid_str = str(int(qid))
+        except Exception:
+            qid_str = str(qid)
+        if str(site_alias) == 'stackoverflow':
+            domain = 'stackoverflow.com'
+        else:
+            domain = f"{site_alias}.stackexchange.com"
+        return f"https://{domain}/questions/{qid_str}"
+
+    if result.empty:
+        out_df = pd.DataFrame(
+            columns=['id', 'site', 'topic', 'subtopics', 'link', 
+                    'topic_validation', 'subtopic_validation', 'technologies'])
+    else:
+        if 'id' not in result.columns and 'question_id' in result.columns:
+            result = result.rename(columns={'question_id': 'id'})
+
+        out_df = pd.DataFrame()
+        out_df['id'] = result['question_id'] if 'question_id' in result.columns else pd.NA
+        out_df['site'] = result['site_alias']
+        out_df['topic'] = result['topic'] if 'topic' in result.columns else pd.NA
+        
+        sub_col = next(
+            (c for c in result.columns if 'subtopic' in c.lower()), None)
+        if sub_col:
+            out_df['subtopics'] = result[sub_col]
+        else:
+            out_df['subtopics'] = pd.NA
+            
+        out_df['link'] = result.apply(make_link, axis=1)
+        
+        out_df['topic_validation'] = None
+        out_df['subtopic_validation'] = None
+        out_df['technologies'] = None
+
+        out_df = out_df[['id', 'site', 'topic', 'subtopics', 'link', 
+                        'topic_validation', 'subtopic_validation', 'technologies']]
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with pd.ExcelWriter(out_path, engine='openpyxl') as writer:
+            out_df.to_excel(writer, index=False,
+                            sheet_name='validation_sample')
+
+    except Exception as e:
+        print(f"Failed to write with openpyxl, error: {e}")
         out_df.to_excel(out_path, index=False, sheet_name='validation_sample')
 
     return out_df
