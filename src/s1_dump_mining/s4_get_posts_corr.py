@@ -1,5 +1,6 @@
 import sys
 import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import subprocess
 import xml.etree.ElementTree as ET
 import pandas as pd
@@ -8,7 +9,7 @@ from paths import *
 from utils_global import *
 
 # Garante acesso aos módulos de diretórios superiores
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 logger = get_logger(__name__)
 
