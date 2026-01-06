@@ -25,8 +25,10 @@ def stream_posts_from_7z(archive_path, posts_filename="Posts.xml"):
     """
     Abre Posts.xml dentro de um .7z em streaming usando pipe.
     """
-
+    # 'e' (extract), '-so' (send to stdout)
+    # joga o conteúdo do XML direto para a RAM do Python sem passar pelo disco
     cmd = ["7z", "e", archive_path, posts_filename, "-so"]
+
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     try:
@@ -36,8 +38,6 @@ def stream_posts_from_7z(archive_path, posts_filename="Posts.xml"):
         if process.stdout:
             process.stdout.close()
         process.wait()
-
-
 
 
 def ensure_parent_dir(path):

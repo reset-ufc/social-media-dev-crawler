@@ -12,10 +12,12 @@ logger = get_logger(__name__)
 
 QUESTION_FEATURES = ['site', 'tags', 'question_id']
 
+"""
+Requisito: Você precisa ter o 7zip instalado no seu sistema operacional
+ Linux: sudo apt install p7zip-full.
+ Windows: adicione o executável do 7-Zip ao seu PATH.
+"""
 
-"""
-Requisito: Você precisa ter o 7zip instalado no seu sistema operacional (acessível via terminal pelo comando 7z). No Linux: sudo apt install p7zip-full. No Windows: adicione o executável do 7-Zip ao seu PATH.
-"""
 
 def initiate_csv():
     ensure_parent_dir(COARSE_QUESTIONS)
@@ -49,18 +51,10 @@ def parse_posts_from_7z(site_alias):
     
     logger.info(f"[{site_alias}] Iniciando Streaming do {posts_filename} via Pipe...")
 
-    try:
-        # COMANDO MÁGICO: 'e' (extract), '-so' (send to stdout)
-        # Isso joga o conteúdo do XML direto para a RAM do Python sem passar pelo disco
-        cmd = ["7z", "e", archive_path, posts_filename, "-so"]
-        
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    batch = []
+    batch_size = 1000
 
-        context = ET.iterparse(process.stdout, events=("end",))
-
-        batch = []
-        batch_size = 1000
-
+    with stream_posts_from_7z(archive_path) as context:
         for event, elem in context:
             if elem.tag != "row":
                 continue
@@ -89,19 +83,13 @@ def parse_posts_from_7z(site_alias):
             if len(batch) >= batch_size:
                 append_batch(batch)
                 batch.clear()
+
             elem.clear()
 
-        append_batch(batch)
-        
-        process.stdout.close()
-        process.wait()
+    append_batch(batch)
 
-        logger.info(f"[{site_alias}] Concluído. Posts salvos: {post_count}")
-        return post_count
-
-    except Exception as e:
-        logger.error(f"[{site_alias}] Erro no Streaming: {e}", exc_info=True)
-        return 0
+    logger.info(f"[{site_alias}] Concluído. Posts salvos: {post_count}")
+    return post_count
 
 
 def main():

@@ -27,15 +27,8 @@ def calculate_tag_counts_all_sites():
         if not os.path.exists(archive_path):
             logger.warning(f"    .7z não encontrado para {site_alias}: {archive_path}")
             continue
-            
-        try:
-            posts_filename = "Posts.xml"
-            
-            cmd = ["7z", "e", archive_path, posts_filename, "-so"]
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-            context = ET.iterparse(process.stdout, events=("end",))
-            
+        with stream_posts_from_7z(archive_path) as context:
             for _, elem in context:
                 if elem.tag == "row" and elem.attrib.get("PostTypeId") == "1":
                     tags_field = elem.attrib.get("Tags", "")
@@ -43,17 +36,14 @@ def calculate_tag_counts_all_sites():
                         post_tags = extract_tag_list(tags_field)
                         tag_occurrence_counter.update(post_tags)
                 elem.clear()
-            process.stdout.close()
-            process.wait()
-            
-        except Exception as e:
-            logger.error(f"    Erro ao processar stream de {archive_path}: {e}", exc_info=True)
 
     df_counts = pd.DataFrame(
-        tag_occurrence_counter.items(), columns=['tag', 'b'])
+        tag_occurrence_counter.items(), columns=['tag', 'b']
+    )
 
     logger.info(f"  Contagem total agregada: {len(df_counts)} tags únicas de todos os sites.")
     return df_counts
+
 
 
 def calculate_a_and_c_all_sites():

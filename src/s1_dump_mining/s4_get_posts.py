@@ -47,7 +47,6 @@ def find_and_save_related_posts():
         logger.error("Nenhuma tag relacionada encontrada. Abortando.")
         return
 
-    # Usamos um set para evitar duplicatas
     processed_posts = set()
     site_post_counts = {}
 
@@ -56,73 +55,72 @@ def find_and_save_related_posts():
     for site_alias, site_name in SITES.items():
         logger.info(f"\n--- Processando site: {site_alias} (Streaming) ---")
 
-        site_archive = os.path.join(DUMP, f"{site_name}")
-        site_count = 0
+        site_archive = os.path.join(DUMP, site_name)
 
         if not os.path.exists(site_archive):
             logger.warning(f"Arquivo não encontrado: {site_archive}")
             continue
 
+        site_count = 0
+        batch = []
+        batch_size = 500
+        
         try:
-            posts_xml_path = "Posts.xml"
-            cmd = ["7z", "e", site_archive, posts_xml_path, "-so"]
-            
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            context = ET.iterparse(process.stdout, events=("end",))
-            
-            batch = []
-            batch_size = 500 
+            with stream_posts_from_7z(site_archive) as context:
+                for _, elem in context:
 
-            for _, elem in context:
-                if elem.tag != "row":
-                    continue
-                if elem.attrib.get("PostTypeId") != "1":
+                    # apenas linhas <row>
+                    if elem.tag != "row":
+                        continue
+
+                    # apenas perguntas
+                    if elem.attrib.get("PostTypeId") != "1":
+                        elem.clear()
+                        continue
+
+                    post_id = elem.attrib.get("Id")
+                    if post_id in processed_posts:
+                        elem.clear()
+                        continue
+
+                    # processa tags
+                    tags_field = elem.attrib.get("Tags", "")
+                    if tags_field:
+                        post_tags = set(extract_tag_list(tags_field))
+
+                        if not related_tags.isdisjoint(post_tags):
+
+                            row = [
+                                site_alias,
+                                ";".join(post_tags),
+                                post_id,
+                                elem.attrib.get("AcceptedAnswerId", ""),
+                                elem.attrib.get("AnswerCount", "0"),
+                                safe_date(elem.attrib.get("CreationDate", "")),
+                                safe_date(elem.attrib.get("LastActivityDate", "")),
+                                safe_date(elem.attrib.get("LastEditDate", "")),
+                                elem.attrib.get("OwnerUserId", ""),
+                                elem.attrib.get("Score", "0"),
+                                elem.attrib.get("ViewCount", "0"),
+                                elem.attrib.get("Title", ""),
+                                elem.attrib.get("Body", ""),
+                                post_id,
+                                site_name,
+                            ]
+
+                            batch.append(row)
+                            processed_posts.add(post_id)
+                            site_count += 1
+                    if len(batch) >= batch_size:
+                        with open(RELEATED_POSTS, "a", encoding="utf-8", newline="") as f_csv:
+                            csv.writer(f_csv).writerows(batch)
+                        batch = []
+
                     elem.clear()
-                    continue
-
-                post_id = elem.attrib.get("Id")
-                if post_id in processed_posts:
-                    elem.clear()
-                    continue
-
-                tags_field = elem.attrib.get("Tags", "")
-                if tags_field:
-                    post_tags = set(extract_tag_list(tags_field))
-                    
-                    if not related_tags.isdisjoint(post_tags):
-                        row = [
-                            site_alias,
-                            ";".join(post_tags),
-                            post_id,
-                            elem.attrib.get("AcceptedAnswerId", ""),
-                            elem.attrib.get("AnswerCount", "0"),
-                            safe_date(elem.attrib.get("CreationDate", "")),
-                            safe_date(elem.attrib.get("LastActivityDate", "")),
-                            safe_date(elem.attrib.get("LastEditDate", "")),
-                            elem.attrib.get("OwnerUserId", ""),
-                            elem.attrib.get("Score", "0"),
-                            elem.attrib.get("ViewCount", "0"),
-                            elem.attrib.get("Title", ""),
-                            elem.attrib.get("Body", ""),
-                            post_id,
-                            site_name
-                        ]
-                        batch.append(row)
-                        processed_posts.add(post_id)
-                        site_count += 1
-
-                if len(batch) >= batch_size:
-                    with open(RELEATED_POSTS, "a", encoding="utf-8", newline="") as f_csv:
-                        csv.writer(f_csv).writerows(batch)
-                    batch = []
-                elem.clear()
 
             if batch:
                 with open(RELEATED_POSTS, "a", encoding="utf-8", newline="") as f_csv:
                     csv.writer(f_csv).writerows(batch)
-
-            process.stdout.close()
-            process.wait()
 
         except Exception as e:
             logger.error(f"Erro ao processar {site_alias}: {e}", exc_info=True)
@@ -130,6 +128,7 @@ def find_and_save_related_posts():
 
         site_post_counts[site_alias] = site_count
         logger.info(f"  Posts encontrados: {site_count}")
+
 
     logger.info("\n##### RESUMO FINAL #####")
     total_posts = sum(site_post_counts.values())

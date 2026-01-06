@@ -8,6 +8,7 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 from utils_global import safe_date, get_logger
 from paths import DUMP, CONNECTED_POSTS, RELEATED_POSTS, SITES
+from utils_global import stream_posts_from_7z
 
 
 logger = get_logger(__name__)
@@ -73,34 +74,27 @@ def extract_posts_and_comments():
         comments_to_write = []
 
         try:
-            proc_posts = run_7z_stream(archive_path, "Posts.xml")
-            context = ET.iterparse(proc_posts.stdout, events=("end",))
-            for _, elem in context:
-                if elem.tag == "row" and elem.attrib.get("PostTypeId") == "2":
-                    parent_id = elem.attrib.get("ParentId")
-                    if parent_id in relevant_question_ids:
-                        answer_id = elem.attrib.get("Id")
-                        found_answer_ids.add(answer_id)
-                        answer_id_to_question_id[answer_id] = parent_id
-                        
-                        # Guardamos os dados da resposta
-                        answers_to_write.append(elem.attrib)
-                elem.clear()
-            proc_posts.stdout.close()
-            proc_posts.wait()
+            with stream_posts_from_7z(archive_path, "Posts.xml") as context:
+                for _, elem in context:
+                    if elem.tag == "row" and elem.attrib.get("PostTypeId") == "2":
+                        parent_id = elem.attrib.get("ParentId")
+                        if parent_id in relevant_question_ids:
+                            answer_id = elem.attrib.get("Id")
+                            found_answer_ids.add(answer_id)
+                            answer_id_to_question_id[answer_id] = parent_id
+                            
+                            answers_to_write.append(elem.attrib)
+                    elem.clear()
 
             posts_to_track = relevant_question_ids.union(found_answer_ids)
-            proc_comments = run_7z_stream(archive_path, "Comments.xml")
-            context = ET.iterparse(proc_comments.stdout, events=("end",))
-            for _, elem in context:
-                if elem.tag == "row":
-                    post_id = elem.attrib.get("PostId")
-                    if post_id in posts_to_track:
-                        comments_to_write.append(elem.attrib)
-                        comment_counter[post_id] = comment_counter.get(post_id, 0) + 1
-                elem.clear()
-            proc_comments.stdout.close()
-            proc_comments.wait()
+            with stream_posts_from_7z(archive_path, "Comments.xml") as context:
+                for _, elem in context:
+                    if elem.tag == "row":
+                        post_id = elem.attrib.get("PostId")
+                        if post_id in posts_to_track:
+                            comments_to_write.append(elem.attrib)
+                            comment_counter[post_id] = comment_counter.get(post_id, 0) + 1
+                    elem.clear()
 
             final_batch = []
 
