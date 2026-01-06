@@ -5,7 +5,7 @@ import pandas as pd
 from datetime import datetime
 
 import logging
-from paths import DATA_MINING_S2, DUMP_MINING_LOG_FILE, LLM_CLASSIFICATION, LLM_SUMMARIZATION, RELEATED_TAGS_DIR, DUMP, SITES
+from paths import DATA_MINING_S2, DUMP_MINING_LOG_FILE, RELEATED_TAGS_DIR, DUMP, SITES
 import io
 import subprocess
 import xml.etree.ElementTree as ET
