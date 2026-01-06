@@ -3,9 +3,8 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from s1_get_main_tag import main as run_1_get_main_tag
 from s2_calculate_tag_heuristics import main as run_2_calculate_tag_heuristics
-from s4_get_posts import main as run_4_get_posts
-from s5_get_connected_posts import main as run_5_get_connected_posts
-from s6_filter_posts import main as run_6_filter_posts
+from s3_get_full_posts import main as run_4_get_posts
+from s4_filter_posts import main as run_6_filter_posts
 from utils_global import get_logger
 from paths import DUMP_MINING_LOG_FILE
 from utils_global import ensure_parent_dir, count_posts_comments_in_dumps
@@ -31,18 +30,14 @@ def run_full_pipeline():
     run_1_get_main_tag()
 
     logger.info(
-        "\n=== ETAPA 2 & 3: Calculando Heurísticas (H1, H2) e filtrando tags por site ===")
+        "\n=== ETAPA 2: Calculando Heurísticas (H1, H2) e filtrando tags por site ===")
     run_2_calculate_tag_heuristics()
 
     logger.info(
-        "\n=== ETAPA 4: Coletando posts completos com base nas tags filtradas ===")
+        "\n=== ETAPA 3: Coletando posts completos com base nas tags filtradas ===")
     run_4_get_posts()
 
-    logger.info(
-        "\n=== ETAPA 5: Conectando perguntas com suas respectivas respostas ===")
-    run_5_get_connected_posts()
-
-    logger.info("\n=== ETAPA 6: Filtrando posts por popularidade ===")
+    logger.info("\n=== ETAPA 4: Filtrando posts por popularidade ===")
     run_6_filter_posts()
 
     logger.info("\n##### PIPELINE DE MINERAÇÃO DE DADOS CONCLUÍDO #####")
