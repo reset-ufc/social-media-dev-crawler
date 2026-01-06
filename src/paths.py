@@ -4,11 +4,6 @@ from pathlib import Path
 # Using: https://archive.org/details/stackexchange_20250930
 
 
-def get_releated_tags_path(site_alias: str) -> Path:
-    """Retorna o caminho para o arquivo de tags relacionadas de um site específico."""
-    return RELEATED_TAGS_DIR / f"{site_alias}_releated_tags.csv"
-
-
 QUESTION_TAG = "cryptography"
 
 THRE1 = 0.2
@@ -43,10 +38,6 @@ QUESTION_TAGS = {
 DUMP_POST_PATH = DUMP / "Posts.xml"
 
 COARSE_QUESTIONS = DATA_MINING_S1 / "questions_dump.csv"
-
-RELEATED_TAGS_DIR = DATA_MINING_S1 / "releated_tags"
-RELEATED_TAGS = RELEATED_TAGS_DIR / "releated_tags.csv"  
-
 R_TAGS = DATA_MINING_S1 / "releated_tags.csv"
 
 
