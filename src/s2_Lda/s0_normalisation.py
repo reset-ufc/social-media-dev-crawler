@@ -74,22 +74,37 @@ def strip_html_and_remove_code(text: str) -> str:
     return cleaned
 
 
+import string
+
+PUNCT_TO_REMOVE = string.punctuation.replace("_", "").replace("-", "")
+
 def tokenize_and_lemmatize(text: str) -> List[str]:
     text = strip_html_and_remove_code(text)
     if not text:
         return []
+    
+    # remove sinais comuns de pontuação do texto
+    text = text.translate(str.maketrans("", "", PUNCT_TO_REMOVE))
 
     doc = _NLP(text)
 
     tokens = []
     for t in doc:
+        lemma = t.lemma_.lower()
+
+        # remover tokens puramente numéricos
+        if lemma.isnumeric():
+            continue
+
+        # remover tokens só de pontuação
+        if all(ch in PUNCT_TO_REMOVE for ch in lemma):
+            continue
+
         if (
             t.pos_ in ALLOWED_POS
-            and t.lemma_.lower() not in _STOPWORDS
-            and t.is_alpha
-            and len(t.lemma_) > 2
+            and lemma not in _STOPWORDS
         ):
-            tokens.append(t.lemma_.lower())
+            tokens.append(lemma)
 
     return tokens
 
@@ -104,11 +119,9 @@ def normalize_corpora_from_posts(df: pd.DataFrame, body_field: str = 'body') -> 
     # Tokenize + lemmatize
     token_lists = df[body_field].map(tokenize_and_lemmatize)
 
-    # -----------------------------------------------------------------------
     # Bigrams + Trigrams
-    # -----------------------------------------------------------------------
-    bigram = Phrases(token_lists, min_count=5, threshold=10)
-    trigram = Phrases(bigram[token_lists], min_count=5, threshold=10)
+    bigram = Phrases(token_lists)
+    trigram = Phrases(bigram[token_lists])
 
     bigram_mod = Phraser(bigram)
     trigram_mod = Phraser(trigram)

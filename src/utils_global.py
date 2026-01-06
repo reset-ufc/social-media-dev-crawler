@@ -16,6 +16,30 @@ import scipy.stats as st
 import numpy as np
 from paths import *
 
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def stream_posts_from_7z(archive_path, posts_filename="Posts.xml"):
+    """
+    Abre Posts.xml dentro de um .7z em streaming usando pipe.
+    """
+
+    cmd = ["7z", "e", archive_path, posts_filename, "-so"]
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    try:
+        context = ET.iterparse(process.stdout, events=("end",))
+        yield context
+    finally:
+        if process.stdout:
+            process.stdout.close()
+        process.wait()
+
+
+
+
 def ensure_parent_dir(path):
     parent = os.path.dirname(path)
     if parent and not os.path.exists(parent):
