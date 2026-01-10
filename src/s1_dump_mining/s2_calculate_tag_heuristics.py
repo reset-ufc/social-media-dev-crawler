@@ -1,5 +1,3 @@
-from utils_global import *
-from paths import *
 import sys
 import os
 import xml.etree.ElementTree as ET
@@ -10,6 +8,8 @@ from typing import Tuple, Dict, Optional
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from utils_global import *
+from paths import *
 
 logger = get_logger(__name__)
 
@@ -250,8 +250,8 @@ def process_all_sites(
 
 def test_threshold_combinations() -> None:
     """Test various threshold combinations and save results to separate files."""
-    TREH1 = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30]
-    TREH2 = [0.001, 0.002, 0.005, 0.010, 0.015, 0.020, 0.30]
+    _TREH1 = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30]
+    _TREH2 = [0.001, 0.002, 0.005, 0.010, 0.015, 0.020, 0.30]
 
     base_dir = os.path.dirname(COARSE_QUESTIONS)
     threshold_dir = os.path.join(base_dir, "treshold_combinations")
@@ -259,7 +259,7 @@ def test_threshold_combinations() -> None:
 
     logger.info("=" * 80)
     logger.info("STARTING THRESHOLD TESTS")
-    logger.info(f"Total combinations: {len(THRE1) * len(TREH2)}")
+    logger.info(f"Total combinations: {len(_TREH1) * len(_TREH2)}")
     logger.info("=" * 80)
 
     logger.info("\nCollecting tags from all sites...")
@@ -275,7 +275,7 @@ def test_threshold_combinations() -> None:
     all_tag_metrics = calculate_tag_metrics(tag_data)
     logger.info(f"Total unique tags: {len(all_tag_metrics)}")
 
-    combinations = list(product(TREH1, TREH2))
+    combinations = list(product(_TREH1, _TREH2))
     combination_stats = {}
 
     for idx, (thr1, thr2) in enumerate(combinations, 1):
