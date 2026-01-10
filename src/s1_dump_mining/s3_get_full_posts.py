@@ -59,6 +59,8 @@ def process_site_unified(site_alias, site_name, related_tags):
     3. Coleta comentários de perguntas e respostas
     
     Retorna estatísticas do processamento.
+    
+    IMPORTANTE: question_id agora usa formato "site_alias:id" para evitar conflitos entre sites.
     """
     archive_path = os.path.join(DUMP, site_name)
     
@@ -71,12 +73,13 @@ def process_site_unified(site_alias, site_name, related_tags):
     logger.info(f"{'='*60}")
     
     # Estruturas de dados para armazenar informações
-    relevant_questions = {}  # question_id -> atributos da pergunta
+    relevant_questions = {}  # question_id_with_site (site:id) -> atributos da pergunta
     answers_data = []  # lista de atributos de respostas
-    answer_id_to_question_id = {}  # mapeia answer_id -> question_id
-    posts_to_track = set()  # IDs de perguntas e respostas para rastrear comentários
-    comment_counter = defaultdict(int)  # post_id -> contagem de comentários
+    answer_id_to_question_id = {}  # mapeia answer_id original -> question_id_with_site
+    posts_to_track = set()  # IDs originais de perguntas e respostas para rastrear comentários
+    comment_counter = defaultdict(int)  # post_id original -> contagem de comentários
     comments_data = []  # lista de atributos de comentários
+    id_to_question_with_site = {}  # mapeia ID original -> question_id_with_site (site:id)
     
     # PASSAGEM 1: Identificar perguntas relevantes
     logger.info("Fase 1/3: Identificando perguntas relevantes...")
@@ -101,12 +104,20 @@ def process_site_unified(site_alias, site_name, related_tags):
                 
                 # Se tem interseção com tags relacionadas
                 if not related_tags.isdisjoint(post_tags):
-                    question_id = elem.attrib.get("Id")
+                    question_id_original = elem.attrib.get("Id")
+                    question_id_with_site = f"{site_alias}:{question_id_original}"
                     
-                    relevant_questions[question_id] = {
+                    # Armazena mapeamento do ID original para o ID com site
+                    id_to_question_with_site[question_id_original] = question_id_with_site
+                    
+                    # Formata accepted_answer_id também com prefixo do site, se existir
+                    accepted_answer_id_original = elem.attrib.get("AcceptedAnswerId", "")
+                    accepted_answer_id = f"{site_alias}:{accepted_answer_id_original}" if accepted_answer_id_original else ""
+                    
+                    relevant_questions[question_id_with_site] = {
                         'tags': ";".join(post_tags),
-                        'question_id': question_id,
-                        'accepted_answer_id': elem.attrib.get("AcceptedAnswerId", ""),
+                        'question_id': question_id_with_site,
+                        'accepted_answer_id': accepted_answer_id,
                         'answer_count': elem.attrib.get("AnswerCount", "0"),
                         'creation_date': safe_date(elem.attrib.get("CreationDate", "")),
                         'last_activity_date': safe_date(elem.attrib.get("LastActivityDate", "")),
@@ -116,8 +127,9 @@ def process_site_unified(site_alias, site_name, related_tags):
                         'view_count': elem.attrib.get("ViewCount", "0"),
                         'title': elem.attrib.get("Title", ""),
                         'body': elem.attrib.get("Body", ""),
+                        'id_original': question_id_original,
                     }
-                    posts_to_track.add(question_id)
+                    posts_to_track.add(question_id_original)
                 
                 elem.clear()
         
@@ -149,15 +161,18 @@ def process_site_unified(site_alias, site_name, related_tags):
                     elem.clear()
                     continue
                 
-                parent_id = elem.attrib.get("ParentId")
+                parent_id_original = elem.attrib.get("ParentId")
                 
                 # Se a resposta é de uma pergunta relevante
-                if parent_id in relevant_questions:
-                    answer_id = elem.attrib.get("Id")
+                if parent_id_original in id_to_question_with_site:
+                    answer_id_original = elem.attrib.get("Id")
+                    answer_id_with_site = f"{site_alias}:{answer_id_original}"
+                    question_id_with_site = id_to_question_with_site[parent_id_original]
                     
                     answers_data.append({
-                        'answer_id': answer_id,
-                        'parent_id': parent_id,
+                        'answer_id': answer_id_with_site,
+                        'answer_id_original': answer_id_original,
+                        'parent_id': question_id_with_site,
                         'creation_date': safe_date(elem.attrib.get("CreationDate", "")),
                         'last_activity_date': safe_date(elem.attrib.get("LastActivityDate", "")),
                         'last_edit_date': safe_date(elem.attrib.get("LastEditDate", "")),
@@ -166,9 +181,9 @@ def process_site_unified(site_alias, site_name, related_tags):
                         'body': elem.attrib.get("Body", ""),
                     })
                     
-                    # Mapeia resposta -> pergunta e adiciona ao rastreamento
-                    answer_id_to_question_id[answer_id] = parent_id
-                    posts_to_track.add(answer_id)
+                    # Mapeia resposta original -> pergunta com site e adiciona ao rastreamento
+                    answer_id_to_question_id[answer_id_original] = question_id_with_site
+                    posts_to_track.add(answer_id_original)
                 
                 elem.clear()
         
@@ -186,20 +201,23 @@ def process_site_unified(site_alias, site_name, related_tags):
                 if elem.tag != "row":
                     continue
                 
-                post_id = elem.attrib.get("PostId")
+                post_id_original = elem.attrib.get("PostId")
                 
                 # Se é comentário de pergunta ou resposta relevante
-                if post_id in posts_to_track:
+                if post_id_original in posts_to_track:
+                    comment_id_original = elem.attrib.get("Id")
+                    comment_id_with_site = f"{site_alias}:{comment_id_original}"
+                    
                     comments_data.append({
-                        'comment_id': elem.attrib.get("Id"),
-                        'post_id': post_id,
+                        'comment_id': comment_id_with_site,
+                        'post_id_original': post_id_original,
                         'creation_date': safe_date(elem.attrib.get("CreationDate", "")),
                         'user_id': elem.attrib.get("UserId", ""),
                         'score': elem.attrib.get("Score", "0"),
                         'text': elem.attrib.get("Text", ""),
                     })
                     
-                    comment_counter[post_id] += 1
+                    comment_counter[post_id_original] += 1
                 
                 elem.clear()
         
@@ -213,12 +231,12 @@ def process_site_unified(site_alias, site_name, related_tags):
     final_batch = []
     
     # 1. Adicionar todas as perguntas
-    for qid, q in relevant_questions.items():
+    for qid_with_site, q in relevant_questions.items():
         final_batch.append([
             site_alias,
             q['tags'],
-            qid,
-            q['accepted_answer_id'],
+            qid_with_site,  # question_id com formato site:id
+            q['accepted_answer_id'],  # já está com formato site:id se existir
             q['answer_count'],
             q['creation_date'],
             q['last_activity_date'],
@@ -226,11 +244,11 @@ def process_site_unified(site_alias, site_name, related_tags):
             q['owner_id'],
             q['score'],
             q['view_count'],
-            comment_counter.get(qid, 0),  # contagem de comentários
+            comment_counter.get(q['id_original'], 0),  # contagem de comentários usando ID original
             q['title'],
             q['body'],
             site_name,
-            qid,
+            qid_with_site,  # id com formato site:id
             "question"
         ])
     
@@ -239,7 +257,7 @@ def process_site_unified(site_alias, site_name, related_tags):
         final_batch.append([
             site_alias,
             "",  # respostas não têm tags
-            a['parent_id'],  # question_id
+            a['parent_id'],  # question_id com formato site:id
             "",  # accepted_answer_id (não aplicável)
             "",  # answer_count (não aplicável)
             a['creation_date'],
@@ -248,26 +266,27 @@ def process_site_unified(site_alias, site_name, related_tags):
             a['owner_id'],
             a['score'],
             "",  # view_count (não aplicável)
-            comment_counter.get(a['answer_id'], 0),
+            comment_counter.get(a['answer_id_original'], 0),  # usando ID original para contar
             "",  # title (não aplicável)
             a['body'],
             site_name,
-            a['answer_id'],
+            a['answer_id'],  # id com formato site:id
             "answer"
         ])
     
     # 3. Adicionar todos os comentários
     for c in comments_data:
-        post_id = c['post_id']
+        post_id_original = c['post_id_original']
         
         # Determina a qual pergunta o comentário pertence
-        question_id = post_id if post_id in relevant_questions else answer_id_to_question_id.get(post_id)
+        question_id = (id_to_question_with_site.get(post_id_original) or 
+                      answer_id_to_question_id.get(post_id_original))
         
         if question_id:
             final_batch.append([
                 site_alias,
                 "",  # comentários não têm tags
-                question_id,
+                question_id,  # question_id com formato site:id
                 "",  # campos não aplicáveis
                 "",
                 c['creation_date'],
@@ -280,11 +299,10 @@ def process_site_unified(site_alias, site_name, related_tags):
                 "",  # title (não aplicável)
                 c['text'],
                 site_name,
-                c['comment_id'],
+                c['comment_id'],  # id com formato site:id
                 "comment"
             ])
     
-    # Gravar batch no CSV
     append_batch_to_csv(final_batch)
     logger.info(f"✓ Batch gravado com sucesso!")
     
@@ -307,10 +325,8 @@ def main():
         logger.error("Nenhuma tag relacionada encontrada. Abortando.")
         return
     
-    # Inicializar CSV de saída
     initialize_csv()
     
-    # Processar cada site
     site_stats = {}
     
     for site_alias, site_name in SITES.items():
