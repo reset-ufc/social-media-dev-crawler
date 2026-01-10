@@ -1,5 +1,5 @@
-from paths import *
 from utils_global import *
+from paths import *
 import sys
 import os
 import xml.etree.ElementTree as ET
@@ -10,6 +10,7 @@ from typing import Tuple, Dict, Optional
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+
 logger = get_logger(__name__)
 
 TAG_FEATURES = ['tag', 'b', 'a', 'h1', 'h2']
@@ -18,7 +19,7 @@ BATCH_SIZE = 10000
 
 def initiate_csv(output_path: Optional[str] = None) -> None:
     """Initialize CSV file with required tag columns.
-    
+
     Args:
         output_path: Output file path. Defaults to COARSE_QUESTIONS.
     """
@@ -34,7 +35,7 @@ def initiate_csv(output_path: Optional[str] = None) -> None:
 
 def append_batch(batch_rows: list, output_path: Optional[str] = None) -> None:
     """Append batch of rows to CSV file.
-    
+
     Args:
         batch_rows: List of rows to append.
         output_path: Output file path. Defaults to COARSE_QUESTIONS.
@@ -54,10 +55,10 @@ def append_batch(batch_rows: list, output_path: Optional[str] = None) -> None:
 
 def collect_tags_from_7z(site_alias: str) -> Tuple[Counter, Counter]:
     """Collect all tags from a site and count their occurrences.
-    
+
     Args:
         site_alias: Site alias to process.
-    
+
     Returns:
         Tuple containing:
         - all_tags_counter: Counter with counts of all tags in all posts
@@ -97,24 +98,26 @@ def collect_tags_from_7z(site_alias: str) -> Tuple[Counter, Counter]:
 
             elem.clear()
 
-    logger.info(f"[{site_alias}] Unique tags (all posts): {len(all_tags_counter)}")
-    logger.info(f"[{site_alias}] Unique tags (with {QUESTION_TAG}): {len(question_tags_counter)}")
-    
+    logger.info(
+        f"[{site_alias}] Unique tags (all posts): {len(all_tags_counter)}")
+    logger.info(
+        f"[{site_alias}] Unique tags (with {QUESTION_TAG}): {len(question_tags_counter)}")
+
     return all_tags_counter, question_tags_counter
 
 
 def calculate_tag_metrics(tag_data: Dict[str, Tuple[Counter, Counter]]) -> Dict[str, Dict[str, float]]:
     """Calculate metrics b, a, h1, h2 for each tag.
-    
+
     Metrics:
     - b: number of posts containing the tag (across all data)
     - a: number of posts containing both the tag and QUESTION_TAG
     - h1: a/b (proportion of posts with tag that also have QUESTION_TAG)
     - h2: a/c (proportion of tag relative to total posts with QUESTION_TAG)
-    
+
     Args:
         tag_data: Dictionary mapping site_alias to (all_tags_counter, question_tags_counter)
-    
+
     Returns:
         Dictionary with metrics per tag: {tag: {'b': x, 'a': y, 'h1': z, 'h2': w}}
     """
@@ -131,7 +134,8 @@ def calculate_tag_metrics(tag_data: Dict[str, Tuple[Counter, Counter]]) -> Dict[
         logger.warning("No posts with QUESTION_TAG found!")
         return {}
 
-    logger.info(f"Total posts with '{QUESTION_TAG}': {total_posts_with_question}")
+    logger.info(
+        f"Total posts with '{QUESTION_TAG}': {total_posts_with_question}")
 
     tag_metrics = {}
     for tag in global_question_tags.keys():
@@ -151,17 +155,22 @@ def filter_tags_by_thresholds(
     threshold2: Optional[float] = None
 ) -> Dict[str, Dict[str, float]]:
     """Filter tags based on h1 and h2 thresholds.
-    
+
     Args:
         tag_metrics: Dictionary with metrics per tag.
         threshold1: Minimum threshold for h1 (optional).
         threshold2: Minimum threshold for h2 (optional).
-    
+
     Returns:
         Dictionary with filtered tags.
     """
     if threshold1 is None and threshold2 is None:
         return tag_metrics
+
+    initial_count = len(tag_metrics)
+    removed_by_h1 = 0
+    removed_by_h2 = 0
+    removed_by_both = 0
 
     filtered = {}
     for tag, metrics in tag_metrics.items():
@@ -170,13 +179,27 @@ def filter_tags_by_thresholds(
 
         if passes_h1 and passes_h2:
             filtered[tag] = metrics
+        else:
+            if not passes_h1 and not passes_h2:
+                removed_by_both += 1
+            elif not passes_h1:
+                removed_by_h1 += 1
+            else:
+                removed_by_h2 += 1
+
+    logger.info(f"\nFiltering Statistics:")
+    logger.info(f"  Initial tags: {initial_count}")
+    logger.info(f"  Removed by h1 (h1 < {threshold1}): {removed_by_h1}")
+    logger.info(f"  Removed by h2 (h2 < {threshold2}): {removed_by_h2}")
+    logger.info(f"  Removed by both filters: {removed_by_both}")
+    logger.info(f"  Final tags: {len(filtered)}")
 
     return filtered
 
 
 def save_tags_to_csv(tag_metrics: Dict[str, Dict[str, float]], output_path: str) -> None:
     """Save tag metrics to CSV file.
-    
+
     Args:
         tag_metrics: Dictionary with metrics per tag.
         output_path: Output file path.
@@ -191,26 +214,19 @@ def save_tags_to_csv(tag_metrics: Dict[str, Dict[str, float]], output_path: str)
 
 
 def process_all_sites(
-    output_path: Optional[str] = None,
-    threshold1: Optional[float] = None,
-    threshold2: Optional[float] = None
-) -> int:
+    output_path = R_TAGS,
+    threshold1 = THRE1,
+    threshold2 = THRE2) -> int:
     """Process all sites and generate file with filtered tags.
-    
-    Args:
-        output_path: Output file path (optional).
-        threshold1: Threshold for h1 (optional).
-        threshold2: Threshold for h2 (optional).
-    
+
     Returns:
         Number of tags that passed the filters.
     """
-    if output_path is None:
-        output_path = COARSE_QUESTIONS
 
     tag_data = {}
     for site_alias in SITES.keys():
-        all_tags_counter, question_tags_counter = collect_tags_from_7z(site_alias)
+        all_tags_counter, question_tags_counter = collect_tags_from_7z(
+            site_alias)
         if all_tags_counter or question_tags_counter:
             tag_data[site_alias] = (all_tags_counter, question_tags_counter)
             logger.info(f"  └─ [{site_alias}] Tags collected")
@@ -220,8 +236,10 @@ def process_all_sites(
     logger.info(f"Total unique tags: {len(tag_metrics)}")
 
     if threshold1 is not None or threshold2 is not None:
-        logger.info(f"Applying filters: h1 >= {threshold1}, h2 >= {threshold2}")
-        tag_metrics = filter_tags_by_thresholds(tag_metrics, threshold1, threshold2)
+        logger.info(
+            f"Applying filters: h1 >= {threshold1}, h2 >= {threshold2}")
+        tag_metrics = filter_tags_by_thresholds(
+            tag_metrics, threshold1, threshold2)
         logger.info(f"Tags after filtering: {len(tag_metrics)}")
 
     initiate_csv(output_path)
@@ -232,22 +250,23 @@ def process_all_sites(
 
 def test_threshold_combinations() -> None:
     """Test various threshold combinations and save results to separate files."""
-    THRE1 = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30]
-    THRE2 = [0.001, 0.002, 0.005, 0.010, 0.015, 0.020, 0.30]
+    TREH1 = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30]
+    TREH2 = [0.001, 0.002, 0.005, 0.010, 0.015, 0.020, 0.30]
 
     base_dir = os.path.dirname(COARSE_QUESTIONS)
-    threshold_dir = os.path.join(base_dir, "trhs")
+    threshold_dir = os.path.join(base_dir, "treshold_combinations")
     os.makedirs(threshold_dir, exist_ok=True)
 
     logger.info("=" * 80)
     logger.info("STARTING THRESHOLD TESTS")
-    logger.info(f"Total combinations: {len(THRE1) * len(THRE2)}")
+    logger.info(f"Total combinations: {len(THRE1) * len(TREH2)}")
     logger.info("=" * 80)
 
     logger.info("\nCollecting tags from all sites...")
     tag_data = {}
     for site_alias in SITES.keys():
-        all_tags_counter, question_tags_counter = collect_tags_from_7z(site_alias)
+        all_tags_counter, question_tags_counter = collect_tags_from_7z(
+            site_alias)
         if all_tags_counter or question_tags_counter:
             tag_data[site_alias] = (all_tags_counter, question_tags_counter)
             logger.info(f"  └─ [{site_alias}] Tags collected")
@@ -256,7 +275,7 @@ def test_threshold_combinations() -> None:
     all_tag_metrics = calculate_tag_metrics(tag_data)
     logger.info(f"Total unique tags: {len(all_tag_metrics)}")
 
-    combinations = list(product(THRE1, THRE2))
+    combinations = list(product(TREH1, TREH2))
     combination_stats = {}
 
     for idx, (thr1, thr2) in enumerate(combinations, 1):
@@ -265,7 +284,8 @@ def test_threshold_combinations() -> None:
         output_filename = f"TRH1_{thr1_str}_TRH2_{thr2_str}.csv"
         output_path = os.path.join(threshold_dir, output_filename)
 
-        logger.info(f"\n[{idx}/{len(combinations)}] Processing TRH1={thr1}, TRH2={thr2}")
+        logger.info(
+            f"\n[{idx}/{len(combinations)}] Processing TRH1={thr1}, TRH2={thr2}")
         logger.info(f"File: {output_filename}")
 
         filtered_tags = filter_tags_by_thresholds(all_tag_metrics, thr1, thr2)
@@ -295,7 +315,7 @@ def test_threshold_combinations() -> None:
 
 def _generate_summary_reports(combination_stats: Dict, threshold_dir: str) -> None:
     """Generate summary reports for threshold test results.
-    
+
     Args:
         combination_stats: Dictionary with statistics per combination.
         threshold_dir: Directory to save reports.
@@ -313,38 +333,45 @@ def _generate_summary_reports(combination_stats: Dict, threshold_dir: str) -> No
     logger.info(f"\nCOMBINATION WITH MOST TAGS:")
     logger.info(f"   {max_comb[0]}")
     logger.info(f"   Number of tags: {max_comb[1]['num_tags']}")
-    logger.info(f"   Thresholds: h1 >= {max_comb[1]['thr1']}, h2 >= {max_comb[1]['thr2']}")
+    logger.info(
+        f"   Thresholds: h1 >= {max_comb[1]['thr1']}, h2 >= {max_comb[1]['thr2']}")
 
     min_comb = sorted_combinations[0]
     logger.info(f"\nCOMBINATION WITH FEWEST TAGS:")
     logger.info(f"   {min_comb[0]}")
     logger.info(f"   Number of tags: {min_comb[1]['num_tags']}")
-    logger.info(f"   Thresholds: h1 >= {min_comb[1]['thr1']}, h2 >= {min_comb[1]['thr2']}")
+    logger.info(
+        f"   Thresholds: h1 >= {min_comb[1]['thr1']}, h2 >= {min_comb[1]['thr2']}")
 
     median_idx = len(sorted_combinations) // 2
     median_comb = sorted_combinations[median_idx]
     logger.info(f"\nMEDIAN COMBINATION:")
     logger.info(f"   {median_comb[0]}")
     logger.info(f"   Number of tags: {median_comb[1]['num_tags']}")
-    logger.info(f"   Thresholds: h1 >= {median_comb[1]['thr1']}, h2 >= {median_comb[1]['thr2']}")
+    logger.info(
+        f"   Thresholds: h1 >= {median_comb[1]['thr1']}, h2 >= {median_comb[1]['thr2']}")
 
     logger.info("\n" + "=" * 80)
 
-    comparison_path = os.path.join(threshold_dir, "combinations_comparison.csv")
+    comparison_path = os.path.join(
+        threshold_dir, "combinations_comparison.csv")
     logger.info(f"\nCreating comparison file: {comparison_path}")
 
-    max_tags_length = max(len(stats['tags']) for stats in combination_stats.values())
+    max_tags_length = max(len(stats['tags'])
+                          for stats in combination_stats.values())
 
     comparison_data = {}
     for comb_name, stats in sorted(combination_stats.items()):
-        tags_list = stats['tags'] + [''] * (max_tags_length - len(stats['tags']))
+        tags_list = stats['tags'] + [''] * \
+            (max_tags_length - len(stats['tags']))
         comparison_data[comb_name] = tags_list
 
     comparison_df = pd.DataFrame(comparison_data)
     comparison_df.to_csv(comparison_path, index=False, encoding='utf-8')
 
     logger.info(f"✓ Comparison file created successfully")
-    logger.info(f"  Dimensions: {comparison_df.shape[0]} rows × {comparison_df.shape[1]} columns")
+    logger.info(
+        f"  Dimensions: {comparison_df.shape[0]} rows × {comparison_df.shape[1]} columns")
 
     summary_path = os.path.join(threshold_dir, "combinations_summary.csv")
     summary_data = [
