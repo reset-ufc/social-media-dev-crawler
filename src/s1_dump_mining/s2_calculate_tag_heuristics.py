@@ -140,6 +140,9 @@ def test_threshold_combinations():
     # Gerar todas as combinações de thresholds
     combinations = list(product(THRE1, THRE2))
     
+    # Dicionário para armazenar estatísticas de cada combinação
+    combination_stats = {}
+    
     for idx, (thr1, thr2) in enumerate(combinations, 1):
         # Formatar os valores para nomes de arquivo (substituir ponto por underscore se necessário)
         thr1_str = f"{thr1:.3f}".replace(".", "_")
@@ -167,11 +170,109 @@ def test_threshold_combinations():
             total_posts += posts
         
         logger.info(f"Total de posts para TRH1={thr1}, TRH2={thr2}: {total_posts}")
+        
+        # Coletar tags únicas desta combinação
+        try:
+            df = pd.read_csv(output_path)
+            all_tags = set()
+            for tags_str in df['tags'].dropna():
+                tags = tags_str.split(';')
+                all_tags.update(tags)
+            
+            num_unique_tags = len(all_tags)
+            combination_key = f"TRH1_{thr1:.3f}_TRH2_{thr2:.3f}"
+            combination_stats[combination_key] = {
+                'thr1': thr1,
+                'thr2': thr2,
+                'num_tags': num_unique_tags,
+                'tags': sorted(all_tags),
+                'total_posts': total_posts
+            }
+            
+            logger.info(f"Tags únicas: {num_unique_tags}")
+        except Exception as e:
+            logger.error(f"Erro ao processar tags: {e}")
     
     logger.info("\n" + "=" * 80)
     logger.info("TESTES DE THRESHOLDS CONCLUÍDOS")
     logger.info(f"Arquivos salvos em: {threshold_dir}")
     logger.info("=" * 80)
+    
+    # Criar sumarização
+    if combination_stats:
+        logger.info("\n" + "=" * 80)
+        logger.info("SUMARIZAÇÃO DOS RESULTADOS")
+        logger.info("=" * 80)
+        
+        # Ordenar por número de tags
+        sorted_combinations = sorted(
+            combination_stats.items(), 
+            key=lambda x: x[1]['num_tags']
+        )
+        
+        # Combinação com mais tags
+        max_comb = sorted_combinations[-1]
+        logger.info(f"\n🔝 COMBINAÇÃO COM MAIS TAGS:")
+        logger.info(f"   {max_comb[0]}")
+        logger.info(f"   Número de tags: {max_comb[1]['num_tags']}")
+        logger.info(f"   Total de posts: {max_comb[1]['total_posts']}")
+        
+        # Combinação com menos tags
+        min_comb = sorted_combinations[0]
+        logger.info(f"\n🔻 COMBINAÇÃO COM MENOS TAGS:")
+        logger.info(f"   {min_comb[0]}")
+        logger.info(f"   Número de tags: {min_comb[1]['num_tags']}")
+        logger.info(f"   Total de posts: {min_comb[1]['total_posts']}")
+        
+        # Combinação mediana
+        median_idx = len(sorted_combinations) // 2
+        median_comb = sorted_combinations[median_idx]
+        logger.info(f"\n📊 COMBINAÇÃO MEDIANA:")
+        logger.info(f"   {median_comb[0]}")
+        logger.info(f"   Número de tags: {median_comb[1]['num_tags']}")
+        logger.info(f"   Total de posts: {median_comb[1]['total_posts']}")
+        
+        logger.info("\n" + "=" * 80)
+        
+        # Criar arquivo de comparação
+        comparison_path = os.path.join(threshold_dir, "combinations_comparison.csv")
+        logger.info(f"\nCriando arquivo de comparação: {comparison_path}")
+        
+        # Encontrar o número máximo de tags para definir o tamanho do DataFrame
+        max_tags_length = max(len(stats['tags']) for stats in combination_stats.values())
+        
+        # Criar dicionário para o DataFrame
+        comparison_data = {}
+        for comb_name, stats in sorted(combination_stats.items()):
+            # Preencher com tags e completar com NaN se necessário
+            tags_list = stats['tags'] + [''] * (max_tags_length - len(stats['tags']))
+            comparison_data[comb_name] = tags_list
+        
+        # Criar e salvar DataFrame
+        comparison_df = pd.DataFrame(comparison_data)
+        comparison_df.to_csv(comparison_path, index=False, encoding='utf-8')
+        
+        logger.info(f"✓ Arquivo de comparação criado com sucesso")
+        logger.info(f"  Dimensões: {comparison_df.shape[0]} linhas × {comparison_df.shape[1]} colunas")
+        
+        # Criar também um arquivo de sumário com estatísticas
+        summary_path = os.path.join(threshold_dir, "combinations_summary.csv")
+        summary_data = []
+        for comb_name, stats in sorted(combination_stats.items()):
+            summary_data.append({
+                'combination': comb_name,
+                'threshold1': stats['thr1'],
+                'threshold2': stats['thr2'],
+                'num_unique_tags': stats['num_tags'],
+                'total_posts': stats['total_posts']
+            })
+        
+        summary_df = pd.DataFrame(summary_data)
+        summary_df = summary_df.sort_values('num_unique_tags', ascending=False)
+        summary_df.to_csv(summary_path, index=False, encoding='utf-8')
+        
+        logger.info(f"✓ Arquivo de sumário criado: {summary_path}")
+        logger.info("=" * 80)
 
 
 def main():
