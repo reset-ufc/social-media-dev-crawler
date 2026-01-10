@@ -1,11 +1,10 @@
+import csv
+from utils_global import get_logger
+from paths import CONNECTED_POSTS, FILTRED_POSTS
+import pandas as pd
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import pandas as pd
-from paths import CONNECTED_POSTS, FILTRED_POSTS
-from utils_global import get_logger
-import csv
 
 
 logger = get_logger(__name__)
@@ -34,7 +33,7 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
         logger.error(f"ERRO ao ler o arquivo {input_csv}: {e}", exc_info=True)
         return
 
-    for col in ['answer_count', 'view_count', 'score', 'comment_count']:
+    for col in ['answer_count', 'view_count', 'score', 'comment_count', 'favorite_count']:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
         else:
@@ -43,7 +42,8 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
     # Lógica para remover perguntas com apenas uma auto-resposta ---
     logger.info("Verificando perguntas com apenas uma auto-resposta...")
     df['owner_id'] = df['owner_id'].astype(str)
-    questions_one_answer = df[(df['type'] == 'question') & (df['answer_count'] == 1)].copy()
+    questions_one_answer = df[(df['type'] == 'question') & (
+        df['answer_count'] == 1)].copy()
 
     if not questions_one_answer.empty:
         # 2. Isola todas as respostas
@@ -59,10 +59,12 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
         )
 
         # 4. Identifica os IDs das perguntas onde o autor é o mesmo
-        self_answered_ids = set(merged[merged['owner_id_q'] == merged['owner_id_a']]['id'])
+        self_answered_ids = set(
+            merged[merged['owner_id_q'] == merged['owner_id_a']]['id'])
 
         if self_answered_ids:
-            logger.info(f"Encontradas e removidas {len(self_answered_ids)} perguntas que continham apenas uma auto-resposta.")
+            logger.info(
+                f"Encontradas e removidas {len(self_answered_ids)} perguntas que continham apenas uma auto-resposta.")
             # 5. Remove todos os posts (perguntas, respostas, comentários) relacionados a esses IDs
             df = df[~df['question_id'].isin(self_answered_ids)]
     # --- Fim da lógica de remoção ---
@@ -70,8 +72,8 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
     df_questions = df[df['type'] == 'question'].copy()
     logger.info(f"Encontradas {len(df_questions)} perguntas no total.")
 
-    # Garante que todas as colunas numéricas existem
-    for col in ['answer_count', 'view_count', 'score', 'comment_count']:
+    # Garante que todas as colunas numéricas existem (inclui favorite_count)
+    for col in ['answer_count', 'view_count', 'score', 'comment_count', 'favorite_count']:
         if col not in df_questions.columns:
             df_questions[col] = 0
 
@@ -80,7 +82,7 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
         return
 
     questions_q = df_questions[[
-        'answer_count', 'view_count', 'score', 'comment_count']].quantile(percentile)
+        'answer_count', 'view_count', 'score', 'comment_count', 'favorite_count']].quantile(percentile)
     logger.info(f"Limiares de popularidade (percentil {percentile*100}%):")
     logger.info(f"\n{questions_q.to_string()}")
 
@@ -89,7 +91,8 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
         (df_questions['answer_count'] >= questions_q['answer_count']) &
         (df_questions['view_count'] >= questions_q['view_count']) &
         (df_questions['score'] >= questions_q['score']) &
-        (df_questions['comment_count'] >= questions_q['comment_count'])
+        (df_questions['comment_count'] >= questions_q['comment_count']) &
+        (df_questions['favorite_count'] >= questions_q['favorite_count'])
     ]
 
     logger.info(f"Encontradas {len(popular_questions)} questões populares.\n")
