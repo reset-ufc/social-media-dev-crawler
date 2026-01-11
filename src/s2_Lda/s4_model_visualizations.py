@@ -101,51 +101,16 @@ def stat_plots(model_path):
         traceback.print_exc()
         plt.close('all') 
 
-def words_per_topic(model_path, num_words: int = 20) -> str:
-    """
-    Extrai e salva as palavras mais importantes de cada tópico.
-    
-    Correções:
-    - Usa Path objects consistentemente
-    - Garante que o diretório existe
-    - Adiciona tratamento de erros
-    - Retorna caminho do arquivo salvo
-    """
-    try:
-        model = LdaModel.load(str(model_path / TRAINED_LDA))
-        formatted_topics = []
-        
-        for topic_id in range(model.num_topics):
-            top_terms = model.show_topic(topic_id, topn=num_words)
-            top_terms = sorted(top_terms, key=lambda x: x[1], reverse=True)
-            terms_str = ", ".join(
-                [f'word: "{word}" weight: ({weight:.3f})' for word, weight in top_terms]
-            )
-            formatted_topics.append(f"Topic {topic_id}: [{terms_str}]")
-        
-        Path(model_path).mkdir(parents=True, exist_ok=True)
-        
-        output_path = Path(model_path) / 'topics.txt'
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write("\n".join(formatted_topics))
-        
-        print(f"✓ Tópicos salvos em: {output_path}")
-        return str(output_path)
-        
-    except Exception as e:
-        print(f"✗ Erro ao extrair palavras dos tópicos: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
 
 if __name__ == '__main__':
     print("\n[1/16] Processando modelo principal...")
     main_path = MODELS / 'main'
-    words_per_topic(main_path)
+    stat_plots(main_path)
     for c in range(15):
         print(f"\n[{c+2}/16] Processando modelo t{c}...")
         path = MODELS / f't{c}'
-        words_per_topic(path)
+        stat_plots(path)
+
     
     print("\n" + "=" * 60)
     print("Processamento concluído!")
