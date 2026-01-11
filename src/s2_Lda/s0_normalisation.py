@@ -33,6 +33,36 @@ _NLP = spacy.load('en_core_web_sm', disable=['ner', 'parser'])
 _STOPWORDS = set(stopwords.words("english"))
 _STOPWORDS.update(spacy.lang.en.stop_words.STOP_WORDS)
 
+
+# Extend stop words
+STACKEXCHANGE_STOPWORDS = {
+    "answer", "question", "post", "comment", "comments", "reply", "replies",
+    "op", "edit", "edited", "link", "links", "thread", "update", "updates",
+    "solution", "issue", "issues", "discussion", "discussions"
+}
+DISCOURSE_STOPWORDS = {
+    "work", "works", "working",
+    "find", "found", "finding",
+    "use", "uses", "using", "used",
+    "make", "makes", "made",
+    "get", "gets", "getting", "got",
+    "try", "tries", "trying",
+    "know", "knows", "knowing",
+    "need", "needs", "needed",
+    "want", "wants", "wanted",
+    "good", "better", "best",
+    "thing", "things",
+    "point", "points",
+    "problem", "problems",
+    "case", "cases",
+    "example", "examples",
+    "people", "someone", "anyone", "everyone"
+}
+
+_STOPWORDS.update(STACKEXCHANGE_STOPWORDS)
+_STOPWORDS.update(DISCOURSE_STOPWORDS)
+
+
 ALLOWED_POS = {"NOUN", "VERB", "ADJ", "ADV"}
 
 
@@ -97,6 +127,10 @@ def tokenize_and_lemmatize(text: str) -> List[str]:
     for t in doc:
         lemma = t.lemma_.lower()
 
+        # --- Kill spaCy's bad lemmatization of "data" -> "datum"
+        if lemma == "datum":
+            continue
+
         # Skip purely numeric tokens
         if lemma.isnumeric():
             continue
@@ -105,12 +139,16 @@ def tokenize_and_lemmatize(text: str) -> List[str]:
         if all(ch in PUNCT_TO_REMOVE for ch in lemma):
             continue
 
+        # Drop weak verbs that survived stopword filtering
+        if t.pos_ == "VERB" and lemma in DISCOURSE_STOPWORDS:
+            continue
+
         # Keep only allowed POS tags and non-stopwords
         # Also filter out very short tokens (less than 2 chars)
         if (
             t.pos_ in ALLOWED_POS
             and lemma not in _STOPWORDS
-            and len(lemma) >= 2  # IMPROVEMENT: Filter very short tokens
+            and len(lemma) >= 2
         ):
             tokens.append(lemma)
 
