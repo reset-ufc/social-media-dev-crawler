@@ -233,7 +233,7 @@ def process_all_sites(
 
     logger.info("\nCalculating tag metrics...")
     tag_metrics = calculate_tag_metrics(tag_data)
-    logger.info(f"Total unique tags: {len(tag_metrics)}")
+    logger.info(f"Total unique tags with cryptography: {len(tag_metrics)}")
 
     if threshold1 is not None or threshold2 is not None:
         logger.info(
