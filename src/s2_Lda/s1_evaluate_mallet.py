@@ -30,7 +30,7 @@ logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-# ============ DEFAULT CONFIGURATION CONSTANTS ============
+
 DEFAULT_NO_BELOW = 5
 DEFAULT_NO_ABOVE = 0.5
 DEFAULT_TOPIC_RANGE = range(1, 25+1)
@@ -40,10 +40,9 @@ DEFAULT_RANDOM_STATE = 7562
 DEFAULT_LDA_BETA = 0.01
 DEFAULT_WORKERS = 4
 
-# Tuning grid search parameters
 TUNING_ALPHAS = [0.001, 0.01, 0.1, 0.5, 1]
 TUNING_BETAS = [0.001, 0.01, 0.1, 0.5, 1]
-# =========================================================
+
 
 
 def _default_mallet_home():
@@ -70,7 +69,6 @@ def calculate_perplexity_from_mallet(model, bow_corpus):
             doc_topic_dist = dict(doc_topics[doc_idx])
             
             for word_id, word_count in doc:
-                # P(word|doc) = sum_k P(word|topic_k) * P(topic_k|doc)
                 word_prob = 0
                 for topic_id in range(model.num_topics):
                     topic_prob = doc_topic_dist.get(topic_id, 0)
@@ -84,7 +82,6 @@ def calculate_perplexity_from_mallet(model, bow_corpus):
         if total_words == 0:
             return float('nan')
         
-        # Perplexity = exp(-log_likelihood / total_words)
         perplexity = np.exp(-total_log_likelihood / total_words)
         return float(perplexity)
         
@@ -99,7 +96,6 @@ def calculate_perplexity_alternative(model, bow_corpus):
     Mais rápido mas pode ser menos preciso para modelos Mallet convertidos.
     """
     try:
-        # Tenta usar o método bound do gensim
         per_word_bound = model.bound(bow_corpus) / sum(cnt for doc in bow_corpus for _, cnt in doc)
         perplexity = np.exp2(-per_word_bound)
         return float(perplexity)
@@ -226,10 +222,7 @@ def find_best_model(
             score = cm.get_coherence()
             scores.append(score)
 
-            # CORREÇÃO: Usar o método robusto para calcular perplexidade
             perp = calculate_perplexity_from_mallet(model, bow_corpus)
-            
-            # Se falhar, tentar método alternativo
             if np.isnan(perp):
                 perp = calculate_perplexity_alternative(model, bow_corpus)
             
@@ -253,7 +246,6 @@ def find_best_model(
         except Exception as e:
             logger.exception(
                 "Model training failed for configuration", exc_info=e)
-            # keep alignment for plotting when training fails
             perplexities.append(float('nan'))
 
     if best_model is None:
@@ -269,7 +261,7 @@ def find_best_model(
         plt.grid(True, linestyle='--', alpha=0.6)
         plt.savefig(str(model_path/'coherence_plot.png'))
 
-        # Perplexity plot - filtrar NaN antes de plotar
+        # Perplexity plot 
         valid_perplexities = [(k, p) for k, p in zip(topic_range, perplexities) if not np.isnan(p)]
         if valid_perplexities:
             valid_k, valid_p = zip(*valid_perplexities)
@@ -302,11 +294,10 @@ def evaluate_model(
     lda_beta: Optional[float] = DEFAULT_LDA_BETA,
     coherence: str = DEFAULT_COHERENCE,
 ):
-    # resolve MALLET
+
     mallet_home = _default_mallet_home()
     mallet_path = os.path.join(mallet_home, "bin", "mallet")
 
-    # Start model folder
     model_path.mkdir(parents=True, exist_ok=True)
 
     if not os.path.exists(mallet_path):
@@ -323,7 +314,6 @@ def evaluate_model(
 
     topic_range = list(topic_range)
 
-    # If tuning requested, use the grid-search tuner function and return early
     if tuning:
         model, best_config = find_best_model_tunning(
             texts=texts,
@@ -366,13 +356,9 @@ def evaluate_model(
             random_seed=random_state
         )
 
-        # convert ALWAYS
         model = malletmodel2ldamodel(mallet_model)
         
-        # CORREÇÃO: Usar o método robusto para calcular perplexidade
         perp = calculate_perplexity_from_mallet(model, bow_corpus)
-        
-        # Se falhar, tentar método alternativo
         if np.isnan(perp):
             perp = calculate_perplexity_alternative(model, bow_corpus)
 
@@ -461,10 +447,7 @@ def find_best_model_tunning(
                         texts), dictionary=dictionary, coherence=coherence)
                     score = cm.get_coherence()
 
-                    # CORREÇÃO: Usar o método robusto para calcular perplexidade
                     perp = calculate_perplexity_from_mallet(model, bow_corpus)
-                    
-                    # Se falhar, tentar método alternativo
                     if np.isnan(perp):
                         perp = calculate_perplexity_alternative(model, bow_corpus)
 
