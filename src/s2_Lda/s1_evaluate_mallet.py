@@ -100,6 +100,43 @@ def calculate_perplexity_alternative(model, bow_corpus):
         return float('nan')
 
 
+def words_per_topic(model_path, num_words: int = 20) -> str:
+    """
+    Extrai e salva as palavras mais importantes de cada tópico.
+    
+    Args:
+        model_path: Caminho do diretório do modelo
+        num_words: Número de palavras por tópico (padrão: 20)
+    
+    Returns:
+        Caminho do arquivo salvo ou None em caso de erro
+    """
+    try:
+        model = LdaModel.load(str(model_path / TRAINED_LDA))
+        formatted_topics = []
+        
+        for topic_id in range(model.num_topics):
+            top_terms = model.show_topic(topic_id, topn=num_words)
+            top_terms = sorted(top_terms, key=lambda x: x[1], reverse=True)
+            terms_str = ", ".join(
+                [f'word: "{word}" weight: ({weight:.3f})' for word, weight in top_terms]
+            )
+            formatted_topics.append(f"Topic {topic_id}: [{terms_str}]")
+        
+        Path(model_path).mkdir(parents=True, exist_ok=True)
+        
+        output_path = Path(model_path) / 'topics.txt'
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write("\n".join(formatted_topics))
+        
+        logger.info(f"Topics saved to: {output_path}")
+        return str(output_path)
+        
+    except Exception as e:
+        logger.exception(f"Failed to extract topic words: {e}")
+        return None
+
+
 def train_mallet_with_beta(
     mallet_path,
     corpus,
@@ -152,8 +189,10 @@ def train_mallet_with_beta(
     logger.info(
         f"Training MALLET LDA: topics={num_topics}, alpha={alpha}, beta={beta}, seed={random_seed}")
 
+    # Executar treinamento
     subprocess.check_call(cmd)
 
+    # Carregar word-topics
     model.word_topics = model.load_word_topics()
     model.wordtopics = model.word_topics
 
@@ -195,7 +234,7 @@ def find_best_model(
 
     for num_topics in topic_range:
         logger.info(f"Testing num_topics={num_topics}")
-        alpha = 50.0 / num_topics  
+        alpha = 50.0 / num_topics  # Fixed formula
 
         try:
             mallet_model = train_mallet_with_beta(
@@ -361,6 +400,11 @@ def evaluate_model(
 
         logger.info("Model saved successfully")
         logger.info(f"Best configuration: {best_config}")
+        
+        # Extrair e salvar palavras mais importantes de cada tópico
+        topics_file = words_per_topic(model_path, num_words=20)
+        if topics_file:
+            logger.info(f"Topic words saved to: {topics_file}")
 
     except Exception as e:
         logger.exception("Failed to save trained model artifacts", exc_info=e)
