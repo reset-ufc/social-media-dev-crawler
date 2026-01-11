@@ -78,12 +78,17 @@ import string
 
 PUNCT_TO_REMOVE = string.punctuation.replace("_", "").replace("-", "")
 
+
 def tokenize_and_lemmatize(text: str) -> List[str]:
+    """
+    Tokenize, lemmatize, and filter text.
+    Returns a list of normalized tokens.
+    """
     text = strip_html_and_remove_code(text)
     if not text:
         return []
     
-    # remove sinais comuns de pontuação do texto
+    # Remove common punctuation from text
     text = text.translate(str.maketrans("", "", PUNCT_TO_REMOVE))
 
     doc = _NLP(text)
@@ -92,17 +97,20 @@ def tokenize_and_lemmatize(text: str) -> List[str]:
     for t in doc:
         lemma = t.lemma_.lower()
 
-        # remover tokens puramente numéricos
+        # Skip purely numeric tokens
         if lemma.isnumeric():
             continue
 
-        # remover tokens só de pontuação
+        # Skip tokens that are only punctuation
         if all(ch in PUNCT_TO_REMOVE for ch in lemma):
             continue
 
+        # Keep only allowed POS tags and non-stopwords
+        # Also filter out very short tokens (less than 2 chars)
         if (
             t.pos_ in ALLOWED_POS
             and lemma not in _STOPWORDS
+            and len(lemma) >= 2  # IMPROVEMENT: Filter very short tokens
         ):
             tokens.append(lemma)
 
@@ -110,6 +118,16 @@ def tokenize_and_lemmatize(text: str) -> List[str]:
 
 
 def normalize_corpora_from_posts(df: pd.DataFrame, body_field: str = 'body') -> pd.DataFrame:
+    """
+    Normalize a corpus of posts by tokenizing, lemmatizing, and creating bigrams/trigrams.
+    
+    Args:
+        df: DataFrame containing posts
+        body_field: Name of the column containing text to normalize
+        
+    Returns:
+        DataFrame with added 'normalized' column containing lists of tokens
+    """
     if body_field not in df.columns:
         raise ValueError(f"DataFrame does not contain body field '{body_field}'")
 
@@ -117,40 +135,81 @@ def normalize_corpora_from_posts(df: pd.DataFrame, body_field: str = 'body') -> 
     df[body_field] = df[body_field].fillna("").astype(str)
 
     # Tokenize + lemmatize
+    print("Tokenizing and lemmatizing...")
     token_lists = df[body_field].map(tokenize_and_lemmatize)
 
-    # Bigrams + Trigrams
-    bigram = Phrases(token_lists)
-    trigram = Phrases(bigram[token_lists])
+    # IMPROVEMENT: Filter out empty token lists
+    valid_tokens = [toks for toks in token_lists if len(toks) > 0]
+    
+    if len(valid_tokens) == 0:
+        print("WARNING: No valid tokens found after normalization!")
+        df["normalized"] = [[] for _ in range(len(df))]
+        return df
+
+    # Build bigrams and trigrams
+    print("Building bigrams and trigrams...")
+    bigram = Phrases(valid_tokens, min_count=5, threshold=10)  # IMPROVEMENT: Added thresholds
+    trigram = Phrases(bigram[valid_tokens], min_count=5, threshold=10)
 
     bigram_mod = Phraser(bigram)
     trigram_mod = Phraser(trigram)
 
-    token_lists = [trigram_mod[bigram_mod[toks]] for toks in token_lists]
+    # Apply bigrams and trigrams to all token lists (including empty ones)
+    token_lists = [
+        trigram_mod[bigram_mod[toks]] if len(toks) > 0 else []
+        for toks in token_lists
+    ]
 
     df["normalized"] = token_lists
     return df
 
 
 def main():
+    """
+    Main processing pipeline:
+    1. Load filtered posts
+    2. Combine title + body
+    3. Normalize text (tokenize, lemmatize, create n-grams)
+    4. Save normalized text without original title/body columns
+    """
     if not FILTRED_POSTS.exists():
         raise FileNotFoundError(f"Filtered posts not found at {FILTRED_POSTS}")
 
+    print(f"Loading posts from {FILTRED_POSTS}...")
     df = pd.read_csv(str(FILTRED_POSTS))
+    print(f"Loaded {len(df)} posts")
 
-    # Combine title + body
-    if "title" in df.columns:
-        df["title"] = df["title"].fillna("")
-        df["body"] = df["body"].fillna("")
-        df["body"] = df["title"] + " " + df["body"]
+    # Combine title + body into a temporary field
+    print("Combining title and body...")
+    df["title"] = df["title"].fillna("") if "title" in df.columns else ""
+    df["body"] = df["body"].fillna("")
+    df["combined_text"] = df["title"] + " " + df["body"]
 
-    result_df = normalize_corpora_from_posts(df, body_field="body")
+    # Normalize the combined text
+    print("Normalizing text...")
+    result_df = normalize_corpora_from_posts(df, body_field="combined_text")
 
-    # Save tokens as whitespace-joined text
+    # Convert token lists to whitespace-separated strings
+    print("Converting tokens to text...")
     out_df = result_df.copy()
     out_df["normalized_text"] = out_df["normalized"].apply(lambda t: " ".join(t))
+    
+    # Keep only essential columns (remove title, body, combined_text, and normalized list)
+    columns_to_drop = ["title", "body", "combined_text", "normalized"]
+    columns_to_keep = [col for col in out_df.columns if col not in columns_to_drop]
+    out_df = out_df[columns_to_keep]
 
+    # IMPROVEMENT: Add statistics
+    empty_docs = (out_df["normalized_text"] == "").sum()
+    print(f"\nNormalization complete:")
+    print(f"  Total documents: {len(out_df)}")
+    print(f"  Empty normalized texts: {empty_docs}")
+    print(f"  Valid normalized texts: {len(out_df) - empty_docs}")
+
+    # Save to CSV
+    print(f"\nSaving to {NORMALIZED_POSTS}...")
     out_df.to_csv(str(NORMALIZED_POSTS), index=False)
+    print("Done!")
 
 
 if __name__ == "__main__":
