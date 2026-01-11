@@ -40,10 +40,6 @@ DEFAULT_RANDOM_STATE = 7562
 DEFAULT_LDA_BETA = 0.01
 DEFAULT_WORKERS = 4
 
-TUNING_ALPHAS = [0.001, 0.01, 0.1, 0.5, 1]
-TUNING_BETAS = [0.001, 0.01, 0.1, 0.5, 1]
-
-
 
 def _default_mallet_home():
     """Return a sensible default for MALLET_HOME depending on OS or environment."""
@@ -156,10 +152,8 @@ def train_mallet_with_beta(
     logger.info(
         f"Training MALLET LDA: topics={num_topics}, alpha={alpha}, beta={beta}, seed={random_seed}")
 
-    # Executar treinamento
     subprocess.check_call(cmd)
 
-    # Carregar word-topics
     model.word_topics = model.load_word_topics()
     model.wordtopics = model.word_topics
 
@@ -201,7 +195,7 @@ def find_best_model(
 
     for num_topics in topic_range:
         logger.info(f"Testing num_topics={num_topics}")
-        alpha = num_topics / 50.0
+        alpha = 50.0 / num_topics  
 
         try:
             mallet_model = train_mallet_with_beta(
@@ -229,7 +223,7 @@ def find_best_model(
             perplexities.append(perp)
 
             logger.info(
-                f"num_topics={num_topics} | alpha={alpha} | beta={beta} | seed={random_seed} | coherence={score:.4f} | perplexity={perp:.4f}")
+                f"num_topics={num_topics} | alpha={alpha:.4f} | beta={beta} | seed={random_seed} | coherence={score:.4f} | perplexity={perp:.4f}")
 
             if score > best_score:
                 best_score = score
@@ -286,11 +280,9 @@ def evaluate_model(
     no_above: float = DEFAULT_NO_ABOVE,
     topic_range: Iterable[int] = DEFAULT_TOPIC_RANGE,
     use_search: bool = True,
-    tuning: bool = False,
     iterations: int = DEFAULT_ITERATIONS,
     random_state: int = DEFAULT_RANDOM_STATE,
     lda_num_topics: Optional[int] = None,
-    lda_alpha: Optional[float] = None,
     lda_beta: Optional[float] = DEFAULT_LDA_BETA,
     coherence: str = DEFAULT_COHERENCE,
 ):
@@ -314,20 +306,6 @@ def evaluate_model(
 
     topic_range = list(topic_range)
 
-    if tuning:
-        model, best_config = find_best_model_tunning(
-            texts=texts,
-            model_path=model_path,
-            no_below=no_below,
-            no_above=no_above,
-            topic_range=topic_range,
-            iterations=iterations,
-            coherence=coherence,
-            random_state=random_state,
-        )
-
-        return model, best_config
-
     if use_search:
         model, best_config = find_best_model(
             texts,
@@ -343,7 +321,7 @@ def evaluate_model(
     else:
         num_topics = int(lda_num_topics or (
             sum(topic_range) / len(topic_range)))
-        alpha = lda_alpha if lda_alpha is not None else (50 / num_topics)
+        alpha = 50.0 / num_topics  # Fixed formula
 
         mallet_model = train_mallet_with_beta(
             mallet_path=mallet_path,
@@ -388,115 +366,6 @@ def evaluate_model(
         logger.exception("Failed to save trained model artifacts", exc_info=e)
 
 
-def find_best_model_tunning(
-    texts: Iterable[List[str]],
-    model_path: Path,
-    no_below: int = DEFAULT_NO_BELOW,
-    no_above: float = DEFAULT_NO_ABOVE,
-    topic_range: Iterable[int] = DEFAULT_TOPIC_RANGE,
-    iterations: int = DEFAULT_ITERATIONS,
-    coherence: str = DEFAULT_COHERENCE,
-    random_state: int = DEFAULT_RANDOM_STATE,
-    **kwargs
-):
-    """Grid search over alpha and beta for multiple K (topics).
-
-    alpha and beta take values in [0.001, 0.01, 0.1, 0.5, 1].
-    Does not plot results; returns best (model, config).
-    """
-    alphas = TUNING_ALPHAS
-    betas = TUNING_BETAS
-    tuning_records = []
-
-    model_path.mkdir(parents=True, exist_ok=True)
-
-    texts = list(texts)
-
-    dictionary, bow_corpus = make_dct_bow(
-        texts, no_below=no_below, no_above=no_above)
-
-    best_score = float('-inf')
-    best_model = None
-    best_config = None
-
-    for num_topics in topic_range:
-        alpha_default = num_topics / 50.0
-        for alpha in alphas:
-            for beta in betas:
-                try:
-                    mallet_home = _default_mallet_home()
-                    mallet_path = os.path.join(mallet_home, "bin", "mallet")
-                    if not os.path.exists(mallet_path):
-                        raise RuntimeError(
-                            f"Mallet binary not found at {mallet_path}")
-
-                    mallet_model = train_mallet_with_beta(
-                        mallet_path=mallet_path,
-                        corpus=bow_corpus,
-                        id2word=dictionary,
-                        num_topics=num_topics,
-                        alpha=alpha,
-                        beta=beta,
-                        iterations=iterations,
-                        random_seed=random_state
-                    )
-
-                    model = malletmodel2ldamodel(mallet_model)
-
-                    cm = CoherenceModel(model=model, texts=list(
-                        texts), dictionary=dictionary, coherence=coherence)
-                    score = cm.get_coherence()
-
-                    perp = calculate_perplexity_from_mallet(model, bow_corpus)
-                    if np.isnan(perp):
-                        perp = calculate_perplexity_alternative(model, bow_corpus)
-
-                    tuning_records.append({
-                        'num_topics': int(num_topics),
-                        'alpha': float(alpha),
-                        'beta': float(beta),
-                        'coherence': float(score),
-                        'perplexity': perp
-                    })
-
-                    logger.info(
-                        f"K={num_topics} alpha={alpha} beta={beta} coherence={score:.4f} perp={perp:.4f}")
-
-                    if score > best_score:
-                        best_score = score
-                        best_model = model
-                        best_config = {
-                            "num_topics": num_topics,
-                            "alpha": alpha,
-                            "beta": beta,
-                            "random_seed": random_state,
-                            "coherence": score,
-                            "perplexity": perp,
-                        }
-
-                except Exception as e:
-                    logger.exception(
-                        "Tuning failed for configuration", exc_info=e)
-
-    if best_model is None:
-        raise RuntimeError("No model could be trained in tuning")
-
-    # Save best artifacts
-    try:
-        best_model.save(str(model_path / TRAINED_LDA))
-        dictionary.save(str(model_path / TRAINED_DCT))
-        MmCorpus.serialize(str(model_path / TRAINED_BOW), bow_corpus)
-        meta_path = str(
-            Path(model_path / TRAINED_LDA).with_suffix(".meta.json"))
-        with open(meta_path, "w", encoding="utf-8") as mf:
-            json.dump(best_config, mf, indent=2)
-        logger.info("Best tuned model saved")
-    except Exception:
-        logger.exception("Failed to save best tuned model artifacts")
-
-    return best_model, best_config
-
-
 def run(name: str, main_topic: str = None, mode: str = None):
     if mode is None:
         mode = os.environ.get('LDA_MODE', 'search')
@@ -526,7 +395,6 @@ def run(name: str, main_topic: str = None, mode: str = None):
         MODELS / name,
         lda_beta=0.01,
         use_search=(mode == 'search'),
-        tuning=(mode == 'tune'),
         topic_range=DEFAULT_TOPIC_RANGE
     )
 
