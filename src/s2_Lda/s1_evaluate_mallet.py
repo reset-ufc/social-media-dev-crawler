@@ -501,7 +501,7 @@ def run(name: str, main_topic: str = None, mode: str = None):
     if mode is None:
         mode = os.environ.get('LDA_MODE', 'search')
 
-    if main_topic:  # For get subtopics
+    if main_topic:
         df = pd.read_csv(str(CLASSIFIED_POSTS))
         qids = df[df['topic'] == main_topic]['question_id']
         df = df[df['question_id'].isin(qids)]

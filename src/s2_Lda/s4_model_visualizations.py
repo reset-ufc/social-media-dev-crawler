@@ -22,19 +22,15 @@ def pldavis(model_path):
     - Fecha a figura matplotlib se necessário
     """
     try:
-        # Carrega modelo, dicionário e corpus
         lda = LdaModel.load(str(model_path / TRAINED_LDA))
         dictionary = Dictionary.load(str(model_path / TRAINED_DCT))
         corpus = MmCorpus(str(model_path / TRAINED_BOW))
         
-        # Prepara visualização (mds='mmds' está correto, mas pode usar 'pcoa' como alternativa)
         vis = gensimvisualize.prepare(lda, corpus, dictionary, mds='mmds', sort_topics=False)
         
-        # Garante que o diretório existe
         output_path = model_path / 'pyldavis.html'
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Salva o HTML
         pyLDAvis.save_html(vis, str(output_path))
         print(f"✓ pyLDAvis salvo em: {output_path}")
         
@@ -58,10 +54,8 @@ def stat_plots(model_path):
             lambda x: x[:15] + '...' if type(x) == str and len(x) > 15 else x
         )
         
-        # Garante que o diretório existe
         Path(model_path).mkdir(parents=True, exist_ok=True)
         
-        # Gráfico 1: Box plot da distribuição de probabilidades
         plt.figure(figsize=(15, 7))
         sns.boxplot(
             x='topic',         
@@ -73,13 +67,12 @@ def stat_plots(model_path):
         plt.xticks(rotation=45, ha='right', fontsize=9) 
         plt.tight_layout()
         
-        # Salva e fecha
         output_path_1 = Path(model_path) / 'prob_distribution.png'
         plt.savefig(output_path_1, dpi=300, bbox_inches='tight')
-        plt.close()  # IMPORTANTE: Fecha a figura
+        plt.close() 
         print(f"✓ Gráfico de probabilidade salvo em: {output_path_1}")
         
-        # Gráfico 2: Distribuição de documentos por tópico
+
         topic_counts = df['topic'].value_counts().sort_values(ascending=False)
         plt.figure(figsize=(10, len(topic_counts) * 0.4))
         sns.barplot(
@@ -97,7 +90,6 @@ def stat_plots(model_path):
         
         plt.tight_layout()
         
-        # Salva e fecha
         output_path_2 = Path(model_path) / 'topic_distribution.png'
         plt.savefig(output_path_2, dpi=300, bbox_inches='tight')
         plt.close()  # IMPORTANTE: Fecha a figura
@@ -107,7 +99,7 @@ def stat_plots(model_path):
         print(f"✗ Erro ao gerar gráficos estatísticos: {e}")
         import traceback
         traceback.print_exc()
-        plt.close('all')  # Fecha todas as figuras em caso de erro
+        plt.close('all') 
 
 def words_per_topic(model_path, num_words: int = 20) -> str:
     """
@@ -131,10 +123,8 @@ def words_per_topic(model_path, num_words: int = 20) -> str:
             )
             formatted_topics.append(f"Topic {topic_id}: [{terms_str}]")
         
-        # Garante que o diretório existe
         Path(model_path).mkdir(parents=True, exist_ok=True)
         
-        # Salva o arquivo
         output_path = Path(model_path) / 'topics.txt'
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write("\n".join(formatted_topics))
