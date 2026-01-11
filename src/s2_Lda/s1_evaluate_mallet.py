@@ -411,5 +411,5 @@ def run_submodels(main_path):
 
 
 if __name__ == '__main__':
-    run('main1')
-    # run_submodels(MODELS / 'main1')
+    run('main')
+    # run_submodels(MODELS / 'main')

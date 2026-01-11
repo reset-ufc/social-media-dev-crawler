@@ -140,7 +140,7 @@ def words_per_topic(model_path, num_words: int = 20) -> str:
 
 if __name__ == '__main__':
     print("\n[1/16] Processando modelo principal...")
-    main_path = MODELS / 'main1'
+    main_path = MODELS / 'main'
     words_per_topic(main_path)
     for c in range(15):
         print(f"\n[{c+2}/16] Processando modelo t{c}...")
