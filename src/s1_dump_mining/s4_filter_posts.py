@@ -33,7 +33,7 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
         logger.error(f"ERRO ao ler o arquivo {input_csv}: {e}", exc_info=True)
         return
 
-    for col in ['answer_count', 'view_count', 'score', 'comment_count', 'favorite_count']:
+    for col in ['answer_count', 'view_count', 'score', 'comment_count']:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
         else:
@@ -72,8 +72,8 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
     df_questions = df[df['type'] == 'question'].copy()
     logger.info(f"Encontradas {len(df_questions)} perguntas no total.")
 
-    # Garante que todas as colunas numéricas existem (inclui favorite_count)
-    for col in ['answer_count', 'view_count', 'score', 'comment_count', 'favorite_count']:
+    # Garante que todas as colunas numéricas existem
+    for col in ['answer_count', 'view_count', 'score', 'comment_count']:
         if col not in df_questions.columns:
             df_questions[col] = 0
 
@@ -82,7 +82,7 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
         return
 
     questions_q = df_questions[[
-        'answer_count', 'view_count', 'score', 'comment_count', 'favorite_count']].quantile(percentile)
+        'answer_count', 'view_count', 'score', 'comment_count']].quantile(percentile)
     logger.info(f"Limiares de popularidade (percentil {percentile*100}%):")
     logger.info(f"\n{questions_q.to_string()}")
 
@@ -91,8 +91,7 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
         (df_questions['answer_count'] >= questions_q['answer_count']) &
         (df_questions['view_count'] >= questions_q['view_count']) &
         (df_questions['score'] >= questions_q['score']) &
-        (df_questions['comment_count'] >= questions_q['comment_count']) &
-        (df_questions['favorite_count'] >= questions_q['favorite_count'])
+        (df_questions['comment_count'] >= questions_q['comment_count'])
     ]
 
     logger.info(f"Encontradas {len(popular_questions)} questões populares.\n")

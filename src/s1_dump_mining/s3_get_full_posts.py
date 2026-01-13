@@ -20,7 +20,7 @@ POST_FEATURES = [
     "site_alias", "tags", "question_id", "accepted_answer_id", "answer_count",
     "creation_date", "last_activity_date", "last_edit_date",
     "owner_id", "score", "view_count", "comment_count",
-    "title", "body", "site", "id", "type", "favorite_count"
+    "title", "body", "site", "id", "type"
 ]
 
 
@@ -130,7 +130,6 @@ def process_site_unified(site_alias, site_name, related_tags):
                         'owner_id': elem.attrib.get("OwnerUserId", ""),
                         'score': elem.attrib.get("Score", "0"),
                         'view_count': elem.attrib.get("ViewCount", "0"),
-                        'favorite_count': elem.attrib.get("FavoriteCount", "0"),
                         'title': elem.attrib.get("Title", ""),
                         'body': elem.attrib.get("Body", ""),
                         'id_original': question_id_original,
@@ -257,8 +256,7 @@ def process_site_unified(site_alias, site_name, related_tags):
             q['body'],
             site_name,
             qid_with_site,  # id com formato site:id
-            "question",
-            q['favorite_count']  # FavoriteCount apenas para perguntas
+            "question"
         ])
 
     # 2. Adicionar todas as respostas
@@ -281,8 +279,7 @@ def process_site_unified(site_alias, site_name, related_tags):
             a['body'],
             site_name,
             a['answer_id'],  # id com formato site:id
-            "answer",
-            ""  # favorite_count (não aplicável para respostas)
+            "answer"
         ])
 
     # 3. Adicionar todos os comentários
@@ -311,8 +308,7 @@ def process_site_unified(site_alias, site_name, related_tags):
                 c['text'],
                 site_name,
                 c['comment_id'],  # id com formato site:id
-                "comment",
-                ""  # favorite_count (não aplicável para comentários)
+                "comment"
             ])
 
     append_batch_to_csv(final_batch)
