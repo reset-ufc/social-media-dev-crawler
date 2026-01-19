@@ -53,16 +53,17 @@ def append_batch(batch_rows: list, output_path: Optional[str] = None) -> None:
     )
 
 
-def collect_tags_from_7z(site_alias: str) -> Tuple[Counter, Counter]:
+def collect_tags_from_7z(site_alias: str, question_tag: str) -> Tuple[Counter, Counter]:
     """Collect all tags from a site and count their occurrences.
 
     Args:
         site_alias: Site alias to process.
+        question_tag: The tag to use as reference for filtering.
 
     Returns:
         Tuple containing:
         - all_tags_counter: Counter with counts of all tags in all posts
-        - question_tags_counter: Counter with counts of tags co-occurring with QUESTION_TAG
+        - question_tags_counter: Counter with counts of tags co-occurring with question_tag
     """
     site_file = SITES[site_alias]
     archive_path = os.path.join(DUMP, site_file)
@@ -75,6 +76,7 @@ def collect_tags_from_7z(site_alias: str) -> Tuple[Counter, Counter]:
     question_tags_counter = Counter()
 
     logger.info(f"[{site_alias}] Starting tag collection from Posts.xml...")
+    logger.info(f"[{site_alias}] Using question tag: '{question_tag}'")
 
     with stream_posts_from_7z(archive_path) as context:
         for event, elem in context:
@@ -93,7 +95,7 @@ def collect_tags_from_7z(site_alias: str) -> Tuple[Counter, Counter]:
             tags = extract_tag_list(tags_field)
             all_tags_counter.update(tags)
 
-            if QUESTION_TAG in tags:
+            if question_tag in tags:
                 question_tags_counter.update(tags)
 
             elem.clear()
@@ -101,22 +103,23 @@ def collect_tags_from_7z(site_alias: str) -> Tuple[Counter, Counter]:
     logger.info(
         f"[{site_alias}] Unique tags (all posts): {len(all_tags_counter)}")
     logger.info(
-        f"[{site_alias}] Unique tags (with {QUESTION_TAG}): {len(question_tags_counter)}")
+        f"[{site_alias}] Unique tags (with {question_tag}): {len(question_tags_counter)}")
 
     return all_tags_counter, question_tags_counter
 
 
-def calculate_tag_metrics(tag_data: Dict[str, Tuple[Counter, Counter]]) -> Dict[str, Dict[str, float]]:
+def calculate_tag_metrics(tag_data: Dict[str, Tuple[Counter, Counter]], question_tag: str) -> Dict[str, Dict[str, float]]:
     """Calculate metrics b, a, h1, h2 for each tag.
 
     Metrics:
     - b: number of posts containing the tag (across all data)
-    - a: number of posts containing both the tag and QUESTION_TAG
-    - h1: a/b (proportion of posts with tag that also have QUESTION_TAG)
-    - h2: a/c (proportion of tag relative to total posts with QUESTION_TAG)
+    - a: number of posts containing both the tag and question_tag
+    - h1: a/b (proportion of posts with tag that also have question_tag)
+    - h2: a/c (proportion of tag relative to total posts with question_tag)
 
     Args:
         tag_data: Dictionary mapping site_alias to (all_tags_counter, question_tags_counter)
+        question_tag: The tag to use as reference for calculations.
 
     Returns:
         Dictionary with metrics per tag: {tag: {'b': x, 'a': y, 'h1': z, 'h2': w}}
@@ -128,14 +131,14 @@ def calculate_tag_metrics(tag_data: Dict[str, Tuple[Counter, Counter]]) -> Dict[
         global_all_tags.update(all_tags_counter)
         global_question_tags.update(question_tags_counter)
 
-    total_posts_with_question = global_question_tags.get(QUESTION_TAG, 0)
+    total_posts_with_question = global_question_tags.get(question_tag, 0)
 
     if total_posts_with_question == 0:
-        logger.warning("No posts with QUESTION_TAG found!")
+        logger.warning(f"No posts with '{question_tag}' found!")
         return {}
 
     logger.info(
-        f"Total posts with '{QUESTION_TAG}': {total_posts_with_question}")
+        f"Total posts with '{question_tag}': {total_posts_with_question}")
 
     tag_metrics = {}
     for tag in global_question_tags.keys():
@@ -214,26 +217,38 @@ def save_tags_to_csv(tag_metrics: Dict[str, Dict[str, float]], output_path: str)
 
 
 def process_all_sites(
-    output_path = R_TAGS,
-    threshold1 = THRE1,
-    threshold2 = THRE2) -> int:
-    """Process all sites and generate file with filtered tags.
+    output_path=R_TAGS,
+    threshold1=THRE1,
+    threshold2=THRE2,
+    sites_to_process=None,
+    question_tag=QUESTION_TAG) -> int:
+    """Process specified sites and generate file with filtered tags.
+
+    Args:
+        output_path: Path to save results.
+        threshold1: First threshold value.
+        threshold2: Second threshold value.
+        sites_to_process: List of site aliases to process. If None, processes all except crypto.
+        question_tag: The tag to use as reference for filtering.
 
     Returns:
         Number of tags that passed the filters.
     """
+    if sites_to_process is None:
+        # Process all sites except crypto by default
+        sites_to_process = [site for site in SITES.keys() if site != "crypto"]
 
     tag_data = {}
-    for site_alias in SITES.keys():
+    for site_alias in sites_to_process:
         all_tags_counter, question_tags_counter = collect_tags_from_7z(
-            site_alias)
+            site_alias, question_tag)
         if all_tags_counter or question_tags_counter:
             tag_data[site_alias] = (all_tags_counter, question_tags_counter)
             logger.info(f"  └─ [{site_alias}] Tags collected")
 
     logger.info("\nCalculating tag metrics...")
-    tag_metrics = calculate_tag_metrics(tag_data)
-    logger.info(f"Total unique tags with cryptography: {len(tag_metrics)}")
+    tag_metrics = calculate_tag_metrics(tag_data, question_tag)
+    logger.info(f"Total unique tags with {question_tag}: {len(tag_metrics)}")
 
     if threshold1 is not None or threshold2 is not None:
         logger.info(
@@ -248,31 +263,47 @@ def process_all_sites(
     return len(tag_metrics)
 
 
-def test_threshold_combinations() -> None:
-    """Test various threshold combinations and save results to separate files."""
+def test_threshold_combinations(
+    threshold_dir=None,
+    sites_to_process=None,
+    question_tag=QUESTION_TAG) -> None:
+    """Test various threshold combinations and save results to separate files.
+
+    Args:
+        threshold_dir: Directory to save threshold test results.
+        sites_to_process: List of site aliases to process.
+        question_tag: The tag to use as reference for filtering.
+    """
     _TREH1 = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30]
     _TREH2 = [0.001, 0.002, 0.005, 0.010, 0.015, 0.020, 0.30]
 
-    base_dir = os.path.dirname(COARSE_QUESTIONS)
-    threshold_dir = os.path.join(base_dir, "treshold_combinations")
+    if threshold_dir is None:
+        base_dir = os.path.dirname(COARSE_QUESTIONS)
+        threshold_dir = os.path.join(base_dir, "threshold_combinations")
+    
     os.makedirs(threshold_dir, exist_ok=True)
+
+    if sites_to_process is None:
+        sites_to_process = [site for site in SITES.keys() if site != "crypto"]
 
     logger.info("=" * 80)
     logger.info("STARTING THRESHOLD TESTS")
+    logger.info(f"Sites to process: {sites_to_process}")
+    logger.info(f"Question tag: '{question_tag}'")
     logger.info(f"Total combinations: {len(_TREH1) * len(_TREH2)}")
     logger.info("=" * 80)
 
     logger.info("\nCollecting tags from all sites...")
     tag_data = {}
-    for site_alias in SITES.keys():
+    for site_alias in sites_to_process:
         all_tags_counter, question_tags_counter = collect_tags_from_7z(
-            site_alias)
+            site_alias, question_tag)
         if all_tags_counter or question_tags_counter:
             tag_data[site_alias] = (all_tags_counter, question_tags_counter)
             logger.info(f"  └─ [{site_alias}] Tags collected")
 
     logger.info("\nCalculating tag metrics...")
-    all_tag_metrics = calculate_tag_metrics(tag_data)
+    all_tag_metrics = calculate_tag_metrics(tag_data, question_tag)
     logger.info(f"Total unique tags: {len(all_tag_metrics)}")
 
     combinations = list(product(_TREH1, _TREH2))
@@ -396,14 +427,54 @@ def main():
     """Main execution function."""
     logger.info("Initializing tag processing with heuristics...")
 
-    logger.info("\n### MAIN PROCESSING ###")
-    num_tags = process_all_sites()
+    # Process standard sites (stackoverflow and security)
+    logger.info("\n" + "=" * 80)
+    logger.info("### PROCESSING STANDARD SITES (stackoverflow, security) ###")
+    logger.info("=" * 80)
+    num_tags = process_all_sites(
+        output_path=R_TAGS,
+        threshold1=THRE1,
+        threshold2=THRE2,
+        sites_to_process=["stackoverflow", "security"],
+        question_tag=QUESTION_TAG
+    )
     logger.info(f"\nTotal tags saved in main file: {num_tags}")
 
-    logger.info("\n### THRESHOLD TESTS ###")
-    test_threshold_combinations()
+    logger.info("\n### THRESHOLD TESTS FOR STANDARD SITES ###")
+    base_dir = os.path.dirname(COARSE_QUESTIONS)
+    threshold_dir_standard = os.path.join(base_dir, "threshold_combinations")
+    test_threshold_combinations(
+        threshold_dir=threshold_dir_standard,
+        sites_to_process=["stackoverflow", "security"],
+        question_tag=QUESTION_TAG
+    )
 
-    logger.info("\n### PROCESSING COMPLETE ###")
+    # Process crypto site separately
+    logger.info("\n" + "=" * 80)
+    logger.info("### PROCESSING CRYPTO SITE (crypto) ###")
+    logger.info("=" * 80)
+    num_tags_crypto = process_all_sites(
+        output_path=R_TAGS_CRYPTO,
+        threshold1=THRE1,
+        threshold2=THRE2,
+        sites_to_process=["crypto"],
+        question_tag=QUESTION_TAG_CRYPTO
+    )
+    logger.info(f"\nTotal tags saved in crypto file: {num_tags_crypto}")
+
+    logger.info("\n### THRESHOLD TESTS FOR CRYPTO SITE ###")
+    threshold_dir_crypto = os.path.join(base_dir, "threshold_combinations_crypto")
+    test_threshold_combinations(
+        threshold_dir=threshold_dir_crypto,
+        sites_to_process=["crypto"],
+        question_tag=QUESTION_TAG_CRYPTO
+    )
+
+    logger.info("\n" + "=" * 80)
+    logger.info("### PROCESSING COMPLETE ###")
+    logger.info("=" * 80)
+    logger.info(f"Standard sites - Tags saved: {num_tags}")
+    logger.info(f"Crypto site - Tags saved: {num_tags_crypto}")
 
 
 if __name__ == "__main__":

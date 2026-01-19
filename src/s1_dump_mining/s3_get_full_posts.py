@@ -5,7 +5,7 @@ from utils_global import (
     ensure_parent_dir,
     stream_posts_from_7z
 )
-from paths import DUMP, R_TAGS, CONNECTED_POSTS, SITES
+from paths import DUMP, MERGED_TAGS, CONNECTED_POSTS, SITES
 from collections import defaultdict
 import pandas as pd
 import csv
@@ -25,27 +25,35 @@ POST_FEATURES = [
 
 
 def get_all_related_tags():
-    """Lê todas as tags relacionadas do arquivo consolidado R_TAGS."""
+    """
+    Read all related tags from the merged tags file (MERGED_TAGS).
+    This file should be manually created by merging the final tag files
+    from the previous processing steps.
+    """
     try:
-        df = pd.read_csv(R_TAGS)
+        df = pd.read_csv(MERGED_TAGS)
         related_tags = set(df['tag'])
         logger.info(
-            f"Total de tags relacionadas carregadas: {len(related_tags)}")
+            f"Total related tags loaded from merged file: {len(related_tags)}")
         return related_tags
+    except FileNotFoundError:
+        logger.error(f"Merged tags file not found: {MERGED_TAGS}")
+        logger.error("Please create this file manually by merging the tag files from previous steps.")
+        return set()
     except Exception as e:
-        logger.error(f"Erro ao ler arquivo de tags relacionadas: {e}")
+        logger.error(f"Error reading merged tags file: {e}")
         return set()
 
 
 def initialize_csv():
-    """Cria o CSV de saída com cabeçalho."""
+    """Create output CSV with header."""
     ensure_parent_dir(CONNECTED_POSTS)
     with open(CONNECTED_POSTS, "w", encoding="utf-8", newline="") as f:
         csv.writer(f).writerow(POST_FEATURES)
 
 
 def append_batch_to_csv(batch):
-    """Escreve um lote de registros no CSV."""
+    """Write a batch of records to CSV."""
     if not batch:
         return
     with open(CONNECTED_POSTS, "a", encoding="utf-8", newline="") as f:
@@ -54,51 +62,51 @@ def append_batch_to_csv(batch):
 
 def process_site_unified(site_alias, site_name, related_tags):
     """
-    Processa um site em TRÊS passagens otimizadas:
-    1. Identifica perguntas relevantes (PostTypeId=1)
-    2. Coleta respostas dessas perguntas (PostTypeId=2)
-    3. Coleta comentários de perguntas e respostas
+    Process a site in THREE optimized passes:
+    1. Identify relevant questions (PostTypeId=1)
+    2. Collect answers to these questions (PostTypeId=2)
+    3. Collect comments from questions and answers
 
-    Retorna estatísticas do processamento.
+    Returns processing statistics.
 
-    IMPORTANTE: question_id agora usa formato "site_alias:id" para evitar conflitos entre sites.
+    IMPORTANT: question_id now uses "site_alias:id" format to avoid conflicts between sites.
     """
     archive_path = os.path.join(DUMP, site_name)
 
     if not os.path.exists(archive_path):
-        logger.warning(f"Arquivo não encontrado: {archive_path}")
+        logger.warning(f"File not found: {archive_path}")
         return None
 
     logger.info(f"\n{'='*60}")
-    logger.info(f"Processando: {site_alias}")
+    logger.info(f"Processing: {site_alias}")
     logger.info(f"{'='*60}")
 
-    # Estruturas de dados para armazenar informações
-    # question_id_with_site (site:id) -> atributos da pergunta
+    # Data structures to store information
+    # question_id_with_site (site:id) -> question attributes
     relevant_questions = {}
-    answers_data = []  # lista de atributos de respostas
-    answer_id_to_question_id = {}  # mapeia answer_id original -> question_id_with_site
-    posts_to_track = set()  # IDs originais de perguntas e respostas para rastrear comentários
-    # post_id original -> contagem de comentários
+    answers_data = []  # list of answer attributes
+    answer_id_to_question_id = {}  # maps answer_id original -> question_id_with_site
+    posts_to_track = set()  # Original IDs of questions and answers to track comments
+    # original post_id -> comment count
     comment_counter = defaultdict(int)
-    comments_data = []  # lista de atributos de comentários
-    # mapeia ID original -> question_id_with_site (site:id)
+    comments_data = []  # list of comment attributes
+    # maps original ID -> question_id_with_site (site:id)
     id_to_question_with_site = {}
 
-    # PASSAGEM 1: Identificar perguntas relevantes
-    logger.info("Fase 1/3: Identificando perguntas relevantes...")
+    # PASS 1: Identify relevant questions
+    logger.info("Phase 1/3: Identifying relevant questions...")
     try:
         with stream_posts_from_7z(archive_path, "Posts.xml") as context:
             for _, elem in context:
                 if elem.tag != "row":
                     continue
 
-                # Apenas perguntas
+                # Only questions
                 if elem.attrib.get("PostTypeId") != "1":
                     elem.clear()
                     continue
 
-                # Verifica se tem tags relacionadas
+                # Check if it has related tags
                 tags_field = elem.attrib.get("Tags", "")
                 if not tags_field:
                     elem.clear()
@@ -106,15 +114,15 @@ def process_site_unified(site_alias, site_name, related_tags):
 
                 post_tags = set(extract_tag_list(tags_field))
 
-                # Se tem interseção com tags relacionadas
+                # If it has intersection with related tags
                 if not related_tags.isdisjoint(post_tags):
                     question_id_original = elem.attrib.get("Id")
                     question_id_with_site = f"{site_alias}:{question_id_original}"
 
-                    # Armazena mapeamento do ID original para o ID com site
+                    # Store mapping from original ID to ID with site
                     id_to_question_with_site[question_id_original] = question_id_with_site
 
-                    # Formata accepted_answer_id também com prefixo do site, se existir
+                    # Format accepted_answer_id also with site prefix, if it exists
                     accepted_answer_id_original = elem.attrib.get(
                         "AcceptedAnswerId", "")
                     accepted_answer_id = f"{site_alias}:{accepted_answer_id_original}" if accepted_answer_id_original else ""
@@ -139,37 +147,37 @@ def process_site_unified(site_alias, site_name, related_tags):
                 elem.clear()
 
         logger.info(
-            f"  → Encontradas {len(relevant_questions)} perguntas relevantes")
+            f"  → Found {len(relevant_questions)} relevant questions")
 
     except Exception as e:
-        logger.error(f"Erro na Fase 1 ({site_alias}): {e}", exc_info=True)
+        logger.error(f"Error in Phase 1 ({site_alias}): {e}", exc_info=True)
         return None
 
-    # Se não encontrou perguntas, não precisa continuar
+    # If no questions found, no need to continue
     if not relevant_questions:
-        logger.info(f"  → Nenhuma pergunta relevante encontrada. Pulando site.")
+        logger.info(f"  → No relevant questions found. Skipping site.")
         return {
             'questions': 0,
             'answers': 0,
             'comments': 0
         }
 
-    # PASSAGEM 2: Coletar respostas das perguntas relevantes
-    logger.info("Fase 2/3: Coletando respostas...")
+    # PASS 2: Collect answers to relevant questions
+    logger.info("Phase 2/3: Collecting answers...")
     try:
         with stream_posts_from_7z(archive_path, "Posts.xml") as context:
             for _, elem in context:
                 if elem.tag != "row":
                     continue
 
-                # Apenas respostas
+                # Only answers
                 if elem.attrib.get("PostTypeId") != "2":
                     elem.clear()
                     continue
 
                 parent_id_original = elem.attrib.get("ParentId")
 
-                # Se a resposta é de uma pergunta relevante
+                # If the answer belongs to a relevant question
                 if parent_id_original in id_to_question_with_site:
                     answer_id_original = elem.attrib.get("Id")
                     answer_id_with_site = f"{site_alias}:{answer_id_original}"
@@ -187,20 +195,20 @@ def process_site_unified(site_alias, site_name, related_tags):
                         'body': elem.attrib.get("Body", ""),
                     })
 
-                    # Mapeia resposta original -> pergunta com site e adiciona ao rastreamento
+                    # Map original answer -> question with site and add to tracking
                     answer_id_to_question_id[answer_id_original] = question_id_with_site
                     posts_to_track.add(answer_id_original)
 
                 elem.clear()
 
-        logger.info(f"  → Encontradas {len(answers_data)} respostas")
+        logger.info(f"  → Found {len(answers_data)} answers")
 
     except Exception as e:
-        logger.error(f"Erro na Fase 2 ({site_alias}): {e}", exc_info=True)
+        logger.error(f"Error in Phase 2 ({site_alias}): {e}", exc_info=True)
         return None
 
-    # PASSAGEM 3: Coletar comentários de perguntas e respostas
-    logger.info("Fase 3/3: Coletando comentários...")
+    # PASS 3: Collect comments from questions and answers
+    logger.info("Phase 3/3: Collecting comments...")
     try:
         with stream_posts_from_7z(archive_path, "Comments.xml") as context:
             for _, elem in context:
@@ -209,7 +217,7 @@ def process_site_unified(site_alias, site_name, related_tags):
 
                 post_id_original = elem.attrib.get("PostId")
 
-                # Se é comentário de pergunta ou resposta relevante
+                # If it's a comment on a relevant question or answer
                 if post_id_original in posts_to_track:
                     comment_id_original = elem.attrib.get("Id")
                     comment_id_with_site = f"{site_alias}:{comment_id_original}"
@@ -227,22 +235,22 @@ def process_site_unified(site_alias, site_name, related_tags):
 
                 elem.clear()
 
-        logger.info(f"  → Encontrados {len(comments_data)} comentários")
+        logger.info(f"  → Found {len(comments_data)} comments")
 
     except Exception as e:
-        logger.error(f"Erro na Fase 3 ({site_alias}): {e}", exc_info=True)
+        logger.error(f"Error in Phase 3 ({site_alias}): {e}", exc_info=True)
         return None
 
-    logger.info("Montando batch final...")
+    logger.info("Assembling final batch...")
     final_batch = []
 
-    # 1. Adicionar todas as perguntas
+    # 1. Add all questions
     for qid_with_site, q in relevant_questions.items():
         final_batch.append([
             site_alias,
             q['tags'],
-            qid_with_site,  # question_id com formato site:id
-            q['accepted_answer_id'],  # já está com formato site:id se existir
+            qid_with_site,  # question_id with site:id format
+            q['accepted_answer_id'],  # already in site:id format if exists
             q['answer_count'],
             q['creation_date'],
             q['last_activity_date'],
@@ -250,69 +258,69 @@ def process_site_unified(site_alias, site_name, related_tags):
             q['owner_id'],
             q['score'],
             q['view_count'],
-            # contagem de comentários usando ID original
+            # comment count using original ID
             comment_counter.get(q['id_original'], 0),
             q['title'],
             q['body'],
             site_name,
-            qid_with_site,  # id com formato site:id
+            qid_with_site,  # id with site:id format
             "question"
         ])
 
-    # 2. Adicionar todas as respostas
+    # 2. Add all answers
     for a in answers_data:
         final_batch.append([
             site_alias,
-            "",  # respostas não têm tags
-            a['parent_id'],  # question_id com formato site:id
-            "",  # accepted_answer_id (não aplicável)
-            "",  # answer_count (não aplicável)
+            "",  # answers don't have tags
+            a['parent_id'],  # question_id with site:id format
+            "",  # accepted_answer_id (not applicable)
+            "",  # answer_count (not applicable)
             a['creation_date'],
             a['last_activity_date'],
             a['last_edit_date'],
             a['owner_id'],
             a['score'],
-            "",  # view_count (não aplicável)
-            # usando ID original para contar
+            "",  # view_count (not applicable)
+            # using original ID for counting
             comment_counter.get(a['answer_id_original'], 0),
-            "",  # title (não aplicável)
+            "",  # title (not applicable)
             a['body'],
             site_name,
-            a['answer_id'],  # id com formato site:id
+            a['answer_id'],  # id with site:id format
             "answer"
         ])
 
-    # 3. Adicionar todos os comentários
+    # 3. Add all comments
     for c in comments_data:
         post_id_original = c['post_id_original']
 
-        # Determina a qual pergunta o comentário pertence
+        # Determine which question the comment belongs to
         question_id = (id_to_question_with_site.get(post_id_original) or
                        answer_id_to_question_id.get(post_id_original))
 
         if question_id:
             final_batch.append([
                 site_alias,
-                "",  # comentários não têm tags
-                question_id,  # question_id com formato site:id
-                "",  # campos não aplicáveis
+                "",  # comments don't have tags
+                question_id,  # question_id with site:id format
+                "",  # non-applicable fields
                 "",
                 c['creation_date'],
-                "",  # last_activity_date (não aplicável)
-                "",  # last_edit_date (não aplicável)
+                "",  # last_activity_date (not applicable)
+                "",  # last_edit_date (not applicable)
                 c['user_id'],
                 c['score'],
-                "",  # view_count (não aplicável)
-                "",  # comment_count (não aplicável)
-                "",  # title (não aplicável)
+                "",  # view_count (not applicable)
+                "",  # comment_count (not applicable)
+                "",  # title (not applicable)
                 c['text'],
                 site_name,
-                c['comment_id'],  # id com formato site:id
+                c['comment_id'],  # id with site:id format
                 "comment"
             ])
 
     append_batch_to_csv(final_batch)
-    logger.info(f"✓ Batch gravado com sucesso!")
+    logger.info(f"✓ Batch written successfully!")
 
     return {
         'questions': len(relevant_questions),
@@ -322,15 +330,20 @@ def process_site_unified(site_alias, site_name, related_tags):
 
 
 def main():
-    """Função principal que coordena todo o processo."""
+    """Main function that coordinates the entire process."""
     logger.info("="*60)
-    logger.info("EXTRAÇÃO UNIFICADA DE POSTS E ELEMENTOS RELACIONADOS")
+    logger.info("UNIFIED EXTRACTION OF POSTS AND RELATED ELEMENTS")
     logger.info("="*60)
 
-    # Carregar tags relacionadas
+    # Load related tags from merged file
+    logger.info(f"\nReading merged tags file: {MERGED_TAGS}")
+    logger.info("Note: This file should be manually created by merging")
+    logger.info("      the final tag files from previous processing steps.")
+    
     related_tags = get_all_related_tags()
     if not related_tags:
-        logger.error("Nenhuma tag relacionada encontrada. Abortando.")
+        logger.error("No related tags found. Aborting.")
+        logger.error(f"Please ensure {MERGED_TAGS} exists and contains a 'tag' column.")
         return
 
     initialize_csv()
@@ -344,10 +357,10 @@ def main():
             site_stats[site_alias] = stats
 
     # ============================================================
-    # RESUMO FINAL
+    # FINAL SUMMARY
     # ============================================================
     logger.info("\n" + "="*60)
-    logger.info("RESUMO FINAL")
+    logger.info("FINAL SUMMARY")
     logger.info("="*60)
 
     total_questions = 0
@@ -356,24 +369,24 @@ def main():
 
     for site, stats in site_stats.items():
         logger.info(f"\n{site}:")
-        logger.info(f"  - Perguntas: {stats['questions']}")
-        logger.info(f"  - Respostas: {stats['answers']}")
-        logger.info(f"  - Comentários: {stats['comments']}")
+        logger.info(f"  - Questions: {stats['questions']}")
+        logger.info(f"  - Answers: {stats['answers']}")
+        logger.info(f"  - Comments: {stats['comments']}")
 
         total_questions += stats['questions']
         total_answers += stats['answers']
         total_comments += stats['comments']
 
     logger.info(f"\n{'='*60}")
-    logger.info(f"TOTAL GERAL:")
-    logger.info(f"  - Perguntas: {total_questions}")
-    logger.info(f"  - Respostas: {total_answers}")
-    logger.info(f"  - Comentários: {total_comments}")
+    logger.info(f"OVERALL TOTAL:")
+    logger.info(f"  - Questions: {total_questions}")
+    logger.info(f"  - Answers: {total_answers}")
+    logger.info(f"  - Comments: {total_comments}")
     logger.info(
-        f"  - TOTAL DE REGISTROS: {total_questions + total_answers + total_comments}")
+        f"  - TOTAL RECORDS: {total_questions + total_answers + total_comments}")
     logger.info(f"{'='*60}\n")
 
-    logger.info(f"✓ Processo concluído! Arquivo gerado: {CONNECTED_POSTS}")
+    logger.info(f"✓ Process completed! File generated: {CONNECTED_POSTS}")
 
 
 if __name__ == "__main__":
