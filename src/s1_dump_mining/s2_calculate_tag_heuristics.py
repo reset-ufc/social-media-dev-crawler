@@ -438,12 +438,26 @@ def main():
         # Define output path for this site
         output_path = DATA_MINING_S1 / f"releated_tags_{site_alias}.csv"
 
-        # Process the site with standard thresholds
+        # Get site-specific thresholds
+        if site_alias not in THRES:
+            logger.warning(
+                f"[{site_alias}] No thresholds defined in THRES. "
+                "Skipping site."
+            )
+            continue
+
+        threshold1, threshold2 = THRES[site_alias]
+
+        logger.info(
+            f"[{site_alias}] Using thresholds: "
+            f"h1 >= {threshold1}, h2 >= {threshold2}"
+        )
+
         num_tags = process_single_site(
             site_alias=site_alias,
             output_path=str(output_path),
-            threshold1=THRE1,
-            threshold2=THRE2,
+            threshold1=threshold1,
+            threshold2=threshold2,
             question_tag=question_tag
         )
         

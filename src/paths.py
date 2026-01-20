@@ -7,8 +7,11 @@ from pathlib import Path
 QUESTION_TAG = "cryptography"
 QUESTION_TAG_CRYPTO = "encryption"
 
-THRE1 = 0.2
-THRE2 = 0.01
+THRES = {
+    "stackoverflow": (0.05, 0.002),
+    "crypto": (0.1, 0.001),
+    "security": (0.05, 0.002)
+}
 
 PROJECT_ROOT = Path(__file__).parent.parent
 
