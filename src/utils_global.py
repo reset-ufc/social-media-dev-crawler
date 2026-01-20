@@ -356,7 +356,7 @@ def make_dir_structure():
     base_dir = current_file_dir.parent
     dirs = [
         base_dir / 'Extraidos dump',
-        base_dir / "data" / "data_mining" / "s1" / "related_tags",
+        base_dir / "data" / "data_mining" / "s1",
         base_dir / "data" / "data_mining" / "s2",
         base_dir / "data" / "Lda" / "csvs",
         base_dir / "data" / "Lda" / "plots",

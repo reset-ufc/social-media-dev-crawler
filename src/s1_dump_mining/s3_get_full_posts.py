@@ -1,3 +1,10 @@
+from collections import defaultdict
+import pandas as pd
+import csv
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from utils_global import (
     safe_date,
     get_logger,
@@ -6,13 +13,6 @@ from utils_global import (
     stream_posts_from_7z
 )
 from paths import DUMP, MERGED_TAGS, CONNECTED_POSTS, SITES
-from collections import defaultdict
-import pandas as pd
-import csv
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 
 logger = get_logger(__name__)
 

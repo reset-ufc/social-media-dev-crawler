@@ -1,11 +1,11 @@
 import csv
-from utils_global import get_logger
-from paths import CONNECTED_POSTS, FILTRED_POSTS
 import pandas as pd
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from utils_global import get_logger
+from paths import CONNECTED_POSTS, FILTRED_POSTS
 
 logger = get_logger(__name__)
 

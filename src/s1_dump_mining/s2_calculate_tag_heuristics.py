@@ -278,7 +278,7 @@ def test_threshold_combinations(
     _TREH2 = [0.001, 0.002, 0.005, 0.010, 0.015, 0.020, 0.30]
 
     if threshold_dir is None:
-        base_dir = os.path.dirname(COARSE_QUESTIONS)
+        base_dir = DATA_MINING_S1
         threshold_dir = os.path.join(base_dir, "threshold_combinations")
     
     os.makedirs(threshold_dir, exist_ok=True)
@@ -423,6 +423,25 @@ def _generate_summary_reports(combination_stats: Dict, threshold_dir: str) -> No
     logger.info("=" * 80)
 
 
+def create_empty_merged_tags():
+    """Create an empty merged_tags.csv file if it doesn't exist."""
+    if not os.path.exists(MERGED_TAGS):
+        logger.info(f"\nCreating empty merged tags file: {MERGED_TAGS}")
+        logger.info("This file should be manually populated by merging:")
+        logger.info(f"  - {R_TAGS}")
+        logger.info(f"  - {R_TAGS_CRYPTO}")
+        
+        ensure_parent_dir(MERGED_TAGS)
+        pd.DataFrame(columns=TAG_FEATURES).to_csv(
+            MERGED_TAGS,
+            index=False,
+            encoding="utf-8"
+        )
+        logger.info("✓ Empty merged_tags.csv created successfully")
+    else:
+        logger.info(f"\nMerged tags file already exists: {MERGED_TAGS}")
+
+
 def main():
     """Main execution function."""
     logger.info("Initializing tag processing with heuristics...")
@@ -441,8 +460,7 @@ def main():
     logger.info(f"\nTotal tags saved in main file: {num_tags}")
 
     logger.info("\n### THRESHOLD TESTS FOR STANDARD SITES ###")
-    base_dir = os.path.dirname(COARSE_QUESTIONS)
-    threshold_dir_standard = os.path.join(base_dir, "threshold_combinations")
+    threshold_dir_standard = os.path.join(DATA_MINING_S1, "threshold_combinations")
     test_threshold_combinations(
         threshold_dir=threshold_dir_standard,
         sites_to_process=["stackoverflow", "security"],
@@ -463,12 +481,18 @@ def main():
     logger.info(f"\nTotal tags saved in crypto file: {num_tags_crypto}")
 
     logger.info("\n### THRESHOLD TESTS FOR CRYPTO SITE ###")
-    threshold_dir_crypto = os.path.join(base_dir, "threshold_combinations_crypto")
+    threshold_dir_crypto = os.path.join(DATA_MINING_S1, "threshold_combinations_crypto")
     test_threshold_combinations(
         threshold_dir=threshold_dir_crypto,
         sites_to_process=["crypto"],
         question_tag=QUESTION_TAG_CRYPTO
     )
+
+    # Create empty merged_tags.csv if it doesn't exist
+    logger.info("\n" + "=" * 80)
+    logger.info("### CHECKING MERGED TAGS FILE ###")
+    logger.info("=" * 80)
+    create_empty_merged_tags()
 
     logger.info("\n" + "=" * 80)
     logger.info("### PROCESSING COMPLETE ###")
