@@ -5,9 +5,28 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from pathlib import Path
 import pandas as pd
 from paths import *
-from utils_global import calc_sample_size, neyman_allocation
 import numpy as np
 from math import ceil
+import scipy.stats as st
+
+
+def calc_sample_size(population, error_margin=0.05, confidence=0.95, p=0.5):
+    """Cochran + Finite Population Correction"""
+    Z = st.norm.ppf((1 + confidence) / 2)
+    
+    numerator = population * (Z**2) * p * (1 - p)
+    denominator = (population - 1) * (error_margin**2) + (Z**2) * p * (1 - p)
+    n = numerator / denominator
+
+    return ceil(n)
+
+
+def neyman_allocation(n, Nh_list, Sh_list):
+    Nh = np.array(Nh_list)
+    Sh = np.array(Sh_list)
+    weights = Nh * Sh
+    nh = n * (weights / weights.sum())
+    return nh
 
 
 def generate_stratum_table(classfication_path: str = CLASSIFIED_POSTS) -> None:
