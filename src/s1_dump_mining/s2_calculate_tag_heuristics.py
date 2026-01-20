@@ -216,46 +216,45 @@ def save_tags_to_csv(tag_metrics: Dict[str, Dict[str, float]], output_path: str)
         append_batch(rows, output_path)
 
 
-def process_all_sites(
-    output_path=R_TAGS,
-    threshold1=THRE1,
-    threshold2=THRE2,
-    sites_to_process=None,
-    question_tag=QUESTION_TAG) -> int:
-    """Process specified sites and generate file with filtered tags.
+def process_single_site(
+    site_alias: str,
+    output_path: str,
+    threshold1: float,
+    threshold2: float,
+    question_tag: str) -> int:
+    """Process a single site and generate file with filtered tags.
 
     Args:
+        site_alias: Site alias to process.
         output_path: Path to save results.
         threshold1: First threshold value.
         threshold2: Second threshold value.
-        sites_to_process: List of site aliases to process. If None, processes all except crypto.
         question_tag: The tag to use as reference for filtering.
 
     Returns:
         Number of tags that passed the filters.
     """
-    if sites_to_process is None:
-        # Process all sites except crypto by default
-        sites_to_process = [site for site in SITES.keys() if site != "crypto"]
+    logger.info(f"\n[{site_alias}] Starting processing...")
+    
+    all_tags_counter, question_tags_counter = collect_tags_from_7z(
+        site_alias, question_tag)
+    
+    if not all_tags_counter and not question_tags_counter:
+        logger.warning(f"[{site_alias}] No tags collected")
+        return 0
 
-    tag_data = {}
-    for site_alias in sites_to_process:
-        all_tags_counter, question_tags_counter = collect_tags_from_7z(
-            site_alias, question_tag)
-        if all_tags_counter or question_tags_counter:
-            tag_data[site_alias] = (all_tags_counter, question_tags_counter)
-            logger.info(f"  └─ [{site_alias}] Tags collected")
+    tag_data = {site_alias: (all_tags_counter, question_tags_counter)}
 
-    logger.info("\nCalculating tag metrics...")
+    logger.info(f"[{site_alias}] Calculating tag metrics...")
     tag_metrics = calculate_tag_metrics(tag_data, question_tag)
-    logger.info(f"Total unique tags with {question_tag}: {len(tag_metrics)}")
+    logger.info(f"[{site_alias}] Total unique tags with '{question_tag}': {len(tag_metrics)}")
 
     if threshold1 is not None or threshold2 is not None:
         logger.info(
-            f"Applying filters: h1 >= {threshold1}, h2 >= {threshold2}")
+            f"[{site_alias}] Applying filters: h1 >= {threshold1}, h2 >= {threshold2}")
         tag_metrics = filter_tags_by_thresholds(
             tag_metrics, threshold1, threshold2)
-        logger.info(f"Tags after filtering: {len(tag_metrics)}")
+        logger.info(f"[{site_alias}] Tags after filtering: {len(tag_metrics)}")
 
     initiate_csv(output_path)
     save_tags_to_csv(tag_metrics, output_path)
@@ -263,48 +262,41 @@ def process_all_sites(
     return len(tag_metrics)
 
 
-def test_threshold_combinations(
-    threshold_dir=None,
-    sites_to_process=None,
-    question_tag=QUESTION_TAG) -> None:
-    """Test various threshold combinations and save results to separate files.
+def test_threshold_combinations_single_site(
+    site_alias: str,
+    threshold_dir: str,
+    question_tag: str) -> None:
+    """Test various threshold combinations for a single site and save results to separate files.
 
     Args:
+        site_alias: Site alias to process.
         threshold_dir: Directory to save threshold test results.
-        sites_to_process: List of site aliases to process.
         question_tag: The tag to use as reference for filtering.
     """
     _TREH1 = [0.05, 0.10, 0.15, 0.20, 0.25, 0.30]
     _TREH2 = [0.001, 0.002, 0.005, 0.010, 0.015, 0.020, 0.30]
 
-    if threshold_dir is None:
-        base_dir = DATA_MINING_S1
-        threshold_dir = os.path.join(base_dir, "threshold_combinations")
-    
     os.makedirs(threshold_dir, exist_ok=True)
 
-    if sites_to_process is None:
-        sites_to_process = [site for site in SITES.keys() if site != "crypto"]
-
     logger.info("=" * 80)
-    logger.info("STARTING THRESHOLD TESTS")
-    logger.info(f"Sites to process: {sites_to_process}")
+    logger.info(f"STARTING THRESHOLD TESTS FOR {site_alias.upper()}")
     logger.info(f"Question tag: '{question_tag}'")
     logger.info(f"Total combinations: {len(_TREH1) * len(_TREH2)}")
     logger.info("=" * 80)
 
-    logger.info("\nCollecting tags from all sites...")
-    tag_data = {}
-    for site_alias in sites_to_process:
-        all_tags_counter, question_tags_counter = collect_tags_from_7z(
-            site_alias, question_tag)
-        if all_tags_counter or question_tags_counter:
-            tag_data[site_alias] = (all_tags_counter, question_tags_counter)
-            logger.info(f"  └─ [{site_alias}] Tags collected")
+    logger.info(f"\n[{site_alias}] Collecting tags...")
+    all_tags_counter, question_tags_counter = collect_tags_from_7z(
+        site_alias, question_tag)
+    
+    if not all_tags_counter and not question_tags_counter:
+        logger.warning(f"[{site_alias}] No tags collected. Skipping threshold tests.")
+        return
 
-    logger.info("\nCalculating tag metrics...")
+    tag_data = {site_alias: (all_tags_counter, question_tags_counter)}
+
+    logger.info(f"\n[{site_alias}] Calculating tag metrics...")
     all_tag_metrics = calculate_tag_metrics(tag_data, question_tag)
-    logger.info(f"Total unique tags: {len(all_tag_metrics)}")
+    logger.info(f"[{site_alias}] Total unique tags: {len(all_tag_metrics)}")
 
     combinations = list(product(_TREH1, _TREH2))
     combination_stats = {}
@@ -336,23 +328,24 @@ def test_threshold_combinations(
         }
 
     logger.info("\n" + "=" * 80)
-    logger.info("THRESHOLD TESTS COMPLETED")
+    logger.info(f"THRESHOLD TESTS COMPLETED FOR {site_alias.upper()}")
     logger.info(f"Files saved in: {threshold_dir}")
     logger.info("=" * 80)
 
     if combination_stats:
-        _generate_summary_reports(combination_stats, threshold_dir)
+        _generate_summary_reports(combination_stats, threshold_dir, site_alias)
 
 
-def _generate_summary_reports(combination_stats: Dict, threshold_dir: str) -> None:
+def _generate_summary_reports(combination_stats: Dict, threshold_dir: str, site_alias: str) -> None:
     """Generate summary reports for threshold test results.
 
     Args:
         combination_stats: Dictionary with statistics per combination.
         threshold_dir: Directory to save reports.
+        site_alias: Site alias being processed.
     """
     logger.info("\n" + "=" * 80)
-    logger.info("RESULTS SUMMARY")
+    logger.info(f"RESULTS SUMMARY FOR {site_alias.upper()}")
     logger.info("=" * 80)
 
     sorted_combinations = sorted(
@@ -423,82 +416,69 @@ def _generate_summary_reports(combination_stats: Dict, threshold_dir: str) -> No
     logger.info("=" * 80)
 
 
-def create_empty_merged_tags():
-    """Create an empty merged_tags.csv file if it doesn't exist."""
-    if not os.path.exists(MERGED_TAGS):
-        logger.info(f"\nCreating empty merged tags file: {MERGED_TAGS}")
-        logger.info("This file should be manually populated by merging:")
-        logger.info(f"  - {R_TAGS}")
-        logger.info(f"  - {R_TAGS_CRYPTO}")
-        
-        ensure_parent_dir(MERGED_TAGS)
-        pd.DataFrame(columns=TAG_FEATURES).to_csv(
-            MERGED_TAGS,
-            index=False,
-            encoding="utf-8"
-        )
-        logger.info("✓ Empty merged_tags.csv created successfully")
-    else:
-        logger.info(f"\nMerged tags file already exists: {MERGED_TAGS}")
-
-
 def main():
     """Main execution function."""
     logger.info("Initializing tag processing with heuristics...")
-
-    # Process standard sites (stackoverflow and security)
     logger.info("\n" + "=" * 80)
-    logger.info("### PROCESSING STANDARD SITES (stackoverflow, security) ###")
+    logger.info("### PROCESSING ALL SITES INDIVIDUALLY ###")
     logger.info("=" * 80)
-    num_tags = process_all_sites(
-        output_path=R_TAGS,
-        threshold1=THRE1,
-        threshold2=THRE2,
-        sites_to_process=["stackoverflow", "security"],
-        question_tag=QUESTION_TAG
-    )
-    logger.info(f"\nTotal tags saved in main file: {num_tags}")
 
-    logger.info("\n### THRESHOLD TESTS FOR STANDARD SITES ###")
-    threshold_dir_standard = os.path.join(DATA_MINING_S1, "threshold_combinations")
-    test_threshold_combinations(
-        threshold_dir=threshold_dir_standard,
-        sites_to_process=["stackoverflow", "security"],
-        question_tag=QUESTION_TAG
-    )
+    results = {}
 
-    # Process crypto site separately
+    # Process each site individually
+    for site_alias in SITES.keys():
+        logger.info("\n" + "=" * 80)
+        logger.info(f"### PROCESSING SITE: {site_alias.upper()} ###")
+        logger.info("=" * 80)
+
+        # Get the appropriate question tag for this site
+        question_tags_list = QUESTION_TAGS.get(site_alias, [QUESTION_TAG])
+        question_tag = question_tags_list[0] if question_tags_list else QUESTION_TAG
+
+        # Define output path for this site
+        output_path = DATA_MINING_S1 / f"releated_tags_{site_alias}.csv"
+
+        # Process the site with standard thresholds
+        num_tags = process_single_site(
+            site_alias=site_alias,
+            output_path=str(output_path),
+            threshold1=THRE1,
+            threshold2=THRE2,
+            question_tag=question_tag
+        )
+        
+        results[site_alias] = {
+            'num_tags': num_tags,
+            'question_tag': question_tag,
+            'output_file': str(output_path)
+        }
+
+        logger.info(f"\n[{site_alias}] Total tags saved: {num_tags}")
+        logger.info(f"[{site_alias}] Output file: {output_path}")
+
+        # Run threshold tests for this site
+        logger.info(f"\n### THRESHOLD TESTS FOR {site_alias.upper()} ###")
+        threshold_dir_site = DATA_MINING_S1 / f"threshold_combinations_{site_alias}"
+        test_threshold_combinations_single_site(
+            site_alias=site_alias,
+            threshold_dir=str(threshold_dir_site),
+            question_tag=question_tag
+        )
+
+    # Final summary
     logger.info("\n" + "=" * 80)
-    logger.info("### PROCESSING CRYPTO SITE (crypto) ###")
+    logger.info("### PROCESSING COMPLETE - SUMMARY ###")
     logger.info("=" * 80)
-    num_tags_crypto = process_all_sites(
-        output_path=R_TAGS_CRYPTO,
-        threshold1=THRE1,
-        threshold2=THRE2,
-        sites_to_process=["crypto"],
-        question_tag=QUESTION_TAG_CRYPTO
-    )
-    logger.info(f"\nTotal tags saved in crypto file: {num_tags_crypto}")
-
-    logger.info("\n### THRESHOLD TESTS FOR CRYPTO SITE ###")
-    threshold_dir_crypto = os.path.join(DATA_MINING_S1, "threshold_combinations_crypto")
-    test_threshold_combinations(
-        threshold_dir=threshold_dir_crypto,
-        sites_to_process=["crypto"],
-        question_tag=QUESTION_TAG_CRYPTO
-    )
-
-    # Create empty merged_tags.csv if it doesn't exist
-    logger.info("\n" + "=" * 80)
-    logger.info("### CHECKING MERGED TAGS FILE ###")
-    logger.info("=" * 80)
-    create_empty_merged_tags()
+    
+    for site_alias, result in results.items():
+        logger.info(f"\n{site_alias.upper()}:")
+        logger.info(f"  Question tag: '{result['question_tag']}'")
+        logger.info(f"  Tags saved: {result['num_tags']}")
+        logger.info(f"  Output file: {result['output_file']}")
 
     logger.info("\n" + "=" * 80)
-    logger.info("### PROCESSING COMPLETE ###")
+    logger.info("All sites processed successfully!")
     logger.info("=" * 80)
-    logger.info(f"Standard sites - Tags saved: {num_tags}")
-    logger.info(f"Crypto site - Tags saved: {num_tags_crypto}")
 
 
 if __name__ == "__main__":

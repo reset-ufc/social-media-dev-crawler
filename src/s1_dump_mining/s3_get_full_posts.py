@@ -12,7 +12,7 @@ from utils_global import (
     ensure_parent_dir,
     stream_posts_from_7z
 )
-from paths import DUMP, MERGED_TAGS, CONNECTED_POSTS, SITES
+from paths import DUMP, CONNECTED_POSTS, SITES, DATA_MINING_S1
 
 logger = get_logger(__name__)
 
@@ -24,25 +24,50 @@ POST_FEATURES = [
 ]
 
 
-def get_all_related_tags():
+def get_related_tags_for_site(site_alias: str) -> set:
     """
-    Read all related tags from the merged tags file (MERGED_TAGS).
-    This file should be manually created by merging the final tag files
-    from the previous processing steps.
+    Read related tags for a specific site from its individual tag file.
+    
+    Args:
+        site_alias: Site alias (e.g., 'stackoverflow', 'crypto', 'security')
+        
+    Returns:
+        Set of related tags for this site
     """
+    tags_file = DATA_MINING_S1 / f"releated_tags_{site_alias}.csv"
+    
     try:
-        df = pd.read_csv(MERGED_TAGS)
+        df = pd.read_csv(tags_file)
         related_tags = set(df['tag'])
-        logger.info(
-            f"Total related tags loaded from merged file: {len(related_tags)}")
+        logger.info(f"[{site_alias}] Loaded {len(related_tags)} related tags from {tags_file.name}")
         return related_tags
     except FileNotFoundError:
-        logger.error(f"Merged tags file not found: {MERGED_TAGS}")
-        logger.error("Please create this file manually by merging the tag files from previous steps.")
+        logger.error(f"[{site_alias}] Tags file not found: {tags_file}")
+        logger.error(f"[{site_alias}] Please run s1_dump_mining.py first to generate tag files.")
         return set()
     except Exception as e:
-        logger.error(f"Error reading merged tags file: {e}")
+        logger.error(f"[{site_alias}] Error reading tags file: {e}")
         return set()
+
+
+def get_all_site_tags() -> dict:
+    """
+    Load related tags for all sites.
+    
+    Returns:
+        Dictionary mapping site_alias to set of related tags
+    """
+    all_site_tags = {}
+    
+    logger.info("\nLoading related tags for all sites...")
+    for site_alias in SITES.keys():
+        tags = get_related_tags_for_site(site_alias)
+        if tags:
+            all_site_tags[site_alias] = tags
+        else:
+            logger.warning(f"[{site_alias}] No tags loaded - site will be skipped")
+    
+    return all_site_tags
 
 
 def initialize_csv():
@@ -70,15 +95,21 @@ def process_site_unified(site_alias, site_name, related_tags):
     Returns processing statistics.
 
     IMPORTANT: question_id now uses "site_alias:id" format to avoid conflicts between sites.
+    
+    Args:
+        site_alias: Site alias (e.g., 'stackoverflow')
+        site_name: Site filename (e.g., 'stackoverflow.com.7z')
+        related_tags: Set of tags relevant to this site
     """
     archive_path = os.path.join(DUMP, site_name)
 
     if not os.path.exists(archive_path):
-        logger.warning(f"File not found: {archive_path}")
+        logger.warning(f"[{site_alias}] File not found: {archive_path}")
         return None
 
     logger.info(f"\n{'='*60}")
     logger.info(f"Processing: {site_alias}")
+    logger.info(f"Using {len(related_tags)} related tags")
     logger.info(f"{'='*60}")
 
     # Data structures to store information
@@ -335,22 +366,33 @@ def main():
     logger.info("UNIFIED EXTRACTION OF POSTS AND RELATED ELEMENTS")
     logger.info("="*60)
 
-    # Load related tags from merged file
-    logger.info(f"\nReading merged tags file: {MERGED_TAGS}")
-    logger.info("Note: This file should be manually created by merging")
-    logger.info("      the final tag files from previous processing steps.")
+    # Load related tags for all sites from individual tag files
+    logger.info("\nLoading related tags from individual site files...")
+    logger.info("Files expected:")
+    for site_alias in SITES.keys():
+        logger.info(f"  - releated_tags_{site_alias}.csv")
     
-    related_tags = get_all_related_tags()
-    if not related_tags:
-        logger.error("No related tags found. Aborting.")
-        logger.error(f"Please ensure {MERGED_TAGS} exists and contains a 'tag' column.")
+    all_site_tags = get_all_site_tags()
+    
+    if not all_site_tags:
+        logger.error("\nNo tags loaded for any site. Aborting.")
+        logger.error("Please run s1_dump_mining.py first to generate tag files.")
         return
+    
+    logger.info(f"\nSuccessfully loaded tags for {len(all_site_tags)} site(s)")
 
+    # Initialize output CSV
     initialize_csv()
 
     site_stats = {}
 
+    # Process each site with its specific tags
     for site_alias, site_name in SITES.items():
+        if site_alias not in all_site_tags:
+            logger.warning(f"\n[{site_alias}] Skipping - no tags loaded")
+            continue
+            
+        related_tags = all_site_tags[site_alias]
         stats = process_site_unified(site_alias, site_name, related_tags)
 
         if stats:
@@ -372,6 +414,7 @@ def main():
         logger.info(f"  - Questions: {stats['questions']}")
         logger.info(f"  - Answers: {stats['answers']}")
         logger.info(f"  - Comments: {stats['comments']}")
+        logger.info(f"  - Subtotal: {stats['questions'] + stats['answers'] + stats['comments']}")
 
         total_questions += stats['questions']
         total_answers += stats['answers']
