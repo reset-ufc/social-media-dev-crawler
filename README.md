@@ -74,17 +74,23 @@ pyenv activate venv-main
 python src/utils_global.py
 ```
 
-2. Realize o download dos dumps completos dos sites: StackOverflow, Crypto e Security por meio do site https://archive.org/details/stackexchange_20250930 e adicione-os na pasta `Extraidos dump/` (arquivos `.7z`).
+2. Realize o download dos dumps completos dos sites: StackOverflow, Crypto e Security por meio do site https://archive.org/details/stackexchange_20251231 e adicione-os na pasta `Extraidos dump/` (arquivos `.7z`).
 
-3. Execute a pipeline de mineração:
+3. Execute a pipeline de mineração
 
-```bash
-python src/s1_dump_mining/pipeline.py
+Na pasta scr/s1_dump_mining execute os arquivos s1 e s2. Em seguida crie o arquivo merged_tags.csv em data/data_mining/s1. Esse arquivo deve conter o merge entre os arquivos releated_tags.csv e releated_tags_crypto.csv. Não devem entrar no arquivo criado quaisquer tags que não tenham sido validadas manualmente como relacionadas a criptografia.
+
+o csv deve seguir a estrutura: (Exemplo)
+
 ```
-Todos os resultados serão salvos em `data/data_mining`
+tag,b,a,h1,h2
+cryptography,1500,1200,0.8,0.15
+encryption,2000,1800,0.9,0.20
+```
 
-4. Normalize os dados para LDA:
+Em seguida prossiga executando os arquivos s3 e s4 para montagem do dataset de posts.
 
+4. Normalize os dados para o LDA
 ```bash
 python src/s2_Lda/s0_normalisation.py
 ```
@@ -96,7 +102,7 @@ pyenv activate venv-lda
 python src/s2_Lda/s1_evaluate_mallet.py
 ```
 
-6. Troque novamente para o venv-main e execute os passos 2 e 3, para inferir o nome dos tópicos por meio do Chat-GPT 5.1 e classificar os posts por meio do modelo treinado e das labels geradas pelo LLM.
+6. Troque novamente para o venv-main e execute os passos 2 e 3, para gerar o nome dos tópicos por meio do Chat-GPT, e classificar os posts com o modelo treinado usando as labels geradas pelo LLM. 
 
 ```bash
 pyenv activate venv-main
@@ -106,7 +112,7 @@ python src/s2_Lda/s3_classify_posts.py
 
 7. Com os posts classificados em seus tópicos, treine os modelos referentes aos subtópicos. 
 
-Edite o arquivo `src/s2_Lda/s1_evaluate_mallet.py`, para iniciar o treinamento dos submodelos.
+Edite o arquivo `src/s2_Lda/s1_evaluate_mallet.py`, para iniciar o treinamento dos submodelos:
 
 Comente a linha
 ```python
@@ -157,8 +163,6 @@ python src/s2_Lda/s2_infer_topics.py
 python src/s2_Lda/s3_classify_posts.py
 ```
 
-10. Opcionalmente, execute ```src/s2_Lda/s4_model_visualizations.py```, para gerar um arquivo topics.txt dentro da pasta de cada modelo, com as palavras agrupadas pelo LDA pertencentes a cada tópico.
+10. Execute ```src/s2_Lda/s5_sampling.py```e gere a tabela de validação manual, que será salva em `data/Lda/validation_sample.xlsx`. A planilha deverá ser devidamente preenchida conforme foi descrito no artigo, na seção de validação manual. Tendo realizado a validação, mantenha o arquivo no mesmo local em que ele foi criado.
 
-11. Execute ```src/s2_Lda/s5_sampling.py```e gere a tabela de validação manual, que será salva em `data/Lda/validation_sample.xlsx`. Esta tabela deverá ser devidamente preenchida conforme foi descrito no artigo, na seção de validação manual. Tendo realizado a validação, mantenha o arquivo no mesmo local em que ele foi criado.
-
-12. Na pasta notebooks, execute por completo os três arquivos presentes. Após isso toda a pipeline estará concluída.
+11. Na pasta notebooks, execute por completo os três arquivos presentes. Esses arquivos geram levantamentos sobre a validação manual, gráficos e tabelas para responder as questões de pesquisa. Após isso toda a pipeline estará concluída.
