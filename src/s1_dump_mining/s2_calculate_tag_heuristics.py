@@ -16,6 +16,17 @@ logger = get_logger(__name__)
 TAG_FEATURES = ['tag', 'b', 'a', 'h1', 'h2']
 BATCH_SIZE = 10000
 
+# Dictionary of banned tags per site
+BANNED_TAGS = {
+    "stackoverflow": ('asn.1', 'bitcoin', 'entropy', 'javacard', 'secret-key', 'smartcard'),
+
+    "crypto": ('adversarial-model', 'algorithm-design', 'complexity', 'machine-learning', 'matrix-multiplication',
+               'order-preserving', 'perfect-secrecy', 'permutation', 'zero-knowledge'),
+
+    "security": ('.net', 'algorithm', 'bitcoin', 'brute-force', 'compression', 'distributed-computing',
+                  'drm', 'emv', 'government', 'instant-messaging', 'integrity', 'library', 'nist')
+}
+
 
 def initiate_csv(output_path: Optional[str] = None) -> None:
     """Initialize CSV file with required tag columns.
@@ -152,6 +163,43 @@ def calculate_tag_metrics(tag_data: Dict[str, Tuple[Counter, Counter]], question
     return tag_metrics
 
 
+def filter_banned_tags(tag_metrics: Dict[str, Dict[str, float]], site_alias: str) -> Dict[str, Dict[str, float]]:
+    """Remove banned tags for a specific site.
+
+    Args:
+        tag_metrics: Dictionary with metrics per tag.
+        site_alias: Site alias to check for banned tags.
+
+    Returns:
+        Dictionary with banned tags removed.
+    """
+    if site_alias not in BANNED_TAGS:
+        logger.info(f"[{site_alias}] No banned tags defined for this site")
+        return tag_metrics
+    
+    banned_set = set(BANNED_TAGS[site_alias])
+    initial_count = len(tag_metrics)
+    
+    present_banned_tags = banned_set & set(tag_metrics.keys())
+    
+    filtered = {tag: metrics for tag, metrics in tag_metrics.items() 
+                if tag not in banned_set}
+    
+    removed_count = initial_count - len(filtered)
+    
+    if removed_count > 0:
+        logger.info(f"\n[{site_alias}] === BANNED TAGS REMOVAL ===")
+        logger.info(f"[{site_alias}] Total tags before filtering: {initial_count}")
+        logger.info(f"[{site_alias}] Banned tags removed: {removed_count}")
+        logger.info(f"[{site_alias}] Tags remaining: {len(filtered)}")
+        if present_banned_tags:
+            logger.info(f"[{site_alias}] Removed tags list: {sorted(present_banned_tags)}")
+    else:
+        logger.info(f"[{site_alias}] No banned tags found in the results")
+    
+    return filtered
+
+
 def filter_tags_by_thresholds(
     tag_metrics: Dict[str, Dict[str, float]],
     threshold1: Optional[float] = None,
@@ -254,7 +302,9 @@ def process_single_site(
             f"[{site_alias}] Applying filters: h1 >= {threshold1}, h2 >= {threshold2}")
         tag_metrics = filter_tags_by_thresholds(
             tag_metrics, threshold1, threshold2)
-        logger.info(f"[{site_alias}] Tags after filtering: {len(tag_metrics)}")
+        logger.info(f"[{site_alias}] Tags after threshold filtering: {len(tag_metrics)}")
+
+    tag_metrics = filter_banned_tags(tag_metrics, site_alias)
 
     initiate_csv(output_path)
     save_tags_to_csv(tag_metrics, output_path)
@@ -312,6 +362,7 @@ def test_threshold_combinations_single_site(
         logger.info(f"File: {output_filename}")
 
         filtered_tags = filter_tags_by_thresholds(all_tag_metrics, thr1, thr2)
+        
         num_tags = len(filtered_tags)
 
         logger.info(f"  └─ Tags passed filters: {num_tags}")
