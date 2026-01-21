@@ -16,12 +16,12 @@ logger = get_logger(__name__)
 TAG_FEATURES = ['tag', 'b', 'a', 'h1', 'h2']
 BATCH_SIZE = 10000
 
-# Dictionary of banned tags per site
+
 BANNED_TAGS = {
     "stackoverflow": ('asn.1', 'bitcoin', 'entropy', 'javacard', 'secret-key', 'smartcard'),
 
     "crypto": ('adversarial-model', 'algorithm-design', 'complexity', 'machine-learning', 'matrix-multiplication',
-               'order-preserving', 'perfect-secrecy', 'permutation', 'zero-knowledge'),
+               'order-preserving', 'perfect-secrecy', 'permutation'),
 
     "security": ('.net', 'algorithm', 'bitcoin', 'brute-force', 'compression', 'distributed-computing',
                   'drm', 'emv', 'government', 'instant-messaging', 'integrity', 'library', 'nist')
