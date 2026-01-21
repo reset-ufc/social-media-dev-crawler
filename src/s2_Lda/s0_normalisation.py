@@ -127,10 +127,6 @@ def tokenize_and_lemmatize(text: str) -> List[str]:
     for t in doc:
         lemma = t.lemma_.lower()
 
-        # --- Kill spaCy's bad lemmatization of "data" -> "datum"
-        if lemma == "datum":
-            continue
-
         # Skip purely numeric tokens
         if lemma.isnumeric():
             continue
