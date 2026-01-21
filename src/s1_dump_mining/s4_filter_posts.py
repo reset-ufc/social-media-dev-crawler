@@ -65,91 +65,179 @@ def filter_popular_posts(input_csv=CONNECTED_POSTS, output_csv=FILTRED_POSTS, pe
     
     df['owner_id'] = df['owner_id'].astype(str)
     
-    questions_with_answers = df[(df['type'] == 'question') & (df['answer_count'] > 0)].copy()
+    # ETAPA 1: Identificar questões que serão desconsideradas (owner_id nulo)
+    logger.info("\nSTEP 1: Identifying questions to SKIP (null owner_id)")
+    logger.info("-" * 80)
     
-    if not questions_with_answers.empty:
+    all_questions = df[df['type'] == 'question'].copy()
+    
+    null_owner_questions = all_questions[
+        (all_questions['owner_id'] == 'nan') | 
+        (all_questions['owner_id'] == '')
+    ]
+    
+    null_owner_question_ids = set(null_owner_questions['question_id'])
+    
+    # Todos os posts relacionados a questões com owner_id nulo
+    posts_to_skip = df[df['question_id'].isin(null_owner_question_ids)]
+    
+    logger.info(f"Questions with null owner_id: {len(null_owner_questions)}")
+    logger.info("These questions will SKIP the self-answer filter automatically")
+    
+    if not posts_to_skip.empty:
+        skip_by_site = posts_to_skip.groupby(['site_alias', 'type']).size().unstack(fill_value=0)
+        
+        logger.info("\nPosts to SKIP by site (will remain in dataset):")
+        for site in skip_by_site.index:
+            q_count = int(skip_by_site.loc[site, 'question']) if 'question' in skip_by_site.columns else 0
+            a_count = int(skip_by_site.loc[site, 'answer']) if 'answer' in skip_by_site.columns else 0
+            c_count = int(skip_by_site.loc[site, 'comment']) if 'comment' in skip_by_site.columns else 0
+            total = q_count + a_count + c_count
+            
+            logger.info(f"  {site}: {total} posts (questions: {q_count}, answers: {a_count}, comments: {c_count})")
+    else:
+        logger.info("No posts to skip")
+    
+    # ETAPA 2: Identificar questões que serão consideradas para análise
+    logger.info(f"\n{'='*80}")
+    logger.info("STEP 2: Identifying questions to CONSIDER for self-answer check")
+    logger.info("-" * 80)
+    
+    questions_to_consider = all_questions[
+        (all_questions['owner_id'] != 'nan') & 
+        (all_questions['owner_id'] != '') &
+        (all_questions['answer_count'] > 0)
+    ]
+    
+    questions_to_consider_ids = set(questions_to_consider['question_id'])
+    
+    # Todos os posts relacionados a questões que serão consideradas
+    posts_to_consider = df[df['question_id'].isin(questions_to_consider_ids)]
+    
+    logger.info(f"Questions with valid owner_id and answers: {len(questions_to_consider)}")
+    logger.info("These questions will be checked for self-answers")
+    
+    if not posts_to_consider.empty:
+        consider_by_site = posts_to_consider.groupby(['site_alias', 'type']).size().unstack(fill_value=0)
+        
+        logger.info("\nPosts to CONSIDER by site:")
+        for site in consider_by_site.index:
+            q_count = int(consider_by_site.loc[site, 'question']) if 'question' in consider_by_site.columns else 0
+            a_count = int(consider_by_site.loc[site, 'answer']) if 'answer' in consider_by_site.columns else 0
+            c_count = int(consider_by_site.loc[site, 'comment']) if 'comment' in consider_by_site.columns else 0
+            total = q_count + a_count + c_count
+            
+            logger.info(f"  {site}: {total} posts (questions: {q_count}, answers: {a_count}, comments: {c_count})")
+    
+    # ETAPA 3: Análise de auto-respostas
+    if not questions_to_consider.empty:
+        logger.info(f"\n{'='*80}")
+        logger.info("STEP 3: Analyzing self-answers")
+        logger.info("-" * 80)
+        
         answers = df[df['type'] == 'answer'].copy()
         
-        valid_questions = questions_with_answers[
-            (questions_with_answers['owner_id'] != 'nan') & 
-            (questions_with_answers['owner_id'] != '')
-        ]
+        # Apenas respostas das questões que estamos considerando
+        answers_to_check = answers[answers['question_id'].isin(questions_to_consider_ids)]
         
-        valid_answers = answers[
-            (answers['owner_id'] != 'nan') & 
-            (answers['owner_id'] != '')
-        ]
-        
-        if not valid_questions.empty and not valid_answers.empty:
-            q_with_a = valid_questions[['question_id', 'owner_id', 'site_alias']].merge(
-                valid_answers[['question_id', 'owner_id']],
+        if not answers_to_check.empty:
+            # Merge questões com suas respostas
+            q_with_a = questions_to_consider[['question_id', 'owner_id', 'site_alias']].merge(
+                answers_to_check[['question_id', 'owner_id']],
                 on='question_id',
                 suffixes=('_q', '_a')
             )
             
-            q_with_a['is_self_answer'] = q_with_a['owner_id_q'] == q_with_a['owner_id_a']
+            # Verifica se é auto-resposta (ambos owner_id válidos e iguais)
+            q_with_a['is_self_answer'] = (
+                (q_with_a['owner_id_a'] != 'nan') & 
+                (q_with_a['owner_id_a'] != '') & 
+                (q_with_a['owner_id_q'] == q_with_a['owner_id_a'])
+            )
             
+            # Agrupa por questão
             answer_stats = q_with_a.groupby(['question_id', 'site_alias']).agg(
                 total_answers=('question_id', 'count'),
                 self_answers=('is_self_answer', 'sum')
             ).reset_index()
             
+            # Identifica questões onde TODAS as respostas são auto-respostas
             all_self_answered = answer_stats[
                 (answer_stats['total_answers'] > 0) & 
+                (answer_stats['self_answers'] > 0) &
                 (answer_stats['self_answers'] == answer_stats['total_answers'])
             ]
             
             self_answered_question_ids = set(all_self_answered['question_id'])
             
             if self_answered_question_ids:
-                total_questions = len(self_answered_question_ids)
-                total_self_answers = int(all_self_answered['total_answers'].sum())
-                
-                logger.info(f"Found {total_questions} questions where all answers are self-answers")
-                logger.info(f"These questions have {total_self_answers} self-answers total")
+                logger.info(f"Found {len(self_answered_question_ids)} questions where ALL answers are self-answers")
                 
                 self_answered_by_site = all_self_answered.groupby('site_alias').agg(
                     num_questions=('question_id', 'count'),
-                    num_answers=('total_answers', 'sum')
+                    num_self_answers=('total_answers', 'sum')
                 ).sort_values('num_questions', ascending=False)
                 
-                logger.info("\nSelf-answered questions by site (with examples):")
+                logger.info("\nSelf-answered questions by site:")
                 for site, row in self_answered_by_site.iterrows():
-                    # Extrai até 3 IDs de exemplo para este site específico
                     example_ids = all_self_answered[all_self_answered['site_alias'] == site]['question_id'].head(3).tolist()
                     example_str = ", ".join(map(str, example_ids))
                     
-                    logger.info(f"  {site}: {int(row['num_questions'])} questions, {int(row['num_answers'])} answers")
-                    logger.info(f"    Examples: [{example_str}]") # Linha adicionada para os IDs
+                    logger.info(f"  {site}: {int(row['num_questions'])} questions, {int(row['num_self_answers'])} self-answers")
+                    logger.info(f"    Example question IDs: [{example_str}]")
+                
+                # ETAPA 4: Remoção
+                logger.info(f"\n{'='*80}")
+                logger.info("STEP 4: Removing self-answered questions and associated posts")
+                logger.info("-" * 80)
                 
                 posts_before_removal = len(df)
                 posts_to_remove = df[df['question_id'].isin(self_answered_question_ids)]
                 
-                removal_by_type = posts_to_remove.groupby('type').size()
-                logger.info("\nPosts to be removed by type:")
-                for post_type, count in removal_by_type.items():
-                    logger.info(f"  {post_type}: {count}")
-                
                 removal_by_site = posts_to_remove.groupby(['site_alias', 'type']).size().unstack(fill_value=0)
-                logger.info("\nPosts to be removed by site:")
+                
+                logger.info("Posts REMOVED by site:")
                 for site in removal_by_site.index:
-                    q_count = removal_by_site.loc[site, 'question'] if 'question' in removal_by_site.columns else 0
-                    a_count = removal_by_site.loc[site, 'answer'] if 'answer' in removal_by_site.columns else 0
-                    c_count = removal_by_site.loc[site, 'comment'] if 'comment' in removal_by_site.columns else 0
+                    q_count = int(removal_by_site.loc[site, 'question']) if 'question' in removal_by_site.columns else 0
+                    a_count = int(removal_by_site.loc[site, 'answer']) if 'answer' in removal_by_site.columns else 0
+                    c_count = int(removal_by_site.loc[site, 'comment']) if 'comment' in removal_by_site.columns else 0
                     total = q_count + a_count + c_count
+                    
                     logger.info(f"  {site}: {total} posts (questions: {q_count}, answers: {a_count}, comments: {c_count})")
                 
+                # Remove do dataframe
                 df = df[~df['question_id'].isin(self_answered_question_ids)]
                 
                 posts_after_removal = len(df)
                 logger.info(f"\nTotal posts removed: {posts_before_removal - posts_after_removal}")
+                
+                # ETAPA 5: Resultado final da filtragem de auto-resposta
+                logger.info(f"\n{'='*80}")
+                logger.info("STEP 5: Final result after self-answer filtering")
+                logger.info("-" * 80)
+                
+                final_by_site = df.groupby(['site_alias', 'type']).size().unstack(fill_value=0)
+                
+                logger.info("Posts REMAINING by site:")
+                for site in final_by_site.index:
+                    q_count = int(final_by_site.loc[site, 'question']) if 'question' in final_by_site.columns else 0
+                    a_count = int(final_by_site.loc[site, 'answer']) if 'answer' in final_by_site.columns else 0
+                    c_count = int(final_by_site.loc[site, 'comment']) if 'comment' in final_by_site.columns else 0
+                    total = q_count + a_count + c_count
+                    
+                    logger.info(f"  {site}: {total} posts (questions: {q_count}, answers: {a_count}, comments: {c_count})")
+                
+                logger.info(f"\nTotal posts remaining: {len(df)}")
             else:
                 logger.info("No questions with only self-answers found")
+                logger.info("All considered questions have at least one answer from another user")
         else:
-            logger.info("Insufficient valid owner_id data for self-answer check")
+            logger.info("No answers found for the questions being considered")
+    else:
+        logger.info("\nNo questions to consider (all questions have null owner_id or no answers)")
     
     df_questions = df[df['type'] == 'question'].copy()
-    logger.info(f"\nQuestions remaining after self-answer removal: {len(df_questions)}")
+    logger.info(f"\nTotal questions after self-answer filtering: {len(df_questions)}")
 
     for col in ['answer_count', 'view_count', 'score', 'comment_count']:
         if col not in df_questions.columns:
