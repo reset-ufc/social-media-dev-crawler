@@ -24,7 +24,9 @@ BANNED_TAGS = {
                'order-preserving', 'permutation'),
 
     "security": ('.net', 'algorithm', 'bitcoin', 'brute-force', 'compression', 'distributed-computing',
-                  'drm', 'emv', 'government', 'instant-messaging', 'integrity', 'library', 'nist')
+                  'drm', 'emv', 'government', 'instant-messaging', 'integrity', 'library', 'nist',
+                  'obscurity', 'passwords', 'programming', 'protocols', 'quantum-computing', 'random', 'rfid', 'secret-sharing',
+                  'side-channel', 'smartcard', 'theory', 'timestamp', 'timing-attack', 'voip')
 }
 
 
