@@ -20,8 +20,8 @@ BATCH_SIZE = 10000
 BANNED_TAGS = {
     "stackoverflow": ('asn.1', 'bitcoin', 'entropy', 'javacard', 'secret-key', 'smartcard'),
 
-    "crypto": ('adversarial-model', 'algorithm-design', 'complexity', 'machine-learning', 'matrix-multiplication',
-               'order-preserving', 'perfect-secrecy', 'permutation'),
+    "crypto": ('adversarial-model', 'complexity', 'machine-learning', 'matrix-multiplication',
+               'order-preserving', 'permutation'),
 
     "security": ('.net', 'algorithm', 'bitcoin', 'brute-force', 'compression', 'distributed-computing',
                   'drm', 'emv', 'government', 'instant-messaging', 'integrity', 'library', 'nist')
