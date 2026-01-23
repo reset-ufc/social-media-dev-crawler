@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 import pandas as pd
 from langchain_openai import ChatOpenAI
-from paths import *
+
 from gensim.models.ldamodel import LdaModel
 import json
 from langchain_ollama import ChatOllama
@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
+from paths import *
 
 load_dotenv()
 
