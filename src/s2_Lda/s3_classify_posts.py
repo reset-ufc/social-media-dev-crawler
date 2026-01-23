@@ -309,7 +309,7 @@ def classify_all_subtopics(model_path):
         
         lda_file = model_path_subtopic / TRAINED_LDA
         dct_file = model_path_subtopic / TRAINED_DCT
-        inf_file = model_path_subtopic / 'subtopic_inference.json'
+        inf_file = model_path_subtopic / 'topic_inference.json'
         
         if not lda_file.exists() or not dct_file.exists():
             print(f"  ⚠ WARNING: Model files not found in {model_path_subtopic}")
