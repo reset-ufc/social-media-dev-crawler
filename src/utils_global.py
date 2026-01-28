@@ -22,13 +22,14 @@ from contextlib import contextmanager
 @contextmanager
 def stream_posts_from_7z(archive_path, posts_filename="Posts.xml"):
     """
-    Abre Posts.xml dentro de um .7z em streaming usando pipe.
+    Open Posts.xml inside a .7z file in streaming mode using pipe.
     """
     # 'e' (extract), '-so' (send to stdout)
-    # joga o conteúdo do XML direto para a RAM do Python sem passar pelo disco
+    # stream the XML content directly to Python RAM without passing through disk
     cmd = ["7z", "e", archive_path, posts_filename, "-so"]
 
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     try:
         context = ET.iterparse(process.stdout, events=("end",))
@@ -47,8 +48,8 @@ def ensure_parent_dir(path):
 
 def extract_tag_list(tags_field):
     """
-    Recebe o valor bruto da coluna tags e retorna lista de tags.
-    Suporta formatos comuns:
+    Receives the raw value from the tags column and returns a list of tags.
+    Supports common formats:
       - "python;cryptography"
     """
     if pd.isna(tags_field) or tags_field == "":
@@ -63,7 +64,7 @@ def extract_tag_list(tags_field):
 
 
 def safe_date(ts):
-    """Padroniza o formato de data, ignorando erros."""
+    """Standardizes the date format, ignoring errors."""
     try:
         dt = datetime.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S.%f")
         return dt.strftime('%Y/%m/%d, %H:%M:%S')
@@ -73,28 +74,29 @@ def safe_date(ts):
 
 def get_logger(name: str, level=logging.INFO) -> logging.Logger:
     """
-    Configura e retorna um logger que escreve para o console e para um arquivo.
+    Configures and returns a logger that writes to console and to a file.
     """
     logger = logging.getLogger(name)
     if logger.hasHandlers():
-        return logger  # Evita adicionar handlers duplicados
+        return logger  # Avoid adding duplicate handlers
 
     logger.setLevel(level)
     formatter = logging.Formatter(
         '%(levelname)s - %(message)s')
 
-    # Handler para o console
+    # Handler for console
     ch = logging.StreamHandler()
     ch.setFormatter(formatter)
     logger.addHandler(ch)
 
-    # Handler para o arquivo
+    # Handler for file
     ensure_parent_dir(DUMP_MINING_LOG_FILE)
     fh = logging.FileHandler(DUMP_MINING_LOG_FILE, encoding='utf-8')
     fh.setFormatter(formatter)
     logger.addHandler(fh)
 
     return logger
+
 
 def make_data():
     """Creates the data directory structure."""
@@ -104,11 +106,9 @@ def make_data():
     os.makedirs(LLM_SUMMARIZATION, exist_ok=True)
 
 
-from pathlib import Path
-
 def make_dir_structure():
     current_file_dir = Path(__file__).resolve().parent
-    
+
     base_dir = current_file_dir.parent
     dirs = [
         base_dir / 'Extraidos dump',
@@ -125,4 +125,3 @@ def make_dir_structure():
 
 if __name__ == '__main__':
     make_dir_structure()
-    

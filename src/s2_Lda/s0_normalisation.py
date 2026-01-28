@@ -172,7 +172,7 @@ def normalize_corpora_from_posts(df: pd.DataFrame, body_field: str = 'body') -> 
     print("Tokenizing and lemmatizing...")
     token_lists = df[body_field].map(tokenize_and_lemmatize)
 
-    # IMPROVEMENT: Filter out empty token lists
+    # Filter out empty token lists
     valid_tokens = [toks for toks in token_lists if len(toks) > 0]
     
     if len(valid_tokens) == 0:
@@ -180,15 +180,15 @@ def normalize_corpora_from_posts(df: pd.DataFrame, body_field: str = 'body') -> 
         df["normalized"] = [[] for _ in range(len(df))]
         return df
 
-    # Build bigrams and trigrams
+    # bigrams and trigrams
     print("Building bigrams and trigrams...")
-    bigram = Phrases(valid_tokens, min_count=5, threshold=10)  # IMPROVEMENT: Added thresholds
+    bigram = Phrases(valid_tokens, min_count=5, threshold=10)  # default thresholds
     trigram = Phrases(bigram[valid_tokens], min_count=5, threshold=10)
 
     bigram_mod = Phraser(bigram)
     trigram_mod = Phraser(trigram)
 
-    # Apply bigrams and trigrams to all token lists (including empty ones)
+    # Apply bigrams and trigrams to all token lists
     token_lists = [
         trigram_mod[bigram_mod[toks]] if len(toks) > 0 else []
         for toks in token_lists
@@ -228,12 +228,11 @@ def main():
     out_df = result_df.copy()
     out_df["normalized_text"] = out_df["normalized"].apply(lambda t: " ".join(t))
     
-    # Keep only essential columns (remove title, body, combined_text, and normalized list)
+    # Keep only essential columns
     columns_to_drop = ["title", "body", "combined_text", "normalized"]
     columns_to_keep = [col for col in out_df.columns if col not in columns_to_drop]
     out_df = out_df[columns_to_keep]
 
-    # IMPROVEMENT: Add statistics
     empty_docs = (out_df["normalized_text"] == "").sum()
     print(f"\nNormalization complete:")
     print(f"  Total documents: {len(out_df)}")

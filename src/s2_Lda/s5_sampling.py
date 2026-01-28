@@ -1,19 +1,19 @@
+import scipy.stats as st
+from math import ceil
+import numpy as np
+from paths import *
+import pandas as pd
+from pathlib import Path
+from openpyxl.worksheet.datavalidation import DataValidation
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from openpyxl.worksheet.datavalidation import DataValidation
-from pathlib import Path
-import pandas as pd
-from paths import *
-import numpy as np
-from math import ceil
-import scipy.stats as st
 
 
 def calc_sample_size(population, error_margin=0.05, confidence=0.95, p=0.5):
     """Cochran + Finite Population Correction"""
     Z = st.norm.ppf((1 + confidence) / 2)
-    
+
     numerator = population * (Z**2) * p * (1 - p)
     denominator = (population - 1) * (error_margin**2) + (Z**2) * p * (1 - p)
     n = numerator / denominator
@@ -36,48 +36,48 @@ def generate_stratum_table(classfication_path: str = CLASSIFIED_POSTS) -> None:
     Nh = grouped.size()
     Sh = grouped['topic_perc_contrib'].std()
     N = len(qdf)
-    
-    z = 1.96  # nível de confiança 95%
-    p = 0.5   # proporção estimada
-    e = 0.05  # margem de erro
+
+    z = 1.96  # 95% confidence level
+    p = 0.5   # estimated proportion
+    e = 0.05  # error margin
     n0 = (z**2 * p * (1 - p)) / (e**2)
 
-    print(f"População total (N): {N}")
-    print(f"Tamanho da amostra inicial (n₀): {n0}")
-    
-    n_fpc_float = n0 / (1 + (n0 - 1) / N)
-    n_target = int(np.ceil(n_fpc_float)) 
+    print(f"Total population (N): {N}")
+    print(f"Initial sample size (n₀): {n0}")
 
-    print(f"Tamanho da amostra ajustado FPC (n_alvo): {n_target}")
-    
-    # 2. ALOCAÇÃO DE NEYMAN 
+    n_fpc_float = n0 / (1 + (n0 - 1) / N)
+    n_target = int(np.ceil(n_fpc_float))
+
+    print(f"Adjusted sample size FPC (n_target): {n_target}")
+
+    # 2. NEYMAN ALLOCATION
     nh = neyman_allocation(
         n=n_fpc_float,
         Nh_list=Nh.values,
         Sh_list=Sh.values
     )
-    print(f"Alocação de Neyman (floats): {nh}")
-    
-    # 3. ARREDONDAMENTO INICIAL
+    print(f"Neyman allocation (floats): {nh}")
+
+    # 3. INITIAL ROUNDING
     nh_rounded = np.ceil(nh).astype(int)
     total_allocated = nh_rounded.sum()
-    
-    print(f"Total alocado após arredondamento inicial: {total_allocated}")
+
+    print(f"Total allocated after initial rounding: {total_allocated}")
     print(nh_rounded)
-    
-    # 4. PROCESSO DE AJUSTE DE EXCESSO
+
+    # 4. EXCESS ADJUSTMENT PROCESS
     excess = total_allocated - n_target
-    
+
     if excess > 0:
-        print(f"Detectado excesso de {excess} unidade(s). Iniciando ajuste.")
-        
+        print(f"Detected excess of {excess} unit(s). Starting adjustment.")
+
         sobra = nh_rounded - nh
         indices_a_ajustar = np.argsort(sobra)[0:excess]
-        
+
         nh_rounded[indices_a_ajustar] -= 1
-        
+
         total_allocated = nh_rounded.sum()
-        print(f"Ajuste concluído. Novo total alocado: {total_allocated}")
+        print(f"Adjustment completed. New total allocated: {total_allocated}")
 
     print(nh_rounded)
     table = pd.DataFrame({
@@ -170,19 +170,19 @@ def validation_sample():
         if pd.isna(qid):
             return ''
 
-        # Converte para string
+        # Convert to string
         qid_str = str(qid)
-        
-        # Se o question_id está no formato 'site:id', extrai apenas o id
+
+        # If question_id is in 'site:id' format, extract only the id
         if ':' in qid_str:
             parts = qid_str.split(':')
             if len(parts) == 2:
-                # Usa o site do question_id se disponível, senão usa site_alias
+                # Use the site from question_id if available, otherwise use site_alias
                 if pd.isna(site_alias) or site_alias == '':
                     site_alias = parts[0]
                 qid_str = parts[1]
-        
-        # Remove parte decimal se existir
+
+        # Remove decimal part if it exists
         try:
             qid_str = str(int(float(qid_str)))
         except (ValueError, TypeError):
@@ -209,16 +209,18 @@ def validation_sample():
             result = result.rename(columns={'question_id': 'id'})
 
         out_df = pd.DataFrame()
-        out_df['id'] = result['question_id'] if 'question_id' in result.columns else result.get('id', pd.NA)
+        out_df['id'] = result['question_id'] if 'question_id' in result.columns else result.get(
+            'id', pd.NA)
         out_df['site'] = result['site_alias']
         out_df['topic'] = result['topic']
 
-        sub_col = next((c for c in result.columns if 'subtopic' in c.lower()), None)
+        sub_col = next(
+            (c for c in result.columns if 'subtopic' in c.lower()), None)
         out_df['subtopics'] = result[sub_col] if sub_col else pd.NA
 
         out_df['link'] = result.apply(make_link, axis=1)
 
-        # Colunas de validação vazias
+        # Empty validation columns
         out_df['topic_validation_1'] = ''
         out_df['topic_validation_2'] = ''
         out_df['topic_veredict'] = ''
@@ -227,7 +229,7 @@ def validation_sample():
         out_df['subtopic_veredict'] = ''
         out_df['technologies'] = ''
 
-    # Garante a ordem correta das colunas
+    # Ensure correct column order
     out_df = out_df[[
         'id', 'site', 'topic', 'subtopics', 'link',
         'topic_validation_1', 'topic_validation_2', 'topic_veredict',
@@ -241,6 +243,7 @@ def validation_sample():
 
     return out_df
 
+
 if __name__ == '__main__':
     generate_stratum_table()
-    validation_sample()  # Adicione esta linha se quiser executar ambas
+    validation_sample()  # Add this line if you want to execute both

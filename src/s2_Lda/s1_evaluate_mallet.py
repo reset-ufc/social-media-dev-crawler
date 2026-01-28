@@ -1,24 +1,23 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import subprocess
+from dotenv import load_dotenv
+import pandas as pd
+import logging as _logging
+from gensim.models.coherencemodel import CoherenceModel
+from gensim.models.wrappers.ldamallet import malletmodel2ldamodel
+from gensim.models.wrappers import LdaMallet
+from gensim.models.ldamodel import LdaModel
+from gensim.corpora.dictionary import Dictionary
+from paths import *
+from gensim.corpora import MmCorpus
+import json
+from pathlib import Path
+from typing import Iterable, Tuple, List, Optional
+import logging
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-import logging
-from typing import Iterable, Tuple, List, Optional
-from pathlib import Path
-import json
-from gensim.corpora import MmCorpus
-from paths import *
-from gensim.corpora.dictionary import Dictionary
-from gensim.models.ldamodel import LdaModel
-from gensim.models.wrappers import LdaMallet
-from gensim.models.wrappers.ldamallet import malletmodel2ldamodel
-from gensim.models.coherencemodel import CoherenceModel
-import logging as _logging
-import pandas as pd
-from dotenv import load_dotenv
-import subprocess
-import matplotlib.pyplot as plt
-import numpy as np
 
 
 load_dotenv()
@@ -51,36 +50,37 @@ def _default_mallet_home():
 
 def calculate_perplexity_from_mallet(model, bow_corpus):
     """
-    Calcula a perplexidade usando as distribuições tópico-documento do Mallet.
-    Esta abordagem é mais robusta para modelos convertidos do Mallet.
+    Calculate perplexity using topic-document distributions from Mallet.
+    This approach is more robust for models converted from Mallet.
     """
     try:
-        # Obter distribuições tópico-documento
-        doc_topics = [model.get_document_topics(doc, minimum_probability=0) for doc in bow_corpus]
-        
+        # Get topic-document distributions
+        doc_topics = [model.get_document_topics(
+            doc, minimum_probability=0) for doc in bow_corpus]
+
         total_log_likelihood = 0
         total_words = 0
-        
+
         for doc_idx, doc in enumerate(bow_corpus):
             doc_topic_dist = dict(doc_topics[doc_idx])
-            
+
             for word_id, word_count in doc:
                 word_prob = 0
                 for topic_id in range(model.num_topics):
                     topic_prob = doc_topic_dist.get(topic_id, 0)
                     word_given_topic = model.expElogbeta[topic_id][word_id]
                     word_prob += topic_prob * word_given_topic
-                
+
                 if word_prob > 0:
                     total_log_likelihood += word_count * np.log(word_prob)
                     total_words += word_count
-        
+
         if total_words == 0:
             return float('nan')
-        
+
         perplexity = np.exp(-total_log_likelihood / total_words)
         return float(perplexity)
-        
+
     except Exception as e:
         logger.warning(f"Failed to calculate perplexity: {e}")
         return float('nan')
@@ -88,11 +88,12 @@ def calculate_perplexity_from_mallet(model, bow_corpus):
 
 def calculate_perplexity_alternative(model, bow_corpus):
     """
-    Método alternativo usando bound() diretamente.
-    Mais rápido mas pode ser menos preciso para modelos Mallet convertidos.
+    Alternative method using bound() directly.
+    Faster but may be less accurate for converted Mallet models.
     """
     try:
-        per_word_bound = model.bound(bow_corpus) / sum(cnt for doc in bow_corpus for _, cnt in doc)
+        per_word_bound = model.bound(
+            bow_corpus) / sum(cnt for doc in bow_corpus for _, cnt in doc)
         perplexity = np.exp2(-per_word_bound)
         return float(perplexity)
     except Exception as e:
@@ -102,36 +103,37 @@ def calculate_perplexity_alternative(model, bow_corpus):
 
 def words_per_topic(model_path, num_words: int = 20) -> str:
     """
-    Extrai e salva as palavras mais importantes de cada tópico.
-    
+    Extract and save the most important words from each topic.
+
     Args:
-        model_path: Caminho do diretório do modelo
-        num_words: Número de palavras por tópico (padrão: 20)
-    
+        model_path: Path to the model directory
+        num_words: Number of words per topic (default: 20)
+
     Returns:
-        Caminho do arquivo salvo ou None em caso de erro
+        Path to the saved file or None in case of error
     """
     try:
         model = LdaModel.load(str(model_path / TRAINED_LDA))
         formatted_topics = []
-        
+
         for topic_id in range(model.num_topics):
             top_terms = model.show_topic(topic_id, topn=num_words)
             top_terms = sorted(top_terms, key=lambda x: x[1], reverse=True)
             terms_str = ", ".join(
-                [f'word: "{word}" weight: ({weight:.3f})' for word, weight in top_terms]
+                [f'word: "{word}" weight: ({weight:.3f})' for word,
+                 weight in top_terms]
             )
             formatted_topics.append(f"Topic {topic_id}: [{terms_str}]")
-        
+
         Path(model_path).mkdir(parents=True, exist_ok=True)
-        
+
         output_path = Path(model_path) / 'topics.txt'
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write("\n".join(formatted_topics))
-        
+
         logger.info(f"Topics saved to: {output_path}")
         return str(output_path)
-        
+
     except Exception as e:
         logger.exception(f"Failed to extract topic words: {e}")
         return None
@@ -150,10 +152,10 @@ def train_mallet_with_beta(
     prefix=None
 ):
     """
-    Treina modelo LDA Mallet com suporte ao parâmetro beta
-    Retorna um objeto LdaMallet treinado
+    Train Mallet LDA model with support for beta parameter.
+    Returns a trained LdaMallet object.
     """
-    # Criar instância básica sem treinar
+    # Create basic instance without training
     model = LdaMallet(
         mallet_path=mallet_path,
         corpus=None,
@@ -166,7 +168,7 @@ def train_mallet_with_beta(
         random_seed=random_seed
     )
 
-    # Converter corpus para formato Mallet
+    # Convert corpus to Mallet format
     model.convert_input(corpus, infer=False)
 
     cmd = [
@@ -189,10 +191,10 @@ def train_mallet_with_beta(
     logger.info(
         f"Training MALLET LDA: topics={num_topics}, alpha={alpha}, beta={beta}, seed={random_seed}")
 
-    # Executar treinamento
+    # Execute training
     subprocess.check_call(cmd)
 
-    # Carregar word-topics
+    # Load word-topics
     model.word_topics = model.load_word_topics()
     model.wordtopics = model.word_topics
 
@@ -258,7 +260,7 @@ def find_best_model(
             perp = calculate_perplexity_from_mallet(model, bow_corpus)
             if np.isnan(perp):
                 perp = calculate_perplexity_alternative(model, bow_corpus)
-            
+
             perplexities.append(perp)
 
             logger.info(
@@ -287,21 +289,23 @@ def find_best_model(
         # Coherence plot
         plt.figure(figsize=(10, 6))
         plt.plot(topic_range, scores, marker='o', linestyle='-', color='blue')
-        plt.title('Score de Coerência (C_V) por Número de Tópicos')
-        plt.xlabel('Número de Tópicos (K)')
-        plt.ylabel(f'Score de Coerência ({coherence})')
+        plt.title('Coherence Score (C_V) by Number of Topics')
+        plt.xlabel('Number of Topics (K)')
+        plt.ylabel(f'Coherence Score ({coherence})')
         plt.xticks(topic_range)
         plt.grid(True, linestyle='--', alpha=0.6)
         plt.savefig(str(model_path/'coherence_plot.png'))
 
-        # Perplexity plot 
-        valid_perplexities = [(k, p) for k, p in zip(topic_range, perplexities) if not np.isnan(p)]
+        # Perplexity plot
+        valid_perplexities = [(k, p) for k, p in zip(
+            topic_range, perplexities) if not np.isnan(p)]
         if valid_perplexities:
             valid_k, valid_p = zip(*valid_perplexities)
             plt.figure(figsize=(10, 6))
-            plt.plot(valid_k, valid_p, marker='o', linestyle='-', color='green')
-            plt.title('Perplexity por Número de Tópicos')
-            plt.xlabel('Número de Tópicos (K)')
+            plt.plot(valid_k, valid_p, marker='o',
+                     linestyle='-', color='green')
+            plt.title('Perplexity by Number of Topics')
+            plt.xlabel('Number of Topics (K)')
             plt.ylabel('Perplexity')
             plt.xticks(topic_range)
             plt.grid(True, linestyle='--', alpha=0.6)
@@ -374,7 +378,7 @@ def evaluate_model(
         )
 
         model = malletmodel2ldamodel(mallet_model)
-        
+
         perp = calculate_perplexity_from_mallet(model, bow_corpus)
         if np.isnan(perp):
             perp = calculate_perplexity_alternative(model, bow_corpus)
@@ -400,8 +404,8 @@ def evaluate_model(
 
         logger.info("Model saved successfully")
         logger.info(f"Best configuration: {best_config}")
-        
-        # Extrair e salvar palavras mais importantes de cada tópico
+
+        # Extract and save the most important words from each topic
         topics_file = words_per_topic(model_path, num_words=20)
         if topics_file:
             logger.info(f"Topic words saved to: {topics_file}")
