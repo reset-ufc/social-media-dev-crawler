@@ -63,6 +63,10 @@ sudo chown -R $USER:$USER /opt/mallet
 ```
 Ou instale o modelo na pasta `C:\mallet` caso use Windows
 
+5. Instatle o 7zip
+ Linux: sudo apt install p7zip-full.
+ Windows: add the 7-Zip executable to your PATH.
+
 Adicione sua chave de API do Chat-GPT 5.1 em um arquivo `.env`, que deverá ser criado em `src\s2_Lda`
 
 ## Execução
