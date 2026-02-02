@@ -30,8 +30,10 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
+# Default values in gensim
 DEFAULT_NO_BELOW = 5
 DEFAULT_NO_ABOVE = 0.5
+
 DEFAULT_TOPIC_RANGE = range(1, 25+1)
 DEFAULT_ITERATIONS = 2000
 DEFAULT_COHERENCE = 'c_v'
