@@ -1,57 +1,75 @@
 # Social Media Dev Crawler
 
-## Descrição
+## Description
 
-Projeto para extrair, processar e analisar posts de plataformas Q&A (por exemplo, Stack Exchange). O pipeline extrai dados brutos, filtra e pré-processa posts relevantes e, em seguida, aplica modelagem de tópicos (LDA) para identificar temas predominantes nas discussões.
+A comprehensive project for extracting, processing, and analyzing posts from Q&A platforms (e.g., Stack Exchange). The pipeline extracts raw data, filters and preprocesses relevant posts, and then applies Latent Dirichlet Allocation (LDA) topic modeling to identify predominant themes in discussions.
 
-O fluxo principal é composto por duas etapas:
+The main workflow consists of two stages:
 
-- **Mineração de dados (`s1_dump_mining`)**: extração e limpeza dos dumps brutos.
-- **Modelagem de tópicos (`s2_Lda`)**: pré-processamento e treinamento/avaliação de modelos LDA.
+- **Data Mining (`s1_dump_mining`)**: Extraction and cleaning of raw dumps
+- **Topic Modeling (`s2_Lda`)**: Preprocessing, training, and evaluation of LDA models
 
-## Estrutura do repositório
+---
 
-- `src/` — código-fonte e scripts (inclui `paths.py` e `utils_global.py`).
-  - `s1_dump_mining/` — pipeline de extração e preparação de dados.
-  - `s2_Lda/` — scripts para normalização, treinamento e inferência LDA.
-- `data/` — dados gerados pelo pipeline:
-  - `data_mining/` — saídas da mineração (s1 e s2).
-  - `Lda/` — modelos, CSVs e plots relacionados ao LDA.
-- `prompts/` — templates de prompts usados com LLMs para rotular tópicos.
-- `notebooks/` — notebooks para análise, validação e visualização.
-- `Extraidos dump/` — local para colocar os arquivos .7z dos dumps fornecidos pelo Archive.org.
+## Repository Structure
 
-## Requisitos
+```
+├── src/                          # Source code and scripts
+│   ├── paths.py                  # Path configurations
+│   ├── utils_global.py           # Global utilities
+│   ├── s1_dump_mining/           # Data extraction and preparation pipeline
+│   └── s2_Lda/                   # Normalization, training, and LDA inference scripts
+├── data/                         # Pipeline-generated data
+│   ├── data_mining/              # Mining outputs
+│   └── Lda/                      # LDA models, CSVs, and plots
+├── prompts/                      # Prompt templates for LLM-based topic labeling
+├── notebooks/                    # Notebooks with research question results and manual validation visualization
+└── Extraidos dump/               # Directory for Archive.org dump files (.7z)
+```
 
-- Python (recomenda-se gerenciar versões com `pyenv` ou virtualenv).
-- Dependências listadas em `requirements.txt` e `requirements_lda.txt`.
+---
 
-## Instalação rápida (exemplo com pyenv)
+## Requirements
 
-1. Instale e configure `pyenv` (ou use `venv`/`virtualenv`).
+- **Python Versions**: 3.12.3 and 3.8.10 (version management with `pyenv` or `virtualenv` recommended)
+- **Dependencies**: Listed in `requirements_main.txt` and `requirements_lda.txt`
+- **Additional Software**:
+  - Mallet 2.0.8
+  - 7-Zip
 
-2. Crie os ambientes virtuais:
+---
+
+## Quick Installation Guide
+
+### 1. Install and Configure Python Environments
+
+Install and configure `pyenv` (or use `venv`/`virtualenv`):
 
 ```bash
+# Create virtual environments
 pyenv virtualenv 3.12.3 venv-main
 pyenv virtualenv 3.8.10 venv-lda
 ```
 
-3. Instale dependências:
+### 2. Install Dependencies
 
 ```bash
+# Install dependencies for main environment
 pyenv activate venv-main
 pip install --upgrade pip
 pip install -r requirements_main.txt
 pyenv deactivate
 
+# Install dependencies for LDA environment
 pyenv activate venv-lda
 pip install --upgrade pip
 pip install -r requirements_lda.txt
 pyenv deactivate
 ```
 
-4. Instale o Mallet 2.0.8
+### 3. Install Mallet 2.0.8
+
+**Linux/Mac:**
 
 ```bash
 cd /tmp
@@ -61,52 +79,68 @@ sudo tar -xzf mallet-2.0.8.tar.gz -C /opt/mallet --strip-components=1
 sudo chmod -R 755 /opt/mallet
 sudo chown -R $USER:$USER /opt/mallet
 ```
-Ou instale o modelo na pasta `C:\mallet` caso use Windows
 
-5. Instatle o 7zip
- Linux: sudo apt install p7zip-full.
- Windows: add the 7-Zip executable to your PATH.
+**Windows:**
 
-Adicione sua chave de API do Chat-GPT 5.1 em um arquivo `.env`, que deverá ser criado em `src\s2_Lda`
+Install Mallet in the `C:\mallet` directory.
 
-## Execução
+### 4. Install 7-Zip
 
-1. Gere a estrutura de diretórios:
+**Linux:**
+
+```bash
+sudo apt install p7zip-full
+```
+
+**Windows:**
+
+Download and install 7-Zip, then add the executable to your PATH.
+
+### 5. Configure API Key
+
+Add your ChatGPT 5.2 API key to a `.env` file in the `src/s2_Lda` directory:
+
+```
+OPENAI_API_KEY=your_api_key_here
+```
+
+---
+
+## Execution Pipeline
+
+### Step 1: Generate Directory Structure
 
 ```bash
 pyenv activate venv-main
 python src/utils_global.py
 ```
 
-2. Realize o download dos dumps completos dos sites: StackOverflow, Crypto e Security por meio do site https://archive.org/details/stackexchange_20251231 e adicione-os na pasta `Extraidos dump/` (arquivos `.7z`).
+### Step 2: Download Stack Exchange Dumps
 
-3. Execute a pipeline de mineração
+Download the complete dumps for StackOverflow, Crypto, and Security from [Archive.org](https://archive.org/details/stackexchange_20251231) and place the `.7z` files in the `Extraidos dump/` directory.
 
-Na pasta scr/s1_dump_mining execute os arquivos s1 e s2. Em seguida crie o arquivo merged_tags.csv em data/data_mining/s1. Esse arquivo deve conter o merge entre os arquivos releated_tags.csv e releated_tags_crypto.csv. Não devem entrar no arquivo criado quaisquer tags que não tenham sido validadas manualmente como relacionadas a criptografia.
+### Step 3: Execute Mining Pipeline
 
-o csv deve seguir a estrutura: (Exemplo)
+Navigate to the `src/s1_dump_mining` directory and execute files `s0` through `s4` in order.
 
-```
-tag,b,a,h1,h2
-cryptography,1500,1200,0.8,0.15
-encryption,2000,1800,0.9,0.20
-```
+### Step 4: Normalize Data for LDA
 
-Em seguida prossiga executando os arquivos s3 e s4 para montagem do dataset de posts.
-
-4. Normalize os dados para o LDA
 ```bash
 python src/s2_Lda/s0_normalisation.py
 ```
 
-5. Para treinar modelos Mallet use `venv-lda`
+### Step 5: Train Mallet Models
+
+Switch to the `venv-lda` environment:
 
 ```bash
 pyenv activate venv-lda
 python src/s2_Lda/s1_evaluate_mallet.py
 ```
 
-6. Troque novamente para o venv-main e execute os passos 2 e 3, para gerar o nome dos tópicos por meio do Chat-GPT, e classificar os posts com o modelo treinado usando as labels geradas pelo LLM. 
+### Step 6: Generate Topic Names and Classify Posts
+
+Switch back to `venv-main` and execute steps 2 and 3 to generate topic names via ChatGPT and classify posts using the trained model with LLM-generated labels:
 
 ```bash
 pyenv activate venv-main
@@ -114,59 +148,88 @@ python src/s2_Lda/s2_infer_topics.py
 python src/s2_Lda/s3_classify_posts.py
 ```
 
-7. Com os posts classificados em seus tópicos, treine os modelos referentes aos subtópicos. 
+### Step 7: Train Subtopic Models
 
-Edite o arquivo `src/s2_Lda/s1_evaluate_mallet.py`, para iniciar o treinamento dos submodelos:
+With posts classified into topics, train the subtopic models.
 
-Comente a linha
+**Edit `src/s2_Lda/s1_evaluate_mallet.py`:**
+
+Comment out:
 ```python
-run('main1')
+run('main')
 ```
 
-e descomente a linha
+Uncomment:
 ```python
-#run_submodels(MODELS / 'main1')
+run_submodels(MODELS / 'main')
 ```
-Em seguida execute-o usando o `venv-lda`
 
-8. Realize as seguintes edições ao final dos arquivos:
+Then execute using `venv-lda`:
 
- - **src/s2_Lda/s2_infer_topics.py**
+```bash
+pyenv activate venv-lda
+python src/s2_Lda/s1_evaluate_mallet.py
+```
 
-Comente
+### Step 8: Configure Subtopic Inference
+
+Make the following edits:
+
+**In `src/s2_Lda/s2_infer_topics.py`:**
+
+Comment out:
 ```python
 main_topic_inference(
-    MODELS / 'main1',
+    MODELS / 'main',
     llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
 )
 ```
 
-E descomente 
+Uncomment:
 ```python
-"""subtopics_inference(
-    MODELS / 'main1',
+subtopics_inference(
+    MODELS / 'main',
     llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
-)"""
+)
 ```
 
-- **src/s2_Lda/s3_classify_posts.py**
+**In `src/s2_Lda/s3_classify_posts.py`:**
 
-Comente
+Comment out:
 ```python
-classify_main_topics(MODELS / 'main1')
+classify_main_topics(MODELS / 'main')
 ```
 
-E descomente 
+Uncomment:
 ```python
-#classify_all_subtopics(MODELS / 'main1')
+classify_all_subtopics(MODELS / 'main')
 ```
 
-9. Execute ambos usando o venv-main
+### Step 9: Execute Subtopic Classification
+
+Run both scripts using `venv-main`:
+
 ```bash
+pyenv activate venv-main
 python src/s2_Lda/s2_infer_topics.py
 python src/s2_Lda/s3_classify_posts.py
 ```
 
-10. Execute ```src/s2_Lda/s5_sampling.py```e gere a tabela de validação manual, que será salva em `data/Lda/validation_sample.xlsx`. A planilha deverá ser devidamente preenchida conforme foi descrito no artigo, na seção de validação manual. Tendo realizado a validação, mantenha o arquivo no mesmo local em que ele foi criado.
+### Step 10: Generate Manual Validation Table
 
-11. Na pasta notebooks, execute por completo os três arquivos presentes. Esses arquivos geram levantamentos sobre a validação manual, gráficos e tabelas para responder as questões de pesquisa. Após isso toda a pipeline estará concluída.
+Execute the sampling script:
+
+```bash
+python src/s2_Lda/s5_sampling.py
+```
+
+This generates a validation table saved at `data/Lda/validation_sample.xlsx`. Fill out the spreadsheet according to the manual validation procedure described. Keep the file in its original location after validation.
+
+### Step 11: Execute Analysis Notebooks
+
+In the `notebooks` directory, run all notebooks completely. These notebooks generate:
+- Manual validation analysis
+- Visualizations (graphs and charts)
+- Tables to answer research questions
+
+After completing this step, the entire pipeline is finished.
