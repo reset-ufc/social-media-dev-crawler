@@ -10,14 +10,32 @@ from gensim.models.ldamodel import LdaModel
 from paths import *
 
 
-def load_topic_mapping(topic_inference_path: Path) -> dict:
+def load_topic_mapping(topic_inference_path: Path, model_identifier: str = None) -> dict:
     """Load topic names from TOPIC_INFERENCE JSON file using pandas.
-
+    
+    Args:
+        topic_inference_path: Primary path to topic inference file
+        model_identifier: Identifier for fallback lookup (e.g., 'main', 't0', 't1')
+    
     Returns a dict mapping topic_id (0-indexed) to inferred_name.
     """
+    # Try primary path first
     if not Path(topic_inference_path).exists():
-        raise FileNotFoundError(
-            f"Topic inference file not found at {topic_inference_path}")
+        # Try fallback to TOPIC_INFERENCE_DIR if model_identifier is provided
+        if model_identifier:
+            fallback_filename = f"topic_inference_{model_identifier}.json"
+            fallback_path = TOPIC_INFERENCE_DIR / fallback_filename
+            
+            if fallback_path.exists():
+                print(f"  Using topic inference from {fallback_path}")
+                topic_inference_path = fallback_path
+            else:
+                raise FileNotFoundError(
+                    f"Topic inference file not found at {topic_inference_path} "
+                    f"or fallback {fallback_path}")
+        else:
+            raise FileNotFoundError(
+                f"Topic inference file not found at {topic_inference_path}")
 
     with open(str(topic_inference_path), 'r', encoding='utf-8') as f:
         data = json.load(f)
@@ -213,9 +231,11 @@ def classify_main_topics(model_path):
     model = LdaModel.load(str(model_path / TRAINED_LDA))
     print(f"Model loaded. Number of topics: {model.num_topics}")
 
-    print(f"Loading topic names from {model_path / LDA_TOPIC_INFERENCE}")
+    print(f"Loading topic names...")
+    # Try to load from model path first, then fallback to TOPIC_INFERENCE_DIR
     topic_mapping = load_topic_mapping(
-        Path(model_path / 'topic_inference.json'))
+        Path(model_path / 'topic_inference.json'), 
+        model_identifier='main')
     print(f"Loaded {len(topic_mapping)} topic names")
 
     if not Path(NORMALIZED_POSTS).exists():
@@ -320,12 +340,13 @@ def classify_all_subtopics(model_path):
         dictionary = Dictionary.load(str(dct_file))
         model.id2word = dictionary  # CRITICAL: Associate dictionary with model
         
-        if not inf_file.exists():
-            print(f"  ⚠ WARNING: Subtopic inference file not found: {inf_file}")
+        # Try to load from model path first, then fallback to TOPIC_INFERENCE_DIR
+        try:
+            topic_mapping = load_topic_mapping(inf_file, model_identifier=f't{c}')
+            print(f"  Loaded {len(topic_mapping)} subtopic names")
+        except FileNotFoundError as e:
+            print(f"  ⚠ WARNING: {e}")
             continue
-            
-        topic_mapping = load_topic_mapping(inf_file)
-        print(f"  Loaded {len(topic_mapping)} subtopic names")
         
         posts_with_topic = (classified_df['topic'] == topic_name).sum()
         print(f"  Posts with this topic: {posts_with_topic}")

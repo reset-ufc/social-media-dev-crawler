@@ -1,0 +1,24 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "Performance optimization in crypto implementations (CPU/memory/hardware)",
+      "justification": "Top terms like \"fast\", \"cpu\", \"memory\", \"hardware\", \"speed\", and \"implementation\" indicate discussions about making cryptographic code run efficiently and the practical constraints of software vs hardware execution."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "Encryption/decryption workflow and key handling over time",
+      "justification": "Words such as \"time\", \"key\", \"encryption\", \"encrypt\", \"decryption\", \"message\", and \"algorithm\" suggest questions about applying encryption correctly, managing keys, and the time/cost implications of encrypt/decrypt operations."
+    },
+    {
+      "topic_index": 2,
+      "topic_name": "Key sizes and computational feasibility of attacks (including quantum)",
+      "justification": "High-weight terms like \"bit\", \"key\", \"attack\", \"break\", \"crack\", \"year\", \"computer\", and \"quantum_computer\" point to estimating how long attacks take, how security scales with key length, and quantum-related threat models."
+    },
+    {
+      "topic_index": 3,
+      "topic_name": "Password hashing cost tuning (bcrypt/iterations/salt) against brute force",
+      "justification": "The dominance of \"hash\", \"password\", \"bcrypt\", \"round\", \"iteration\", \"salt\", \"cost\", and \"slow\" clearly maps to selecting and tuning password-hash parameters to balance server performance with resistance to attackers."
+    }
+  ]
+}

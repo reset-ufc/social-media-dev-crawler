@@ -1,0 +1,109 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "Application data encryption & key storage",
+      "justification": "Dominated by encrypt/decrypt, key, and data/store/database/file terms, suggesting questions about encrypting application data at rest and managing the encryption keys."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "File handling, integrity checks & checksums",
+      "justification": "The strongest term is file, with content/read/write/format plus checksum/check, indicating discussions about file processing and verifying file integrity (often alongside encryption)."
+    },
+    {
+      "topic_index": 2,
+      "topic_name": "Trust, vendors, and real-world security risk",
+      "justification": "Words like company, trust, government, customer, claim, risk point to posts about who to trust (vendors/authorities) and practical security implications rather than specific primitives."
+    },
+    {
+      "topic_index": 3,
+      "topic_name": "Cryptographic hash functions & collisions",
+      "justification": "hash/hash_function, collision, digest, md5, input/output strongly indicate hash properties, collision concerns, and computing message digests."
+    },
+    {
+      "topic_index": 4,
+      "topic_name": "Client-server secure communication (HTTP/HTTPS, sessions)",
+      "justification": "server/client/connection/request/browser with http/https/session/authentication suggests web/network security topics around transport security and session handling."
+    },
+    {
+      "topic_index": 5,
+      "topic_name": "Password hashing with salt (bcrypt, rainbow tables)",
+      "justification": "password, hash, salt, bcrypt and rainbow_table/crack/attacker clearly map to best practices for storing passwords securely and resisting offline attacks."
+    },
+    {
+      "topic_index": 6,
+      "topic_name": "OpenSSL installation/build and runtime errors",
+      "justification": "openssl plus install/build/version/command/path/library/error indicates environment/setup troubleshooting for OpenSSL and related toolchain issues."
+    },
+    {
+      "topic_index": 7,
+      "topic_name": "Public-key cryptography: encryption and digital signatures",
+      "justification": "public_key/private_key, signature/sign/verify, message/send aligns with asymmetric crypto use cases (confidentiality vs authenticity) and key sharing."
+    },
+    {
+      "topic_index": 8,
+      "topic_name": "Security vs performance (cost, speed, hardware limits)",
+      "justification": "time/fast/slow/cost/cpu/memory plus crack/attack suggests discussions about computational cost of crypto (or cracking) and tuning parameters."
+    },
+    {
+      "topic_index": 9,
+      "topic_name": "Crypto library/API implementation in code",
+      "justification": "code/library/implementation/api/class/method plus openssl implies questions about using or implementing cryptographic functionality via programming libraries."
+    },
+    {
+      "topic_index": 10,
+      "topic_name": "Number theory for crypto (primes, factoring, modular arithmetic)",
+      "justification": "bit/number/prime/factor/integer/modulus/algorithm indicates math-heavy posts around RSA-style number theory operations and complexity."
+    },
+    {
+      "topic_index": 11,
+      "topic_name": "User authentication and account management",
+      "justification": "user/password/login/account/token/email/server suggests application authentication flows, storing credentials, and account access/security management."
+    },
+    {
+      "topic_index": 12,
+      "topic_name": "Conceptual crypto explanations and learning",
+      "justification": "understand/explain/read/article/learn/idea points to explanatory Q&A about cryptography concepts rather than a specific algorithm or implementation detail."
+    },
+    {
+      "topic_index": 13,
+      "topic_name": "Cryptosystem design pitfalls & attack resistance",
+      "justification": "security/secure/attack/break/weak/bad/design/scheme implies evaluating whether a design/algorithm is secure and discussing common weaknesses."
+    },
+    {
+      "topic_index": 14,
+      "topic_name": "Block cipher modes, IV/nonce, and padding",
+      "justification": "block/mode/iv/padding/plaintext/ciphertext/nonce and encrypt/decrypt indicate practical symmetric encryption mode selection and padding/IV handling (incl. related attacks)."
+    },
+    {
+      "topic_index": 15,
+      "topic_name": "Password strength and entropy estimation",
+      "justification": "password/character/length/guess/entropy/passphrase/crack reflects discussions about how strong passwords are, how to measure entropy, and brute-force difficulty."
+    },
+    {
+      "topic_index": 16,
+      "topic_name": "Key protection on devices (memory/disk access, threat model)",
+      "justification": "device/memory/disk/store/access/copy/attacker suggests protecting secrets/keys on endpoints against local attackers, memory scraping, or stolen storage."
+    },
+    {
+      "topic_index": 17,
+      "topic_name": "Encoding and byte/string conversions (Base64, binary)",
+      "justification": "string/byte/encode/decode/encoding/base64/convert indicates data representation issues common in crypto implementations (bytes vs text encodings)."
+    },
+    {
+      "topic_index": 18,
+      "topic_name": "Key sizes and security parameters selection",
+      "justification": "key/bit/size/length/curve/standard/recommend/choose points to selecting secure parameter sizes (RSA bits, ECC curves, cipher key lengths) and compatibility/support."
+    },
+    {
+      "topic_index": 19,
+      "topic_name": "Secure random number generation (entropy, seeding, PRNG)",
+      "justification": "generate/random/seed/entropy/prng/state/source aligns with producing cryptographically secure randomness for keys/nonces and avoiding predictable PRNGs."
+    },
+    {
+      "topic_index": 20,
+      "topic_name": "X.509 certificates, signing, and trust chains",
+      "justification": "certificate/cert/trust/signature/private_key/browser/domain/server/openssl suggests creating/verifying certificates, signing, and managing trust stores/PKI validation."
+    }
+  ]
+}

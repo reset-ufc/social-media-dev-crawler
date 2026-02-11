@@ -1,0 +1,14 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "Server-side encryption and key/token storage",
+      "justification": "Top terms like \"key\", \"encrypt/encryption\", \"store\", \"server\", \"database\", \"secret\", and \"token\" point to discussions about protecting user/account data by encrypting it and managing encryption keys/tokens securely on the server."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "Password hashing, salting, and account login management",
+      "justification": "The heavy weight on \"password\", \"hash\", and \"salt\", along with \"login\", \"account\", \"username/email\", \"attacker\", and \"database\" indicates best practices and pitfalls around storing/verifying passwords, credential changes, and defending against common attacks."
+    }
+  ]
+}

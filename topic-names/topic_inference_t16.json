@@ -1,0 +1,19 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "Threat model & access control for encrypted data",
+      "justification": "Top terms like \"access\", \"protect\", \"attack/attacker\", \"trust\", and \"server/user/phone\" indicate discussions about who can access encrypted data, what an attacker can do, and how security assumptions change across devices and servers."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "Key storage in device memory (software vs hardware)",
+      "justification": "Dominant words \"key\", \"store\", \"memory\", \"read\", and \"process\" point to protecting secrets while in RAM and against extraction, with \"hardware/chip\" and \"private_key\" suggesting secure elements/TPM/HSM versus purely software key handling."
+    },
+    {
+      "topic_index": 2,
+      "topic_name": "File/disk encryption with passwords (containers, boot, backups)",
+      "justification": "The mix of \"file\", \"encrypt/encryption\", \"password\", \"disk/drive\", and \"container/boot/backup\" aligns with full-disk or file-container encryption workflows, including password-based unlocking, boot-time considerations, and copying/backups."
+    }
+  ]
+}

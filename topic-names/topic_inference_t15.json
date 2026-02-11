@@ -1,0 +1,29 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "Password/PIN entropy and guessability (bits of security)",
+      "justification": "Top terms like \"bit\", \"entropy\", \"guess\", \"attacker\", and \"pin\" point to estimating entropy in bits and translating that into attacker guessing effort and time (especially for numeric PIN-style secrets)."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "Brute-force key search and basic cryptanalysis framing",
+      "justification": "Words such as \"key\", \"encryption\", \"cipher\", \"plaintext\", \"decrypt\", and \"search/break\" indicate discussions about trying keys against encrypted text/messages/files, i.e., brute-force key search and related cryptanalysis context."
+    },
+    {
+      "topic_index": 2,
+      "topic_name": "Password search space from length and character set (brute-force cracking)",
+      "justification": "The dominant terms \"password\", \"character\", \"length\", \"set\", \"space\", \"brute_force\", and \"crack/hash\" reflect calculating password keyspace based on length/charset and estimating brute-force cracking difficulty and time."
+    },
+    {
+      "topic_index": 3,
+      "topic_name": "Passphrases vs complex passwords (dictionary words, usability, composition rules)",
+      "justification": "\"passphrase\", \"word\", \"dictionary\", \"random\", \"remember\", \"rule\", and \"symbol\" suggest guidance and debate on using word-based passphrases versus character-composition rules, balancing strength with memorability/usability."
+    },
+    {
+      "topic_index": 4,
+      "topic_name": "Password storage and account security (hashing, salting, managers, attacks)",
+      "justification": "Terms like \"store\", \"hash\", \"salt\", \"system/site/account\", \"attack/crack\", and \"password_manager\" indicate posts about secure password handling in systems—how to store/verify passwords and mitigate attacks."
+    }
+  ]
+}

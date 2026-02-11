@@ -1,0 +1,39 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "Java crypto API usage & exceptions",
+      "justification": "Dominated by Java-centric implementation terms (class, method, provider, instance) plus error/exception/fix, suggesting questions about using JCA/JCE classes and resolving runtime/API misuse issues."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "Crypto library integration (OpenSSL, dependencies, builds)",
+      "justification": "Strong presence of library/openssl along with version, build, include, module, package, dependency, indicating issues around linking/wrapping OpenSSL or adding crypto libraries to projects and managing build configuration."
+    },
+    {
+      "topic_index": 2,
+      "topic_name": "Key/certificate files and format conversion",
+      "justification": "Keywords center on key material in files (public_key, private_key, certificate), reading/importing/converting formats, and OpenSSL, typical of PEM/DER/PKCS#8/CSR handling for client/server use."
+    },
+    {
+      "topic_index": 3,
+      "topic_name": "Hash algorithm choice and secure implementations",
+      "justification": "Implementation, hash, algorithm, security, standard, recommend, safe/break/choose point to discussions about selecting hash algorithms and evaluating security properties and defaults."
+    },
+    {
+      "topic_index": 4,
+      "topic_name": "Debugging and running/compiling crypto-related code",
+      "justification": "Run/compile/compiler/tool/test/bug/source_code suggest practical software engineering concerns: reproducing issues, compiling code, tooling, and debugging crypto implementations rather than cryptographic primitives themselves."
+    },
+    {
+      "topic_index": 5,
+      "topic_name": "Learning/understanding encryption code & documentation",
+      "justification": "High weights for understand, simple, suggest, start, search, documentation/read imply beginner-oriented questions asking how to approach or interpret encryption code and where to find guidance."
+    },
+    {
+      "topic_index": 6,
+      "topic_name": "Password-based encryption parameters (salt, mode, padding)",
+      "justification": "Key/encrypt/decrypt/password/salt/mode/padding/byte/bit/block/size strongly indicate symmetric encryption usage details, especially deriving/using keys from passwords and dealing with ciphertext encoding and parameters."
+    }
+  ]
+}

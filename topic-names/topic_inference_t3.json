@@ -1,0 +1,24 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "Hash collisions in practice (files/strings, uniqueness)",
+      "justification": "Top words like \"hash\", \"collision\", \"file\", \"string\", \"byte\", \"md5\", \"database\", and \"unique\" indicate discussions about hashing real inputs (files/strings) and the likelihood/impact of collisions when using hashes as identifiers or keys."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "Hashing vs encryption (reversibility and keys)",
+      "justification": "The prominence of \"key\", \"encryption\", \"encrypt\", \"reverse\", \"original\", and \"digest\" suggests questions clarifying that hashes are not reversible like encryption and how keys relate (e.g., confusing hashes with encryption or mixing up with keyed hashes)."
+    },
+    {
+      "topic_index": 2,
+      "topic_name": "Password hashing security (salts and attacks)",
+      "justification": "Words such as \"password\", \"salt\", \"attack\", \"attacker\", \"secure\", \"break\", and \"fast\" point to secure password storage and threat models (offline cracking), including why salting and slow hashing matter rather than collision resistance."
+    },
+    {
+      "topic_index": 3,
+      "topic_name": "Cryptographic hash function properties (input/output, bit-length, preimage)",
+      "justification": "Terms like \"bit\", \"input\", \"output\", \"hash_function\", \"size\", \"length\", \"block\", \"property\", and \"preimage\" indicate theoretical/structural discussions about hash function behavior, security properties, and how fixed-size outputs map large input spaces."
+    }
+  ]
+}

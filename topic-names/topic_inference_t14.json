@@ -1,0 +1,44 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "Block padding and byte-length handling",
+      "justification": "Dominated by \"byte\", \"padding/pad\", \"length\", \"block_size\", and \"multiple\", indicating questions about padding schemes, aligning data to block boundaries, and adding/removing padding during encryption."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "Key derivation and IV generation (password+salt)",
+      "justification": "Strong weights for \"key\", \"iv\", \"password\", \"hash\", \"salt\", and \"derive/generate\" point to deriving encryption keys from passwords and creating/storing random IVs safely."
+    },
+    {
+      "topic_index": 2,
+      "topic_name": "Choosing crypto modes and secure implementations",
+      "justification": "Words like \"mode\", \"implementation\", \"library\", \"security\", and \"design\" suggest conceptual guidance on selecting block cipher modes and implementing them correctly using libraries."
+    },
+    {
+      "topic_index": 3,
+      "topic_name": "Cryptographic security model and attack reasoning",
+      "justification": "\"attack\", \"adversary/attacker\", \"scheme\", \"assume\", and \"break\" indicate theory-focused discussions about what security means (threat models) and how encryption schemes can be attacked or proven secure."
+    },
+    {
+      "topic_index": 4,
+      "topic_name": "Encryption/decryption debugging in code (files/OpenSSL)",
+      "justification": "High weights for \"code\", \"file\", \"encrypt/decrypt\", \"error\", \"wrong\", and \"openssl\" match troubleshooting implementation bugs, API misuse, and mismatched parameters in real code."
+    },
+    {
+      "topic_index": 5,
+      "topic_name": "CTR/stream-style modes, nonces, and counters",
+      "justification": "\"block\", \"mode\", \"nonce\", \"stream\", and \"counter\" strongly suggest counter-mode/streaming encryption questions, including nonce/IV sizing and reuse constraints."
+    },
+    {
+      "topic_index": 6,
+      "topic_name": "Plaintext vs ciphertext properties (incl. one-time pad)",
+      "justification": "Frequent \"plaintext\", \"ciphertext\", \"time_pad\", \"random\", and \"length\" indicate discussions about relationships between plaintext/ciphertext, leakage (e.g., length/structure), and comparisons to or misconceptions about one-time pads."
+    },
+    {
+      "topic_index": 7,
+      "topic_name": "Authenticated encryption and message integrity (MAC/tag)",
+      "justification": "Top words \"message\", \"authentication\", \"tag\", \"integrity\", \"hmac\", and \"protocol\" point to encrypt-then-MAC/AEAD-style designs for sending messages securely with authenticity guarantees."
+    }
+  ]
+}

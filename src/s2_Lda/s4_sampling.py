@@ -91,16 +91,6 @@ def generate_stratum_table(classfication_path: str = CLASSIFIED_POSTS) -> None:
 
 
 def validation_sample():
-    """
-    Deterministic PPS-style selection:
-    For each topic (stratum), selects the 'allocated_nh' documents 
-    with the highest `topic_perc_contrib` values (measure of size).
-
-    This removes randomness entirely and ensures reproducibility,
-    while preserving the principle that documents with higher semantic
-    contribution to the topic are more likely to be included (now guaranteed).
-    """
-
     stratum_df = pd.read_csv(STRATUM_TABLE)
     if 'topic' not in stratum_df.columns or 'allocated_nh' not in stratum_df.columns:
         raise ValueError(
@@ -117,12 +107,11 @@ def validation_sample():
         raise ValueError(
             "CLASSIFIED_POSTS must contain 'topic_perc_contrib' column"
         )
-
-    # remove missing and non-positive size measure
-    questions_df = questions_df[
+    
+    """questions_df = questions_df[
         questions_df['topic_perc_contrib'].notna()
         & (questions_df['topic_perc_contrib'] > 0)
-    ].copy()
+    ].copy()"""
 
     samples = []
 
@@ -148,7 +137,6 @@ def validation_sample():
             ascending=False
         )
 
-        # if fewer than nh exist → take all
         sampled = candidates.head(nh)
 
         samples.append(sampled)
@@ -158,8 +146,7 @@ def validation_sample():
     else:
         result = pd.DataFrame(columns=classified_df.columns)
 
-    # ensure no duplicates but keep order
-    result = result.drop_duplicates(subset=['question_id'])
+    #result = result.drop_duplicates(subset=['question_id'])
 
     out_path = Path(VALIDATION_SAMPLE).with_suffix('.xlsx')
 
@@ -170,19 +157,15 @@ def validation_sample():
         if pd.isna(qid):
             return ''
 
-        # Convert to string
         qid_str = str(qid)
 
-        # If question_id is in 'site:id' format, extract only the id
         if ':' in qid_str:
             parts = qid_str.split(':')
             if len(parts) == 2:
-                # Use the site from question_id if available, otherwise use site_alias
                 if pd.isna(site_alias) or site_alias == '':
                     site_alias = parts[0]
                 qid_str = parts[1]
 
-        # Remove decimal part if it exists
         try:
             qid_str = str(int(float(qid_str)))
         except (ValueError, TypeError):
@@ -195,7 +178,6 @@ def validation_sample():
 
         return f"https://{domain}/questions/{qid_str}"
 
-    # build final dataframe
     if result.empty:
         out_df = pd.DataFrame(
             columns=[
@@ -220,7 +202,6 @@ def validation_sample():
 
         out_df['link'] = result.apply(make_link, axis=1)
 
-        # Empty validation columns
         out_df['topic_validation_1'] = ''
         out_df['topic_validation_2'] = ''
         out_df['topic_veredict'] = ''
@@ -229,7 +210,6 @@ def validation_sample():
         out_df['subtopic_veredict'] = ''
         out_df['technologies'] = ''
 
-    # Ensure correct column order
     out_df = out_df[[
         'id', 'site', 'topic', 'subtopics', 'link',
         'topic_validation_1', 'topic_validation_2', 'topic_veredict',
@@ -246,4 +226,4 @@ def validation_sample():
 
 if __name__ == '__main__':
     generate_stratum_table()
-    validation_sample()  # Add this line if you want to execute both
+    validation_sample()  

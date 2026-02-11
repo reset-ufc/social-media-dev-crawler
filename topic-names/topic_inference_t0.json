@@ -1,0 +1,14 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "Encryption/Decryption Code for Files and Strings",
+      "justification": "Top terms center on implementing encrypt/decrypt operations in code, often for files and strings, with related primitives like bytes/bits, hashing, and salt appearing as supporting details."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "Secure Key and Password Storage for Application Data",
+      "justification": "Dominant words (key, password, store, user, server, database, secure, access) point to how applications manage and store encryption keys/secrets and protect encrypted user data across client/server environments."
+    }
+  ]
+}

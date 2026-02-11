@@ -1,0 +1,44 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "Hash output size, encoding & collision/entropy basics",
+      "justification": "Top terms like bit/byte/character/length/output plus collision, entropy, random indicate questions about hash length/representation and how that relates (or doesn’t) to security properties like collisions and guessing difficulty."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "Choosing and correctly using bcrypt libraries (implementation guidance)",
+      "justification": "Words such as bcrypt, secure, library, implementation, code, recommend/suggest point to practical advice on which bcrypt API/library to use and how to implement it safely."
+    },
+    {
+      "topic_index": 2,
+      "topic_name": "Salts: per-user randomness and rainbow table defense",
+      "justification": "The dominance of salt along with rainbow_table, unique, generate, store, user/database reflects discussion of why and how to generate/store unique per-user salts to defeat precomputation attacks."
+    },
+    {
+      "topic_index": 3,
+      "topic_name": "Storing and verifying password hashes in a database (MD5-era patterns)",
+      "justification": "password/hash/store/database/check/compare/match plus md5 and login suggest implementation questions about storing hashes and verifying passwords during login, often contrasted with insecure legacy hashes."
+    },
+    {
+      "topic_index": 4,
+      "topic_name": "Pepper and breach threat model (protecting against database compromise)",
+      "justification": "attacker, compromise, access, database, pepper, protect indicate threat-model discussions about what happens if the DB is stolen and whether adding a server-side secret (pepper) improves security."
+    },
+    {
+      "topic_index": 5,
+      "topic_name": "Client-server authentication and avoiding plaintext password transmission/storage",
+      "justification": "server, client, send, plaintext/plain_text, authentication, login reflect debates on where hashing should occur (client vs server) and how to avoid sending/storing passwords in plaintext or logs."
+    },
+    {
+      "topic_index": 6,
+      "topic_name": "Password hashing work factor: slow hashes vs brute-force",
+      "justification": "slow/fast, time, brute_force, crack, iteration, cost, bcrypt strongly indicates tuning and rationale for deliberately slow password hashes to raise attacker computation cost."
+    },
+    {
+      "topic_index": 7,
+      "topic_name": "Password-based encryption vs hashing (key derivation and data encryption)",
+      "justification": "encrypt/encryption/decrypt, key, derive, secret, file/data point to confusion or guidance about when to encrypt data with a password-derived key versus hashing passwords for authentication."
+    }
+  ]
+}

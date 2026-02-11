@@ -1,0 +1,54 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "True/HW randomness sources (TRNG)",
+      "justification": "Top terms point to physical entropy collection (hardware, noise, CPU/time measurement) and distinguishing “true” randomness vs software PRNGs."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "RNG library/API implementation details (e.g., OpenSSL)",
+      "justification": "Words like function/code/implementation/class/library/openssl and fast/slow suggest discussions about practical API usage, versions, and performance tradeoffs in RNG implementations."
+    },
+    {
+      "topic_index": 2,
+      "topic_name": "Generating random numbers & seeding pitfalls",
+      "justification": "Emphasis on generate/random_number/seed/sequence/range/distribution plus “guess/bad” reflects questions about producing numbers correctly and why weak seeds lead to predictable sequences."
+    },
+    {
+      "topic_index": 3,
+      "topic_name": "CSPRNG security model: state compromise & predictability",
+      "justification": "Terms like output/state/internal_state/attacker/attack/deterministic/seed capture how PRNG security depends on hidden state and resistance to prediction or compromise."
+    },
+    {
+      "topic_index": 4,
+      "topic_name": "OS entropy pools and /dev/random vs /dev/urandom",
+      "justification": "Strong signals from devrandom/devurandom/kernel/entropy_pool/boot/block/read indicate Linux/OS behavior, blocking semantics, and seeding from system entropy pools."
+    },
+    {
+      "topic_index": 5,
+      "topic_name": "Randomness/entropy testing and bit-level analysis",
+      "justification": "High weight on bit/test/byte/sample/pass/fail and hash hints at statistical tests, sampling sizes, and evaluating outputs for bias/entropy at the bit level."
+    },
+    {
+      "topic_index": 6,
+      "topic_name": "General cryptographic-security guidance for RNG use",
+      "justification": "Broad terms (security/secure/cryptography/design/standard/implement/understand) suggest conceptual Q&A about why secure RNGs matter and recommended design practices."
+    },
+    {
+      "topic_index": 7,
+      "topic_name": "Key/IV generation for encryption (incl. OTP/stream)",
+      "justification": "Dominant “key” with generate/encrypt/encryption/secret/iv/mode/counter/stream/time_pad indicates generating cryptographic keys and IVs/nonces correctly for encryption schemes."
+    },
+    {
+      "topic_index": 8,
+      "topic_name": "Breaking periodic ciphers / predictability over time",
+      "justification": "Words like rotor/letter/period/position/sequence/break/length point to classic cipher periodicity and how repeating patterns over time enable attacks (often tied to weak randomness)."
+    },
+    {
+      "topic_index": 9,
+      "topic_name": "Random tokens/IDs: UUIDs, hashes, salts & collisions",
+      "justification": "hash/string/unique/uuid/guid/token/salt/collision/password/user indicates generating unique identifiers or tokens and concerns about collisions and secure storage (salting/hashing)."
+    }
+  ]
+}

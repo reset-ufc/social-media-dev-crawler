@@ -1,0 +1,64 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "Certificate lifetime, expiry & revocation",
+      "justification": "Top words like \"expire\", \"date\", \"valid\", \"revocation/revoke\", \"compromise\" and \"year/day\" indicate discussions about certificate validity periods and what to do when keys are compromised or certs must be revoked."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "Installing/importing certificates on Windows (step-by-step)",
+      "justification": "The dominance of \"file\", \"window\", \"click\", \"select\", \"install/instal\", \"download\", and \"directory/path\" suggests procedural guidance for adding certificates via Windows UI/tools."
+    },
+    {
+      "topic_index": 2,
+      "topic_name": "Browser trust, domain matching & HTTPS warnings",
+      "justification": "Words such as \"browser\", \"site/website\", \"domain\", \"trust\", \"warning\", \"dns\" and \"match\" point to certificate errors in browsers (e.g., name mismatch, untrusted CA) and how trust is established for domains."
+    },
+    {
+      "topic_index": 3,
+      "topic_name": "OpenSSL certificate/CSR generation and signing commands",
+      "justification": "\"openssl\", \"command\", \"option\", \"generate\", \"request\", \"self_sign_certificate\" and \"sign_certificate\" strongly indicate command-line OpenSSL workflows for creating keys, CSRs, and issuing/signing certificates."
+    },
+    {
+      "topic_index": 4,
+      "topic_name": "Public/private key crypto operations (encrypt/sign/encode)",
+      "justification": "Terms like \"public_key\", \"private_key\", \"encrypt/encryption\", \"signature\", \"hash\", \"encode\", and \"byte/string\" reflect implementation-level questions about performing cryptographic operations using keys and certificate-contained public keys."
+    },
+    {
+      "topic_index": 5,
+      "topic_name": "TLS client-server authentication & certificate verification",
+      "justification": "High weights for \"server\", \"client\", \"connection/connect\", \"request/send/receive\", \"verify\", and \"authentication\" indicate questions about how certificates are exchanged and validated in TLS connections (including fingerprints)."
+    },
+    {
+      "topic_index": 6,
+      "topic_name": "Code signing and signature verification (incl. timestamping)",
+      "justification": "\"code\", \"sign/signing\", \"digital_signature\", \"verify\", \"release/build\", and \"timestamp\" align with signing executables/documents, verifying integrity, and preserving trust over time via timestamps."
+    },
+    {
+      "topic_index": 7,
+      "topic_name": "PKCS#11 / HSM-backed key access in applications",
+      "justification": "The presence of \"pkcs11\", alongside \"library\", \"tool\", \"service\", \"application\", and \"access\" suggests integrating apps with hardware tokens/HSMs or smartcards via PKCS#11 for key operations."
+    },
+    {
+      "topic_index": 8,
+      "topic_name": "Private key & keystore management (PKCS#12, import/export/convert)",
+      "justification": "Keywords \"private_key\", \"keystore\", \"password\", \"format\", \"import/export\", \"convert\", \"pkcs12\" and \"openssl\" indicate handling and migrating key material between files/keystores (e.g., PFX/PKCS#12) securely."
+    },
+    {
+      "topic_index": 9,
+      "topic_name": "X.509 certificate fields and extensions (SAN/EKU/policy/usage)",
+      "justification": "\"extension\", \"field\", \"subject\", \"attribute\", \"usage\", and \"policy\" point to how certificate metadata is structured and what extensions/attributes must be included to meet specific validation requirements."
+    },
+    {
+      "topic_index": 10,
+      "topic_name": "Debugging certificate/crypto verification code errors",
+      "justification": "Frequent \"error\", \"fail\", \"exception\", \"message\", \"method\", \"return\", \"test\", and \"verify\" suggests posts focused on troubleshooting implementation mistakes and runtime failures in certificate or signature validation code."
+    },
+    {
+      "topic_index": 11,
+      "topic_name": "Trust stores and certificate chain building/validation",
+      "justification": "Strong signals from \"trust\", \"store\", \"root\", \"chain\", \"certificate_chain\", \"trust_root\", \"validate/verify\", and \"add\" indicate managing root CAs and verifying full chains against system/application trust stores."
+    }
+  ]
+}

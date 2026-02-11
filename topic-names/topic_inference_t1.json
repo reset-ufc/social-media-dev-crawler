@@ -1,0 +1,59 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "Image steganography & JPEG data hiding",
+      "justification": "Top terms like \"image\", \"jpeg\", \"steganography\", \"pixel\", \"header\", and \"compression\" point to hiding or encoding information inside image formats and dealing with detectability and compression effects."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "Packaging/running code from files (ZIP/executable handling)",
+      "justification": "Words such as \"zip\", \"zip_file\", \"executable\", \"extension\", \"open\", \"write\", and \"folder\" suggest questions about bundling, distributing, opening, and executing code/files via archives."
+    },
+    {
+      "topic_index": 2,
+      "topic_name": "Git object hashing & signed commits",
+      "justification": "The cluster \"git\", \"commit\", \"object\", \"blob\", \"tag\", \"hash\", \"sign\", and \"trust\" indicates Git’s content-addressing model and integrity/authenticity via hashing and signing (including collision concerns)."
+    },
+    {
+      "topic_index": 3,
+      "topic_name": "Password-based file/archive encryption & decryption",
+      "justification": "High weights for \"file\", \"encrypt\", \"password\", \"decrypt\", \"archive\", and \"key\" point to encrypting/decrypting files (often archives) using passwords/keys and handling contents/filenames."
+    },
+    {
+      "topic_index": 4,
+      "topic_name": "Crypto command-line scripting & keypair troubleshooting",
+      "justification": "Terms like \"command\", \"script\", \"error\", \"test\", \"output\", \"public_key\", \"private_key\", and \"decrypt\" suggest debugging or validating cryptographic operations via CLI/tools and keypair usage."
+    },
+    {
+      "topic_index": 5,
+      "topic_name": "File checksums and hash verification (MD5, collisions)",
+      "justification": "\"file\", \"hash\", \"checksum\", \"compare\", \"verify\", \"md5\", and \"collision\" clearly indicate computing and checking hashes to verify downloads/integrity and discussing collision/duplicate implications."
+    },
+    {
+      "topic_index": 6,
+      "topic_name": "Secure file transfer & server/client threat model",
+      "justification": "The mix of \"download\", \"server\", \"client\", \"attacker\", \"prevent\", \"upload\", and \"secure/security\" points to protecting file transfer workflows from tampering or unauthorized access."
+    },
+    {
+      "topic_index": 7,
+      "topic_name": "Digital signatures in PDF/documents",
+      "justification": "Top words \"signature\", \"pdf\", \"document\", \"certificate\", \"verify\", and \"field\" indicate adding/extracting/verifying signatures within PDF/document structures using certificates."
+    },
+    {
+      "topic_index": 8,
+      "topic_name": "Streaming large-file I/O for encryption (chunked processing)",
+      "justification": "\"byte\", \"read\", \"write\", \"chunk\", \"stream\", \"memory\", \"size\", and \"mb\" point to processing large files efficiently (often for encryption) using chunked/streaming reads and writes."
+    },
+    {
+      "topic_index": 9,
+      "topic_name": "Data change tracking, backups, and tamper evidence (conceptual)",
+      "justification": "Words like \"change\", \"copy\", \"backup\", \"store\", \"tool\", and \"impossible/hard\" suggest higher-level discussions about detecting changes, maintaining copies/backups, and limits of preventing data modification."
+    },
+    {
+      "topic_index": 10,
+      "topic_name": "Encryption algorithm parameters (block/bit size, modes, security/performance)",
+      "justification": "\"algorithm\", \"block\", \"bit\", \"mode\", \"plaintext\", \"attack\", \"implementation\", and \"fast/slow\" indicate discussions about cipher design/parameters and the security-performance tradeoffs of modes and sizes."
+    }
+  ]
+}

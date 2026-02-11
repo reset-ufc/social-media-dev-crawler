@@ -1,0 +1,29 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "Learning & Understanding Crypto Algorithms",
+      "justification": "Top terms like \"understand\", \"paper\", \"explain\", \"learn\", and \"math\" indicate posts asking for conceptual explanations of cryptographic algorithms and their security assumptions."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "Implementing Finite-Field / Modular Arithmetic",
+      "justification": "Words such as \"byte\", \"digit\", \"field\", \"polynomial\", \"modulo\", \"multiply\", and \"operation\" point to coding questions about performing arithmetic (often GF/finite-field or big-integer modular ops) correctly and efficiently."
+    },
+    {
+      "topic_index": 2,
+      "topic_name": "Primes, Factoring, and Prime Generation",
+      "justification": "High-weight terms \"prime\", \"factor\", \"modulus\", \"bit\", \"test\", \"generate\", and \"random\" reflect number-theory tasks central to crypto: primality testing, choosing sizes, generating primes, and factoring-related feasibility."
+    },
+    {
+      "topic_index": 3,
+      "topic_name": "Bitwise Block-Cipher Structure & Side-Channel Considerations",
+      "justification": "Dominant \"bit\" plus \"round\", \"box\", \"xor\", \"permutation\", \"block\", and \"constant\" suggests discussions of block-cipher internals and implementation details like constant-time operations relevant to certain attacks."
+    },
+    {
+      "topic_index": 4,
+      "topic_name": "Public-Key Encryption, Hashing, and Key Usage",
+      "justification": "Terms like \"encryption\", \"public_key\", \"private_key\", \"ciphertext\", \"plaintext\", \"hash\", \"signature\", and \"secure\" indicate questions about applying cryptographic primitives and managing keys for secure message exchange."
+    }
+  ]
+}

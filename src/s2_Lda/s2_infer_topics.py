@@ -190,11 +190,12 @@ def main_topic_inference(model_path, llm):
     save_topic_inference(inference_result, model_path / 'topic_inference.json')
 
 
+# don't execute
 if __name__ == '__main__':
-    main_topic_inference(
+    """main_topic_inference(
         MODELS / 'main',
         llm=ChatOpenAI(model_name="gpt-5.2", temperature=0.7),
-    )
+    )"""
     """subtopics_inference(
         MODELS / 'main',
         llm=ChatOpenAI(model_name="gpt-5.2", temperature=0.7),

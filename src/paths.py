@@ -66,7 +66,6 @@ LDA_DIR = DATA / 'Lda'
 MODELS = LDA_DIR / 'models'
 
 LDA_CSVS = LDA_DIR / 'csvs'
-LDA_PLOTS = LDA_DIR / 'plots'
 
 TRAINED_LDA = Path('trained_lda.model')
 TRAINED_DCT = Path('trained_dictionary.dict')
@@ -74,11 +73,25 @@ TRAINED_BOW = Path('trained_corpus.mm')
 LDA_CONFIG = Path('trained_lda.meta.json')
 LDA_TOPIC_INFERENCE = Path('topic_inference.json')
 
-FUSED_METADATA = LDA_CSVS / 'fused_metadata.csv'
 CLASSIFIED_POSTS = LDA_CSVS / 'classified_posts.csv'
 STRATUM_TABLE = LDA_CSVS / 'stratum_table.csv'
 NORMALIZED_POSTS = LDA_CSVS/'normalized_posts.csv'
 
-FUSED_PLOT = LDA_PLOTS / 'fused_plot.png'
-
 VALIDATION_SAMPLE = LDA_DIR / 'validation_sample.xlsx'
+
+
+
+# final topic names
+TOPIC_INFERENCE_DIR = PROJECT_ROOT / 'topic-names'
+
+
+# rqs
+NOTEBOOK_OUTPUTS = DATA / 'notebook_outputs'
+
+# RQ2
+FUSED_METADATA = NOTEBOOK_OUTPUTS / 'rq2' / 'csvs' / 'fused_metadata.csv'
+KENDAL_CORR  = NOTEBOOK_OUTPUTS / 'rq2' / 'csvs' / 'kendall_correlation_table.csv'
+FUSED_PLOT = NOTEBOOK_OUTPUTS / 'rq2' / 'plots' / 'fused_plot.pdf'
+
+#RQ3
+LANGUAGES_DISTRIBUTION = NOTEBOOK_OUTPUTS / 'rq3' / 'plots' / 'languages_distribution.pdf'

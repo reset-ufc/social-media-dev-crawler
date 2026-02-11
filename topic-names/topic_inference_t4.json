@@ -1,0 +1,14 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "TLS/HTTPS Certificates and Trust Validation",
+      "justification": "Top terms like \"certificate\", \"browser\", \"trust\", \"connection\", and \"protocol\" point to establishing HTTPS connections and validating certificate chains/CA trust, often in the context of apps/browsers checking or adding certs to enable secure network access."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "Secure Client–Server Authentication and Encrypted Password/Data Exchange",
+      "justification": "High-weight words such as \"server\", \"client\", \"password\", \"encrypt/encryption\", \"key\", \"hash\", \"authentication\", and \"session\" indicate questions about authenticating users and protecting credentials/data in transit (e.g., hashing vs encrypting, public/private keys, attacker/attack considerations)."
+    }
+  ]
+}

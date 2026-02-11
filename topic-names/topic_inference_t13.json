@@ -1,0 +1,24 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "Protocol/implementation attack surface & standards",
+      "justification": "Centered on \"attack\", \"implementation\", \"protocol\", \"standard\", and references to proofs/papers and primitives (hash/signature), suggesting discussion of how real-world implementations and protocol choices deviate from standards and create exploitable weaknesses."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "Symmetric encryption basics: keys, randomness, OTP",
+      "justification": "Dominated by \"key\", \"message\", \"encryption/encrypt/decrypt\", \"plaintext/ciphertext\", \"random\", and \"time_pad\", indicating questions about correct key generation/length, randomness, and fundamental secure encryption patterns (including one-time pad)."
+    },
+    {
+      "topic_index": 2,
+      "topic_name": "Password storage & offline cracking resistance",
+      "justification": "Top terms like \"password\", \"hash\", \"attacker\", \"crack\", \"store\", \"server\", and \"compromise\" strongly point to secure credential storage, threat models involving database leaks, and choosing schemes that resist brute-force/offline attacks."
+    },
+    {
+      "topic_index": 3,
+      "topic_name": "Designing crypto algorithms (and why they get broken)",
+      "justification": "Words such as \"algorithm\", \"break\", \"design\", \"cipher\", \"cryptographer\", and \"year\" reflect meta-level discussions about creating new cryptography, the difficulty of doing so, and the common reasons homegrown designs are eventually broken."
+    }
+  ]
+}

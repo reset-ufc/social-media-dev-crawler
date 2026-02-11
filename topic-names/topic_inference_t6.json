@@ -1,0 +1,19 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "TLS/SSL runtime errors (certificates & connection issues)",
+      "justification": "Dominated by words like \"error\", \"server\", \"certificate\", \"client\", and \"connection\", indicating troubleshooting of runtime failures during SSL/TLS startup/handshake and interpreting error codes/messages."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "Key/certificate files and OpenSSL command usage",
+      "justification": "High-weight terms such as \"file\", \"key\", \"command\", \"generate\", \"password\", \"path\", and \"directory\" point to managing key/cert files, generating them via commands, and fixing file/path/permission setup."
+    },
+    {
+      "topic_index": 2,
+      "topic_name": "OpenSSL installation/build and linking (versions, packages, compilation)",
+      "justification": "Centered on \"openssl\", \"version\", \"build\", \"install\", \"library\", \"compile\", \"package\", and \"include\", reflecting issues around installing specific OpenSSL versions and compiling/linking against the correct headers/libs (often via system packages or source builds)."
+    }
+  ]
+}

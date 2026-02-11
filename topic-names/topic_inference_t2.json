@@ -1,0 +1,64 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "Trust, proof, and digital signatures for claims",
+      "justification": "Top terms like \"trust\", \"sign\", \"signature\", \"verify\", and \"prove\" point to using signatures as evidence to validate claims/content (often with real-world/legal framing such as \"legal\", \"document\", \"screenshot\")."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "Network monitoring, VPNs, and traffic/content blocking",
+      "justification": "Words such as \"vpn\", \"traffic\", \"isp\", \"provider\", \"server\", and \"block\" indicate discussion of who can observe or restrict network activity (e.g., streaming/downloads and institutional settings like \"student\"/\"exam\")."
+    },
+    {
+      "topic_index": 2,
+      "topic_name": "Web PKI and certificate trust (browser/CA/vendor risk)",
+      "justification": "\"certificate\", \"browser\", \"site\", \"domain\", \"vendor\", and \"government\" reflect trust in the HTTPS certificate ecosystem and threats like mis-issuance or interception (\"attack\", \"request\", \"log\")."
+    },
+    {
+      "topic_index": 3,
+      "topic_name": "Key management and file/data encryption workflows",
+      "justification": "Heavy weight on \"key\" plus \"encrypt/decrypt\", \"public_key/private_key\", \"generate\", \"store\", and \"file/document\" suggests practical questions about encrypting data and handling keys securely."
+    },
+    {
+      "topic_index": 4,
+      "topic_name": "Security cost, lifecycle, and platform/vendor support decisions",
+      "justification": "Terms like \"company\", \"cost\", \"year\", \"support\", \"hardware/device\", and \"standard\" point to real-world tradeoffs in maintaining secure systems over time and relying on vendor/platform support."
+    },
+    {
+      "topic_index": 5,
+      "topic_name": "Government backdoors, lawful access, and privacy debate",
+      "justification": "\"government\", \"backdoor\", \"law\", \"privacy\", \"criminal\", and \"country\" indicate discussion of mandated access to encrypted systems and the societal/security risks of backdoors."
+    },
+    {
+      "topic_index": 6,
+      "topic_name": "Covert communication: steganography and hidden messages",
+      "justification": "\"hide\", \"steganography\", \"image/photo\", \"message\", and \"ciphertext\" align with techniques for concealing communications (often contrasted with normal \"encrypt\" and mediums like \"email\"/\"text\")."
+    },
+    {
+      "topic_index": 7,
+      "topic_name": "Encryption software licensing, patents, and export controls",
+      "justification": "The mix of \"license\", \"open_source\", \"source_code\", \"patent\", \"export\", \"law\", and \"country\" signals legal/distribution concerns around shipping cryptography in products/apps."
+    },
+    {
+      "topic_index": 8,
+      "topic_name": "Securing mobile/connected devices and data-in-transit",
+      "justification": "\"phone\", \"device\", \"network\", \"internet\", \"protocol\", \"connection\", and \"encrypt\" suggest protecting data on mobile/IoT-like endpoints and across network communications against \"attacker\" access."
+    },
+    {
+      "topic_index": 9,
+      "topic_name": "Cryptographic strength and attacks (including post-quantum concerns)",
+      "justification": "\"algorithm\", \"break\", \"attack\", \"secure\", \"design\", and \"quantum\" indicate evaluation of algorithm security, threat models, and the impact of quantum adversaries."
+    },
+    {
+      "topic_index": 10,
+      "topic_name": "Payment and credit card data handling security",
+      "justification": "\"card\", \"credit_card_number\", \"transaction\", \"bank\", \"customer\", \"payment\", and \"store\" clearly map to securing payment flows and storage/validation of sensitive card/account data."
+    },
+    {
+      "topic_index": 11,
+      "topic_name": "Password storage: hashing, salting, and attacker resistance",
+      "justification": "\"password\", \"hash\", \"salt\", \"database\", \"store\", and \"attacker\" strongly indicate best practices and threat considerations for securely storing and verifying user passwords."
+    }
+  ]
+}

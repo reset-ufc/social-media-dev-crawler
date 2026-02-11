@@ -1,0 +1,49 @@
+{
+  "topics": [
+    {
+      "topic_index": 0,
+      "topic_name": "PKI/TLS certificates and server authentication",
+      "justification": "Top terms like \"server\", \"certificate\", \"client\", \"trust\", \"verify\", and \"pki\" indicate discussions about validating certificates and authenticating servers/clients in certificate-based systems (e.g., TLS)."
+    },
+    {
+      "topic_index": 1,
+      "topic_name": "RSA/key sizes, padding, and bit/byte-level constraints",
+      "justification": "Words such as \"bit\", \"byte\", \"size\", \"length\", \"padding\", and \"modulus\" point to implementation questions about key sizes, plaintext/ciphertext lengths, and padding requirements in public-key encryption."
+    },
+    {
+      "topic_index": 2,
+      "topic_name": "OpenSSL usage and key/certificate file formats",
+      "justification": "Frequent terms like \"openssl\", \"file\", \"format\", \"encode\", \"command\", and \"error\" suggest practical issues using OpenSSL commands/APIs to generate/read/encode cryptographic material (PEM/DER, etc.)."
+    },
+    {
+      "topic_index": 3,
+      "topic_name": "Private key storage and password/passphrase protection",
+      "justification": "High-weight words \"key\", \"file\", \"password\", \"store\", \"access\", and \"passphrase\" indicate questions about securely storing keys on devices/apps and protecting them with encryption and user secrets."
+    },
+    {
+      "topic_index": 4,
+      "topic_name": "Public vs. private key roles (encrypt/decrypt semantics)",
+      "justification": "Dominant terms \"public_key\", \"private_key\", \"encrypt\", and \"decrypt\" reflect conceptual confusion/clarification about what each key does, keypairs, and operations like (mis)using \"public_key_decrypt\"."
+    },
+    {
+      "topic_index": 5,
+      "topic_name": "Digital signatures: hashing, signing, and verification workflow",
+      "justification": "Words like \"signature\", \"sign\", \"hash\", \"verify\", \"sender/recipient\", and \"prove\" align with how signatures are created/checked and what authenticity/integrity properties they provide."
+    },
+    {
+      "topic_index": 6,
+      "topic_name": "Hybrid encryption and session key sharing",
+      "justification": "Terms \"secret\", \"share\", \"symmetric_key\", \"session\", and \"asymmetric\" indicate patterns where public-key crypto is used to exchange/transport a symmetric session key for bulk encryption."
+    },
+    {
+      "topic_index": 7,
+      "topic_name": "Secure communication and key exchange over out-of-band channels",
+      "justification": "The presence of \"email\", \"fingerprint\", \"channel\", \"exchange\", \"trust\", and \"phone\" suggests discussions about establishing trust and exchanging/validating keys via secure/out-of-band methods (e.g., PGP fingerprints)."
+    },
+    {
+      "topic_index": 8,
+      "topic_name": "Threat models and security properties of cryptographic protocols",
+      "justification": "Words like \"attacker\", \"attack\", \"adversary\", \"protocol\", \"proof\", and \"property\" indicate higher-level reasoning about what a protocol guarantees under certain assumptions and how attackers might break it."
+    }
+  ]
+}

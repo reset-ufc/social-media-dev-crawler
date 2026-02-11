@@ -98,14 +98,6 @@ def get_logger(name: str, level=logging.INFO) -> logging.Logger:
     return logger
 
 
-def make_data():
-    """Creates the data directory structure."""
-    os.makedirs(RELEATED_TAGS_DIR, exist_ok=True)
-    os.makedirs(DATA_MINING_S2, exist_ok=True)
-    os.makedirs(LLM_CLASSIFICATION, exist_ok=True)
-    os.makedirs(LLM_SUMMARIZATION, exist_ok=True)
-
-
 def make_dir_structure():
     current_file_dir = Path(__file__).resolve().parent
 
@@ -115,8 +107,11 @@ def make_dir_structure():
         base_dir / "data" / "data_mining" / "s1",
         base_dir / "data" / "data_mining" / "s2",
         base_dir / "data" / "Lda" / "csvs",
-        base_dir / "data" / "Lda" / "plots",
         base_dir / "data" / "Lda" / "models",
+        base_dir / "data" / "notebook_outputs" / "rq2" / 'plots',
+        base_dir / "data" / "notebook_outputs" / "rq2" / 'csvs',
+        base_dir / "data" / "notebook_outputs" / "rq3" / 'plots',
+
     ]
 
     for d in dirs:
