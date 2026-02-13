@@ -24,6 +24,7 @@ The main workflow consists of two stages:
 │   └── Lda/                      # LDA models, CSVs, and plots
 ├── prompts/                      # Prompt templates for LLM-based topic labeling
 ├── notebooks/                    # Notebooks with research question results and manual validation visualization
+├── topic-names/                  # All topic names selected in study
 └── Extraidos dump/               # Directory for Archive.org dump files (.7z)
 ```
 
@@ -104,6 +105,8 @@ Add your ChatGPT 5.2 API key to a `.env` file in the `src/s2_Lda` directory:
 OPENAI_API_KEY=your_api_key_here
 ```
 
+**Configure this only if you want to generate new topic names, don't need to do it to reproduce the study**
+
 ---
 
 ## Execution Pipeline
@@ -139,6 +142,8 @@ python src/s2_Lda/s1_evaluate_mallet.py
 ```
 
 ### Step 6: Generate Topic Names and Classify Posts
+
+**For reproducition pruposes, don't execute s2_infer_topics.py, all of the topic names are already present in the files. Jump this script and only execute the others.**
 
 Switch back to `venv-main` and execute steps 2 and 3 to generate topic names via ChatGPT and classify posts using the trained model with LLM-generated labels:
 
@@ -181,7 +186,7 @@ Comment out:
 ```python
 main_topic_inference(
     MODELS / 'main',
-    llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
+    llm=ChatOpenAI(model_name="gpt-5.2", temperature=0.7),
 )
 ```
 
@@ -189,7 +194,7 @@ Uncomment:
 ```python
 subtopics_inference(
     MODELS / 'main',
-    llm=ChatOpenAI(model_name="gpt-5.1", temperature=0.7),
+    llm=ChatOpenAI(model_name="gpt-5.2", temperature=0.7),
 )
 ```
 
