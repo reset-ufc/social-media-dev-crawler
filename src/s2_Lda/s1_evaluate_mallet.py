@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import numpy as np
 import matplotlib.pyplot as plt
 import subprocess
@@ -15,9 +19,6 @@ import json
 from pathlib import Path
 from typing import Iterable, Tuple, List, Optional
 import logging
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 load_dotenv()
