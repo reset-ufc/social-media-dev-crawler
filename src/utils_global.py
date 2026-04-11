@@ -111,6 +111,7 @@ def make_dir_structure():
         base_dir / "data" / "notebook_outputs" / "rq2" / 'plots',
         base_dir / "data" / "notebook_outputs" / "rq2" / 'csvs',
         base_dir / "data" / "notebook_outputs" / "rq3" / 'plots',
+        base_dir / "data" / "notebook_outputs" / "rq4" / 'plots',
 
     ]
 
