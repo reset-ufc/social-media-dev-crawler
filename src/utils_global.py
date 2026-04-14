@@ -108,6 +108,7 @@ def make_dir_structure():
         base_dir / "data" / "data_mining" / "s2",
         base_dir / "data" / "Lda" / "csvs",
         base_dir / "data" / "Lda" / "models",
+        base_dir / "data" / "notebook_outputs" / "rq1" / 'plots',
         base_dir / "data" / "notebook_outputs" / "rq2" / 'plots',
         base_dir / "data" / "notebook_outputs" / "rq2" / 'csvs',
         base_dir / "data" / "notebook_outputs" / "rq3" / 'plots',
