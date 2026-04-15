@@ -1,0 +1,133 @@
+================================================================================
+TOPICS AND SUBTOPICS HIERARCHY
+================================================================================
+
+OpenSSL installation/build and runtime errors: 14.15% (44 posts)
+  - OpenSSL installation/build and linking (versions, packages, compilation): 81.82% (36 posts)
+  - TLS/SSL runtime errors (certificates & connection issues): 11.36% (5 posts)
+  - Key/certificate files and OpenSSL command usage: 6.82% (3 posts)
+
+Encoding and byte/string conversions (Base64, binary): 11.90% (37 posts)
+  - Byte/string/character encoding conversions (Base64, binary, hashes): 48.65% (18 posts)
+  - Password hashing implementation and verification (MD5 and checks): 37.84% (14 posts)
+  - Symmetric encryption/decryption errors (keys, padding, file/text decoding): 13.51% (5 posts)
+
+X.509 certificates, signing, and trust chains: 8.36% (26 posts)
+  - Private key & keystore management (PKCS#12, import/export/convert): 19.23% (5 posts)
+  - Trust stores and certificate chain building/validation: 15.38% (4 posts)
+  - Debugging certificate/crypto verification code errors: 15.38% (4 posts)
+  - OpenSSL certificate/CSR generation and signing commands: 11.54% (3 posts)
+  - Code signing and signature verification (incl. timestamping): 11.54% (3 posts)
+  - Browser trust, domain matching & HTTPS warnings: 11.54% (3 posts)
+  - Certificate lifetime, expiry & revocation: 7.69% (2 posts)
+  - Installing/importing certificates on Windows (step-by-step): 3.85% (1 posts)
+  - X.509 certificate fields and extensions (SAN/EKU/policy/usage): 3.85% (1 posts)
+
+Password hashing with salt (bcrypt, rainbow tables): 7.40% (23 posts)
+  - Salts: per-user randomness and rainbow table defense: 56.52% (13 posts)
+  - Storing and verifying password hashes in a database (MD5-era patterns): 39.13% (9 posts)
+  - Password-based encryption vs hashing (key derivation and data encryption): 4.35% (1 posts)
+
+Crypto library/API implementation in code: 5.47% (17 posts)
+  - Crypto library integration (OpenSSL, dependencies, builds): 64.71% (11 posts)
+  - Password-based encryption parameters (salt, mode, padding): 5.88% (1 posts)
+  - Hash algorithm choice and secure implementations: 5.88% (1 posts)
+  - Debugging and running/compiling crypto-related code: 5.88% (1 posts)
+  - Java crypto API usage & exceptions: 5.88% (1 posts)
+  - Learning/understanding encryption code & documentation: 5.88% (1 posts)
+  - Key/certificate files and format conversion: 5.88% (1 posts)
+
+Number theory for crypto (primes, factoring, modular arithmetic): 5.47% (17 posts)
+  - Implementing Finite-Field / Modular Arithmetic: 64.71% (11 posts)
+  - Primes, Factoring, and Prime Generation: 23.53% (4 posts)
+  - Learning & Understanding Crypto Algorithms: 11.76% (2 posts)
+
+Public-key cryptography: encryption and digital signatures: 5.14% (16 posts)
+  - Public vs. private key roles (encrypt/decrypt semantics): 43.75% (7 posts)
+  - Digital signatures: hashing, signing, and verification workflow: 37.50% (6 posts)
+  - Secure communication and key exchange over out-of-band channels: 12.50% (2 posts)
+  - Hybrid encryption and session key sharing: 6.25% (1 posts)
+
+Block cipher modes, IV/nonce, and padding: 4.18% (13 posts)
+  - Cryptographic security model and attack reasoning: 30.77% (4 posts)
+  - CTR/stream-style modes, nonces, and counters: 15.38% (2 posts)
+  - Encryption/decryption debugging in code (files/OpenSSL): 15.38% (2 posts)
+  - Choosing crypto modes and secure implementations: 7.69% (1 posts)
+  - Key derivation and IV generation (password+salt): 7.69% (1 posts)
+  - Plaintext vs ciphertext properties (incl. one-time pad): 7.69% (1 posts)
+  - Block padding and byte-length handling: 7.69% (1 posts)
+  - Authenticated encryption and message integrity (MAC/tag): 7.69% (1 posts)
+
+Client-server secure communication (HTTP/HTTPS, sessions): 3.86% (12 posts)
+  - TLS/HTTPS Certificates and Trust Validation: 66.67% (8 posts)
+  - Secure Client–Server Authentication and Encrypted Password/Data Exchange: 33.33% (4 posts)
+
+User authentication and account management: 3.86% (12 posts)
+  - Password hashing, salting, and account login management: 75.00% (9 posts)
+  - Server-side encryption and key/token storage: 25.00% (3 posts)
+
+File handling, integrity checks & checksums: 3.86% (12 posts)
+  - File checksums and hash verification (MD5, collisions): 41.67% (5 posts)
+  - Digital signatures in PDF/documents: 16.67% (2 posts)
+  - Image steganography & JPEG data hiding: 16.67% (2 posts)
+  - Git object hashing & signed commits: 16.67% (2 posts)
+  - Packaging/running code from files (ZIP/executable handling): 8.33% (1 posts)
+
+Security vs performance (cost, speed, hardware limits): 3.54% (11 posts)
+  - Performance optimization in crypto implementations (CPU/memory/hardware): 54.55% (6 posts)
+  - Key sizes and computational feasibility of attacks (including quantum): 36.36% (4 posts)
+  - Password hashing cost tuning (bcrypt/iterations/salt) against brute force: 9.09% (1 posts)
+
+Password strength and entropy estimation: 3.22% (10 posts)
+  - Passphrases vs complex passwords (dictionary words, usability, composition rules): 60.00% (6 posts)
+  - Password search space from length and character set (brute-force cracking): 30.00% (3 posts)
+  - Password/PIN entropy and guessability (bits of security): 10.00% (1 posts)
+
+Secure random number generation (entropy, seeding, PRNG): 3.22% (10 posts)
+  - Generating random numbers & seeding pitfalls: 30.00% (3 posts)
+  - CSPRNG security model: state compromise & predictability: 20.00% (2 posts)
+  - True/HW randomness sources (TRNG): 20.00% (2 posts)
+  - OS entropy pools and /dev/random vs /dev/urandom: 10.00% (1 posts)
+  - Key/IV generation for encryption (incl. OTP/stream): 10.00% (1 posts)
+  - Random tokens/IDs: UUIDs, hashes, salts & collisions: 10.00% (1 posts)
+
+Cryptographic hash functions & collisions: 3.22% (10 posts)
+  - Cryptographic hash function properties (input/output, bit-length, preimage): 60.00% (6 posts)
+  - Hash collisions in practice (files/strings, uniqueness): 20.00% (2 posts)
+  - Hashing vs encryption (reversibility and keys): 20.00% (2 posts)
+
+Key sizes and security parameters selection: 2.89% (9 posts)
+  - Key size, bit security level, and block/round parameters: 88.89% (8 posts)
+  - Key generation and encryption in application code (passwords, hashing, randomness): 11.11% (1 posts)
+
+Key protection on devices (memory/disk access, threat model): 2.89% (9 posts)
+  - Key storage in device memory (software vs hardware): 55.56% (5 posts)
+  - Threat model & access control for encrypted data: 22.22% (2 posts)
+  - File/disk encryption with passwords (containers, boot, backups): 22.22% (2 posts)
+
+Application data encryption & key storage: 2.57% (8 posts)
+  - Encryption/Decryption Code for Files and Strings: 75.00% (6 posts)
+  - Secure Key and Password Storage for Application Data: 25.00% (2 posts)
+
+Cryptosystem design pitfalls & attack resistance: 2.25% (7 posts)
+  - Designing crypto algorithms (and why they get broken): 71.43% (5 posts)
+  - Protocol/implementation attack surface & standards: 28.57% (2 posts)
+
+Trust, vendors, and real-world security risk: 1.93% (6 posts)
+  - Government backdoors, lawful access, and privacy debate: 33.33% (2 posts)
+  - Trust, proof, and digital signatures for claims: 16.67% (1 posts)
+  - Payment and credit card data handling security: 16.67% (1 posts)
+  - Security cost, lifecycle, and platform/vendor support decisions: 16.67% (1 posts)
+  - Securing mobile/connected devices and data-in-transit: 16.67% (1 posts)
+
+Conceptual crypto explanations and learning: 0.64% (2 posts)
+  - Where to start learning crypto (topics and references): 50.00% (1 posts)
+  - Publishing venues and research quality (papers/conferences): 50.00% (1 posts)
+
+
+================================================================================
+SUMMARY
+================================================================================
+Total posts: 311
+Total topics: 21
+Total unique subtopics: 80

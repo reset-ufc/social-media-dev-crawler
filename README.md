@@ -4,6 +4,8 @@
 
 A comprehensive project for extracting, processing, and analyzing posts from Q&A platforms (e.g., Stack Exchange). The pipeline extracts raw data, filters and preprocesses relevant posts, and then applies Latent Dirichlet Allocation (LDA) topic modeling to identify predominant themes in discussions.
 
+**You can see check the full results in research_question_results and notebooks folder.**  
+
 The main workflow consists of two stages:
 
 - **Data Mining (`s1_dump_mining`)**: Extraction and cleaning of raw dumps
